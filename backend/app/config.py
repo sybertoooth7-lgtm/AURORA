@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     SENTINEL_STATS_URL: str = "https://sh.dataspace.copernicus.eu/api/v1/statistics"
     SENTINEL_LOOKBACK_DAYS: int = 30
 
+    # Job queue (RQ) -- analysis runs execute in a separate worker process
+    # (see worker.py) instead of FastAPI BackgroundTasks, so they survive an
+    # API restart and don't share the API process's memory/CPU.
+    REDIS_URL: str = "redis://localhost:6379/0"
+    ANALYSIS_JOB_TIMEOUT_SECONDS: int = 180
+
     # Environment
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
