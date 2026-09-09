@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 
+from app.config import get_settings
+
 
 @dataclass(frozen=True)
 class SatelliteObservation:
@@ -43,5 +45,22 @@ class DemoSatelliteProvider(SatelliteProvider):
 
 
 def get_satellite_provider() -> SatelliteProvider:
-    """Return the configured provider boundary for the current deployment."""
+    """Return the configured provider boundary for the current deployment.
+
+    Uses the real Copernicus Data Space Ecosystem (Sentinel Hub) provider
+    when SENTINEL_CLIENT_ID / SENTINEL_CLIENT_SECRET are configured, and
+    falls back to the deterministic demo provider otherwise (local dev,
+    tests, or before credentials are provisioned).
+    """
+    settings = get_settings()
+    if settings.SENTINEL_CLIENT_ID and settings.SENTINEL_CLIENT_SECRET:
+        from app.satellite.sentinel_hub import SentinelHubProvider
+
+        return SentinelHubProvider(
+            client_id=settings.SENTINEL_CLIENT_ID,
+            client_secret=settings.SENTINEL_CLIENT_SECRET,
+            token_url=settings.SENTINEL_TOKEN_URL,
+            stats_url=settings.SENTINEL_STATS_URL,
+            lookback_days=settings.SENTINEL_LOOKBACK_DAYS,
+        )
     return DemoSatelliteProvider()
