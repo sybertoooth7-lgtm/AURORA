@@ -16,7 +16,7 @@ AURORA is a comprehensive backend system for:
 - **Framework**: FastAPI (Python 3.11+)
 - **Database**: PostgreSQL + PostGIS (geospatial)
 - **Cache**: Redis
-- **AI/ML**: PyTorch, Transformers, OpenCV
+- **Satellite data**: Copernicus Data Space Ecosystem (Sentinel Hub Statistical API) for real Sentinel-2 NDVI, with a deterministic demo provider as fallback
 - **Containerization**: Docker & Docker Compose
 - **API Format**: RESTful JSON
 
@@ -41,8 +41,9 @@ backend/
 │   │   ├── health.py
 │   │   ├── analysis.py
 │   │   └── satellite.py
-│   └── ai/                    # ML/AI modules
-│       └── computer_vision.py
+│   └── satellite/             # Satellite data providers
+│       ├── providers.py       # Provider interface + demo provider + factory
+│       └── sentinel_hub.py    # Real Copernicus Data Space Ecosystem (Sentinel Hub) provider
 ├── main.py                    # FastAPI application
 ├── requirements.txt           # Python dependencies
 ├── Dockerfile                 # Container configuration
@@ -130,15 +131,15 @@ Results and findings from analysis
 ### Alert
 Significant findings requiring user attention
 
-## 🤖 AI/ML Features
+## 🛰️ Satellite Data Pipeline
 
-### Computer Vision Pipeline
-- Vegetation stress detection (NDVI)
-- Land change detection
-- Infrastructure monitoring
-- Geospatial feature extraction
+### Current
+- Real Sentinel-2 L2A NDVI via the Copernicus Data Space Ecosystem's free Statistical API (server-side cloud masking + area-mean NDVI, no raster processing needed locally)
+- Change score computed by comparing the latest reading to the trailing baseline for the same area
+- Falls back to a deterministic demo provider when `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` aren't set, so local dev and tests don't need real credentials
 
 ### Future Capabilities
+- Land change detection from imagery (not just NDVI stats)
 - Autonomous robotic control
 - Mission planning algorithms
 - Predictive analytics
@@ -155,11 +156,12 @@ Significant findings requiring user attention
 ## 📊 Development
 
 The dependency manifest is `requirements.txt`. The API stores a geospatial area
-of interest, queues execution with FastAPI background tasks, and uses a
-deterministic demo satellite provider. Replace
-`app.satellite.providers.DemoSatelliteProvider` with a Sentinel or Landsat
-adapter when provider credentials and request semantics are available. The
-current rate limiter is process-local; use Redis for multi-instance deployment.
+of interest, queues execution with FastAPI background tasks, and fetches an
+observation through `app.satellite.providers.get_satellite_provider()`, which
+returns the real `SentinelHubProvider` (Copernicus Data Space Ecosystem) when
+`SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` are set in the environment, or the
+deterministic `DemoSatelliteProvider` otherwise. The current rate limiter is
+process-local; use Redis for multi-instance deployment.
 
 ### Running Tests
 ```bash
