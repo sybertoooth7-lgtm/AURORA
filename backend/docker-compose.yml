@@ -38,7 +38,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://aurora_user:aurora_password@postgres:5432/aurora_db
+      DATABASE_URL: postgresql+psycopg://aurora_user:aurora_password@postgres:5432/aurora_db
       ENVIRONMENT: development
       DEBUG: "True"
     volumes:
