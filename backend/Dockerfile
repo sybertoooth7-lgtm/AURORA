@@ -19,5 +19,7 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Run application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Apply pending Alembic migrations, then start the API. Migrations run once
+# here rather than in app startup code so multiple API replicas don't race
+# each other applying schema changes.
+CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"]
