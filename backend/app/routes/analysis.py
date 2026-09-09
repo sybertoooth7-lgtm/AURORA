@@ -1,8 +1,10 @@
 """Analysis endpoints"""
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from app.config import get_settings
 from app.database import get_db
+from app.queue import get_analysis_queue
 from app.schemas.analysis import (
     AnalysisCreate,
     AnalysisResponse,
@@ -22,7 +24,6 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
 @router.post("/", response_model=AnalysisResponse)
 async def create_analysis(
     analysis: AnalysisCreate,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -53,7 +54,11 @@ async def create_analysis(
     db.add(db_analysis)
     db.commit()
     db.refresh(db_analysis)
-    background_tasks.add_task(run_analysis, db_analysis.id)
+    get_analysis_queue().enqueue(
+        run_analysis,
+        db_analysis.id,
+        job_timeout=get_settings().ANALYSIS_JOB_TIMEOUT_SECONDS,
+    )
     return db_analysis
 
 
