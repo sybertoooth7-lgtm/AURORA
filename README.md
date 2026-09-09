@@ -161,7 +161,7 @@ curl http://localhost:8000/health/
 - **Backend**: FastAPI, Python 3.11+
 - **Database**: PostgreSQL + PostGIS
 - **Cache**: Redis
-- **AI/ML**: PyTorch, Transformers, OpenCV
+- **Satellite Data**: Copernicus Data Space Ecosystem (Sentinel Hub Statistical API), real Sentinel-2 NDVI
 - **Frontend**: React/Next.js (Coming soon)
 - **Robotics**: ROS 2 (Coming soon)
 - **Containerization**: Docker, Kubernetes
