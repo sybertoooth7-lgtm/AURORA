@@ -1,11 +1,20 @@
 """Analysis endpoints"""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.schemas.analysis import AnalysisCreate, AnalysisResponse
-from app.models.analysis import Analysis
+from app.schemas.analysis import (
+    AnalysisCreate,
+    AnalysisResponse,
+    AnalysisResultListResponse,
+)
+from app.models.analysis import Analysis, AnalysisResult
+from app.models.user import User
+from app.security import get_current_user
+from app.services.analysis_runner import run_analysis
+from geoalchemy2.elements import WKTElement
 from typing import List
+import math
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
@@ -13,29 +22,51 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
 @router.post("/", response_model=AnalysisResponse)
 async def create_analysis(
     analysis: AnalysisCreate,
-    db: Session = Depends(get_db)
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new analysis"""
-    # TODO: Implement full analysis creation with geospatial polygon
+    # Approximate the requested search area as a geodesic polygon. The stored
+    # geometry gives downstream imagery providers a concrete area of interest.
+    latitude_delta = analysis.radius_km / 111.32
+    longitude_delta = analysis.radius_km / (111.32 * max(math.cos(math.radians(analysis.latitude)), 0.01))
+    points = [
+        (analysis.longitude - longitude_delta, analysis.latitude - latitude_delta),
+        (analysis.longitude + longitude_delta, analysis.latitude - latitude_delta),
+        (analysis.longitude + longitude_delta, analysis.latitude + latitude_delta),
+        (analysis.longitude - longitude_delta, analysis.latitude + latitude_delta),
+        (analysis.longitude - longitude_delta, analysis.latitude - latitude_delta),
+    ]
+    polygon = ", ".join(f"{longitude} {latitude}" for longitude, latitude in points)
+
     db_analysis = Analysis(
-        user_id=1,  # TODO: Get from auth
+        user_id=current_user.id,
         analysis_type=analysis.analysis_type,
+        geometry=WKTElement(f"POLYGON(({polygon}))", srid=4326),
+        latitude=analysis.latitude,
+        longitude=analysis.longitude,
+        radius_km=analysis.radius_km,
         status="pending",
         description=analysis.description
     )
     db.add(db_analysis)
     db.commit()
     db.refresh(db_analysis)
+    background_tasks.add_task(run_analysis, db_analysis.id)
     return db_analysis
 
 
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
 async def get_analysis(
     analysis_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get analysis by ID"""
-    analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+    analysis = db.query(Analysis).filter(
+        Analysis.id == analysis_id, Analysis.user_id == current_user.id
+    ).first()
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
     return analysis
@@ -45,8 +76,28 @@ async def get_analysis(
 async def list_analyses(
     db: Session = Depends(get_db),
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
 ):
     """List analyses"""
-    analyses = db.query(Analysis).offset(skip).limit(limit).all()
+    analyses = db.query(Analysis).filter(Analysis.user_id == current_user.id).offset(skip).limit(limit).all()
     return analyses
+
+
+@router.get("/{analysis_id}/results", response_model=AnalysisResultListResponse)
+async def get_analysis_results(
+    analysis_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return findings produced for an analysis."""
+    analysis = db.query(Analysis).filter(
+        Analysis.id == analysis_id, Analysis.user_id == current_user.id
+    ).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    results = db.query(AnalysisResult).filter(
+        AnalysisResult.analysis_id == analysis_id
+    ).all()
+    return {"results": results}

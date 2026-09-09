@@ -24,3 +24,14 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TokenRequest(BaseModel):
+    """Credentials accepted by the JSON token endpoint."""
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

@@ -18,7 +18,7 @@ class SatelliteImage(Base):
     cloud_coverage = Column(Float, nullable=True)
     resolution_m = Column(Float, nullable=True)
     url = Column(String, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string
+    metadata_json = Column("metadata", Text, nullable=True)  # JSON string
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self):

@@ -99,7 +99,15 @@ uvicorn main:app --reload
 ### Analysis
 - `POST /analysis/` - Create new analysis
 - `GET /analysis/{analysis_id}` - Get analysis details
+- `GET /analysis/{analysis_id}/results` - Get analysis findings
 - `GET /analysis/` - List analyses
+
+### Authentication and operations
+- `POST /auth/register` - Create an account
+- `POST /auth/token` - Exchange credentials for a JWT
+- `GET /alerts` - List the current user's alerts
+- `POST /alerts/{alert_id}/acknowledge` - Acknowledge an alert
+- `GET /reports/{analysis_id}?format=json|csv` - Export an analysis report
 
 ### Satellite
 - `GET /satellite/images` - List satellite images
@@ -136,15 +144,22 @@ Significant findings requiring user attention
 - Predictive analytics
 - Distributed AI for orbital systems
 
-## 🔐 Security (TODO)
+## 🔐 Security (Remaining)
 
-- JWT authentication
+- JWT authentication and current-user scoping
 - API key management
 - Role-based access control
 - Data encryption
 - Rate limiting
 
 ## 📊 Development
+
+The dependency manifest is `requirements.txt`. The API stores a geospatial area
+of interest, queues execution with FastAPI background tasks, and uses a
+deterministic demo satellite provider. Replace
+`app.satellite.providers.DemoSatelliteProvider` with a Sentinel or Landsat
+adapter when provider credentials and request semantics are available. The
+current rate limiter is process-local; use Redis for multi-instance deployment.
 
 ### Running Tests
 ```bash

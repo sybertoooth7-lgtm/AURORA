@@ -17,13 +17,17 @@ http://localhost:8000
 http://api.aurora-space.com (production)
 ```
 
-## Authentication (TODO)
+## Authentication
 
 Endpoints requiring authentication use JWT tokens:
 
 ```
 Authorization: Bearer <token>
 ```
+
+Register with `POST /auth/register`, then exchange the username and password at
+`POST /auth/token` to receive a bearer token. Analysis, alert, and report
+endpoints are scoped to the authenticated user.
 
 ## Endpoints
 
@@ -132,6 +136,34 @@ GET /analysis/?skip=0&limit=100
   }
 ]
 ```
+
+#### Get Analysis Results
+
+```http
+GET /analysis/{analysis_id}/results
+```
+
+**Response (200):**
+
+```json
+{
+  "results": [
+    {
+      "id": 1,
+      "severity_score": 0.42,
+      "confidence": 0.85,
+      "finding": "Vegetation stress detected in the analysis area",
+      "metadata_json": "{\"source\":\"sentinel-2\"}",
+      "created_at": "2026-09-09T12:05:30Z"
+    }
+  ]
+}
+```
+
+The analysis request stores the requested latitude, longitude, and radius as a
+PostGIS polygon. Creating an analysis queues a background task. The default
+local provider is deterministic demo data; production deployments should
+replace it with a live Sentinel or Landsat adapter.
 
 ### Satellite
 

@@ -4,11 +4,15 @@ Multi-planetary space technology company
 AI + Robotics + Space infrastructure
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from collections import defaultdict, deque
+import time
 from app.config import get_settings
 from app.database import engine, Base
+from app import models  # noqa: F401 - register all ORM tables before create_all
 from app import routes
 
 settings = get_settings()
@@ -37,10 +41,27 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+rate_limit_state = defaultdict(deque)
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    """Apply a small process-local limit until Redis-backed limiting is added."""
+    now = time.monotonic()
+    key = request.client.host if request.client else "unknown"
+    bucket = rate_limit_state[key]
+    cutoff = now - settings.RATE_LIMIT_WINDOW_SECONDS
+    while bucket and bucket[0] <= cutoff:
+        bucket.popleft()
+    if len(bucket) >= settings.RATE_LIMIT_REQUESTS:
+        return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
+    bucket.append(now)
+    return await call_next(request)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Restrict in production
+    allow_origins=[origin.strip() for origin in settings.CORS_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,6 +71,9 @@ app.add_middleware(
 app.include_router(routes.health_router)
 app.include_router(routes.analysis_router)
 app.include_router(routes.satellite_router)
+app.include_router(routes.auth_router)
+app.include_router(routes.alerts_router)
+app.include_router(routes.reports_router)
 
 
 @app.get("/")

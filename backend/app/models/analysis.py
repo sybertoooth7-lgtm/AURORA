@@ -25,6 +25,9 @@ class Analysis(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     analysis_type = Column(SQLEnum(AnalysisType), nullable=False)
     geometry = Column(Geometry('POLYGON', srid=4326), nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    radius_km = Column(Float, nullable=False)
     status = Column(String, default="pending")  # pending, processing, completed, failed
     description = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -45,7 +48,7 @@ class AnalysisResult(Base):
     severity_score = Column(Float, nullable=True)  # 0-1
     confidence = Column(Float, nullable=True)  # 0-1
     finding = Column(Text, nullable=False)
-    metadata = Column(Text, nullable=True)  # JSON string
+    metadata_json = Column("metadata", Text, nullable=True)  # JSON string
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     analysis = relationship("Analysis", back_populates="results")
 
