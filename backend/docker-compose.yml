@@ -34,11 +34,14 @@ services:
   api:
     build: .
     container_name: aurora_api
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    # command: overrides the Dockerfile CMD, so it needs its own
+    # "migrate, then serve" step too.
+    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+psycopg://aurora_user:aurora_password@postgres:5432/aurora_db
+      REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: development
       DEBUG: "True"
     volumes:
@@ -53,6 +56,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  worker:
+    build: .
+    container_name: aurora_worker
+    command: python worker.py
+    environment:
+      DATABASE_URL: postgresql+psycopg://aurora_user:aurora_password@postgres:5432/aurora_db
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: development
+      DEBUG: "True"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
 
 volumes:
   postgres_data:
