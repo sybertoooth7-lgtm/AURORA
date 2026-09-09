@@ -11,8 +11,6 @@ from contextlib import asynccontextmanager
 from collections import defaultdict, deque
 import time
 from app.config import get_settings
-from app.database import engine, Base
-from app import models  # noqa: F401 - register all ORM tables before create_all
 from app import routes
 
 settings = get_settings()
@@ -23,12 +21,15 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
     # Startup
+    # Schema is owned by Alembic now (see alembic/ and README) -- run
+    # `alembic upgrade head` before starting the app (the Dockerfile does
+    # this automatically). We deliberately don't run migrations here: with
+    # multiple API replicas, every instance hitting create_all/upgrade on
+    # startup races the others.
     print("🚀 AURORA Backend starting...")
-    Base.metadata.create_all(bind=engine)
-    print("✅ Database initialized")
-    
+
     yield
-    
+
     # Shutdown
     print("🛑 AURORA Backend shutting down...")
 
