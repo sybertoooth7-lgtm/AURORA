@@ -12,7 +12,10 @@ class Settings(BaseSettings):
     """Application configuration from environment variables"""
 
     # Database
-    DATABASE_URL: str = "postgresql://localhost/aurora_db"
+    # NOTE: must include the +psycopg driver suffix — requirements.txt installs
+    # psycopg (v3), and a bare "postgresql://" URL makes SQLAlchemy default to
+    # the psycopg2 dialect, which is not installed and will fail at startup.
+    DATABASE_URL: str = "postgresql+psycopg://localhost/aurora_db"
     SQLALCHEMY_ECHO: bool = False
 
     # API
@@ -28,13 +31,17 @@ class Settings(BaseSettings):
     RATE_LIMIT_REQUESTS: int = 120
     RATE_LIMIT_WINDOW_SECONDS: int = 60
 
-    # AI/ML
-    MODEL_CACHE_DIR: str = "./models"
-    DEVICE: str = "cuda"  # or "cpu"
-
-    # Satellite Data APIs
-    SENTINEL_API_KEY: Optional[str] = None
-    LANDSAT_API_KEY: Optional[str] = None
+    # Satellite Data — Copernicus Data Space Ecosystem (Sentinel Hub)
+    # Free OAuth client credentials from https://shapps.dataspace.copernicus.eu/dashboard/
+    # (User Settings -> OAuth clients). Leave unset to fall back to the
+    # deterministic demo provider used for local dev and tests.
+    SENTINEL_CLIENT_ID: Optional[str] = None
+    SENTINEL_CLIENT_SECRET: Optional[str] = None
+    SENTINEL_TOKEN_URL: str = (
+        "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
+    )
+    SENTINEL_STATS_URL: str = "https://sh.dataspace.copernicus.eu/api/v1/statistics"
+    SENTINEL_LOOKBACK_DAYS: int = 30
 
     # Environment
     ENVIRONMENT: str = "development"
