@@ -44,7 +44,11 @@ backend/
 │   └── satellite/             # Satellite data providers
 │       ├── providers.py       # Provider interface + demo provider + factory
 │       └── sentinel_hub.py    # Real Copernicus Data Space Ecosystem (Sentinel Hub) provider
+├── alembic/                    # Database migrations (schema is owned here, not by create_all)
+│   ├── env.py
+│   └── versions/
 ├── main.py                    # FastAPI application
+├── worker.py                   # RQ worker entrypoint -- runs analysis jobs
 ├── requirements.txt           # Python dependencies
 ├── Dockerfile                 # Container configuration
 ├── docker-compose.yml         # Local development environment
@@ -64,7 +68,9 @@ cd AURORA/backend
 # Create .env file
 cp .env.example .env
 
-# Start services
+# Start services (postgres, redis, api, worker).
+# The api and worker containers each run `alembic upgrade head` on
+# startup before serving traffic / picking up jobs.
 docker-compose up -d
 
 # Check health
@@ -84,11 +90,31 @@ pip install -r requirements.txt
 # Create .env file
 cp .env.example .env
 
-# Setup database (requires PostgreSQL with PostGIS)
-# Update DATABASE_URL in .env
+# Setup database (requires PostgreSQL with PostGIS) and Redis
+# Update DATABASE_URL / REDIS_URL in .env if not using the defaults
 
-# Run server
+# Apply database migrations
+alembic upgrade head
+
+# Run the API
 uvicorn main:app --reload
+
+# In a separate terminal, run the worker (required -- analysis jobs are
+# processed here, not inline in the API request)
+python worker.py
+```
+
+### Database migrations
+
+Schema changes go through Alembic, not `Base.metadata.create_all()`. After
+changing a model in `app/models/`:
+
+```bash
+alembic revision --autogenerate -m "describe the change"
+# review the generated file in alembic/versions/ -- autogenerate gets most
+# of it right but always check it, especially anything touching a
+# geoalchemy2 Geometry column or a Postgres Enum
+alembic upgrade head
 ```
 
 ## 📚 API Endpoints
@@ -156,12 +182,16 @@ Significant findings requiring user attention
 ## 📊 Development
 
 The dependency manifest is `requirements.txt`. The API stores a geospatial area
-of interest, queues execution with FastAPI background tasks, and fetches an
-observation through `app.satellite.providers.get_satellite_provider()`, which
-returns the real `SentinelHubProvider` (Copernicus Data Space Ecosystem) when
-`SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` are set in the environment, or the
-deterministic `DemoSatelliteProvider` otherwise. The current rate limiter is
-process-local; use Redis for multi-instance deployment.
+of interest and enqueues execution onto an RQ queue backed by Redis
+(`app.queue`); `worker.py` is a separate process that pulls jobs off that
+queue and runs `app.services.analysis_runner.run_analysis`, which fetches an
+observation through `app.satellite.providers.get_satellite_provider()` --
+the real `SentinelHubProvider` (Copernicus Data Space Ecosystem) when
+`SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` are set, or the deterministic
+`DemoSatelliteProvider` otherwise. Running the worker is required for
+analyses to ever leave "pending" -- the API process no longer runs them
+in-process. The current rate limiter is process-local; use Redis for
+multi-instance deployment of that too.
 
 ### Running Tests
 ```bash
