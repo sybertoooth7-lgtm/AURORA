@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-from collections import defaultdict, deque
+from collections import OrderedDict, deque
 import time
 from app.config import get_settings
 from app import routes
@@ -42,21 +42,56 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-rate_limit_state = defaultdict(deque)
+rate_limit_state: "OrderedDict[tuple, deque]" = OrderedDict()
+MAX_TRACKED_RATE_LIMIT_KEYS = 50_000
 
 
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
-    """Apply a small process-local limit until Redis-backed limiting is added."""
+    """Apply a small process-local limit until Redis-backed limiting is added.
+
+    Auth endpoints (/auth/token, /auth/register) get their own, much
+    stricter budget than general API traffic -- 120 req/min is reasonable
+    for normal API use but far too generous for a login endpoint. This is
+    still just a per-IP throttle on top of the per-account lockout in
+    app.security; it doesn't replace it.
+    """
     now = time.monotonic()
-    key = request.client.host if request.client else "unknown"
-    bucket = rate_limit_state[key]
-    cutoff = now - settings.RATE_LIMIT_WINDOW_SECONDS
+    is_auth_endpoint = request.url.path in ("/auth/token", "/auth/register")
+    limit = settings.AUTH_RATE_LIMIT_REQUESTS if is_auth_endpoint else settings.RATE_LIMIT_REQUESTS
+    window = (
+        settings.AUTH_RATE_LIMIT_WINDOW_SECONDS if is_auth_endpoint else settings.RATE_LIMIT_WINDOW_SECONDS
+    )
+
+    client_host = request.client.host if request.client else "unknown"
+    key = (client_host, is_auth_endpoint)
+
+    bucket = rate_limit_state.get(key)
+    if bucket is None:
+        bucket = deque()
+
+    cutoff = now - window
     while bucket and bucket[0] <= cutoff:
         bucket.popleft()
-    if len(bucket) >= settings.RATE_LIMIT_REQUESTS:
+
+    if len(bucket) >= limit:
+        rate_limit_state[key] = bucket
+        rate_limit_state.move_to_end(key)
         return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
+
     bucket.append(now)
+    rate_limit_state[key] = bucket
+    rate_limit_state.move_to_end(key)
+
+    # Bound total memory: this is a per-process in-memory limiter, so
+    # without a cap it accumulates one entry per distinct client IP it has
+    # ever seen, forever. Evicting the least-recently-active client keeps
+    # this bounded regardless of traffic volume; an evicted client just
+    # gets a fresh bucket on its next request, which is a fine trade-off
+    # for a stopgap limiter.
+    while len(rate_limit_state) > MAX_TRACKED_RATE_LIMIT_KEYS:
+        rate_limit_state.popitem(last=False)
+
     return await call_next(request)
 
 # CORS middleware
