@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import secrets
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -14,8 +14,20 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.models.user import User
+from app.queue import get_redis
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+
+# A password hash of *something* (not a real password, just a fixed
+# constant) that verify_password can always run against when no user was
+# found. Without this, a login request for a nonexistent username returns
+# faster than one for a real username with a wrong password -- an easy way
+# to enumerate valid usernames from response timing alone. Comparing
+# against a constant-shape hash costs the same PBKDF2 work either way.
+_DUMMY_HASH = (
+    "pbkdf2_sha256$120000$0000000000000000000000000000000000$"
+    "0000000000000000000000000000000000000000000000000000000000000000"
+)
 
 
 def hash_password(password: str) -> str:
@@ -41,16 +53,98 @@ def verify_password(password: str, encoded: str) -> bool:
         return False
 
 
+def verify_password_or_dummy(password: str, encoded: Optional[str]) -> bool:
+    """Like verify_password, but always does real PBKDF2 work even when
+    `encoded` is None (i.e. the username wasn't found), so a login attempt
+    against a nonexistent account takes the same time as a wrong password
+    against a real one."""
+    return verify_password(password, encoded or _DUMMY_HASH)
+
+
+# --- Login lockout (per-account, Redis-backed) -----------------------------
+#
+# The general API rate limiter is per-IP and far too loose to stop
+# brute-forcing a single account (it's easy to spray guesses at one
+# username from many source IPs). This tracks failed attempts per
+# *username* instead, so distributing the attempts doesn't help.
+
+def _lockout_key(username: str) -> str:
+    return f"auth:lockout:{username.lower()}"
+
+
+def _attempts_key(username: str) -> str:
+    return f"auth:attempts:{username.lower()}"
+
+
+def is_locked_out(username: str) -> bool:
+    return bool(get_redis().exists(_lockout_key(username)))
+
+
+def record_failed_login(username: str) -> None:
+    settings = get_settings()
+    redis = get_redis()
+    key = _attempts_key(username)
+    attempts = redis.incr(key)
+    if attempts == 1:
+        redis.expire(key, settings.LOGIN_LOCKOUT_SECONDS)
+    if attempts >= settings.LOGIN_MAX_ATTEMPTS:
+        redis.set(_lockout_key(username), "1", ex=settings.LOGIN_LOCKOUT_SECONDS)
+
+
+def clear_failed_logins(username: str) -> None:
+    redis = get_redis()
+    redis.delete(_attempts_key(username), _lockout_key(username))
+
+
+# --- Tokens ------------------------------------------------------------
+
 def create_access_token(user: User) -> str:
     settings = get_settings()
     expires = datetime.now(timezone.utc) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
     return jwt.encode(
-        {"sub": str(user.id), "username": user.username, "exp": expires},
+        {
+            "sub": str(user.id),
+            "username": user.username,
+            "exp": expires,
+            "jti": secrets.token_hex(16),
+        },
         settings.SECRET_KEY,
         algorithm=settings.ALGORITHM,
     )
+
+
+def _decode_token(token: str) -> Dict[str, Any]:
+    settings = get_settings()
+    credentials_error = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired access token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload: Dict[str, Any] = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+    except jwt.PyJWTError:
+        raise credentials_error
+    return payload
+
+
+def revoke_token(token: str) -> None:
+    """Blocklist a token's jti in Redis until it would have expired anyway.
+
+    Access tokens are short-lived (30 min by default), so the blocklist
+    entry is cheap and self-cleans -- no unbounded growth.
+    """
+    payload = _decode_token(token)
+    jti = payload.get("jti")
+    exp = payload.get("exp")
+    if not jti or not exp:
+        return
+    ttl = int(exp - datetime.now(timezone.utc).timestamp())
+    if ttl > 0:
+        get_redis().set(f"auth:revoked:{jti}", "1", ex=ttl)
 
 
 def get_current_user(
@@ -62,12 +156,14 @@ def get_current_user(
         detail="Invalid or expired access token",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    payload = _decode_token(token)
     try:
-        payload: Dict[str, Any] = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
         user_id = int(payload["sub"])
-    except (jwt.PyJWTError, KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError):
+        raise credentials_error
+
+    jti = payload.get("jti")
+    if jti and get_redis().exists(f"auth:revoked:{jti}"):
         raise credentials_error
 
     user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
