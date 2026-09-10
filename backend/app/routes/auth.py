@@ -10,6 +10,7 @@ from app.schemas.user import TokenRequest, TokenResponse, UserCreate, UserRespon
 from app.security import (
     _DUMMY_PASSWORD_HASH,
     create_access_token,
+    get_current_user,
     hash_password,
     verify_password,
 )
@@ -19,10 +20,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    if db.query(User).filter((User.email == user.email) | (User.username == user.username)).first():
+    email = str(user.email).casefold()
+    if db.query(User).filter(
+        (User.email == email) | (User.username == user.username)
+    ).first():
         raise HTTPException(status_code=409, detail="Email or username already registered")
     db_user = User(
-        email=str(user.email).casefold(),
+        email=email,
         username=user.username,
         full_name=user.full_name,
         hashed_password=hash_password(user.password),
@@ -50,3 +54,11 @@ def token(credentials: TokenRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     return TokenResponse(access_token=create_access_token(user))
+
+
+@router.get("/me", response_model=UserResponse)
+def current_user_profile(
+    current_user: User = Depends(get_current_user),
+):
+    """Return the authenticated user's profile from the database."""
+    return current_user

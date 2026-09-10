@@ -8,10 +8,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-from collections import defaultdict, deque
-import time
+from redis.exceptions import RedisError
 from app.config import get_settings
 from app import routes
+from app.rate_limit import record_request
 
 settings = get_settings()
 
@@ -42,22 +42,29 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-rate_limit_state = defaultdict(deque)
-
-
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
-    """Apply a small process-local limit until Redis-backed limiting is added."""
-    now = time.monotonic()
-    key = request.client.host if request.client else "unknown"
-    bucket = rate_limit_state[key]
-    cutoff = now - settings.RATE_LIMIT_WINDOW_SECONDS
-    while bucket and bucket[0] <= cutoff:
-        bucket.popleft()
-    if len(bucket) >= settings.RATE_LIMIT_REQUESTS:
-        return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
-    bucket.append(now)
-    return await call_next(request)
+    """Apply one shared atomic limit across all API instances."""
+    client_key = request.client.host if request.client else "unknown"
+    try:
+        request_count, retry_after = await record_request(client_key)
+    except RedisError:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Rate limiter unavailable"},
+        )
+    if request_count > settings.RATE_LIMIT_REQUESTS:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Rate limit exceeded"},
+            headers={"Retry-After": str(retry_after)},
+        )
+    response = await call_next(request)
+    response.headers["X-RateLimit-Limit"] = str(settings.RATE_LIMIT_REQUESTS)
+    response.headers["X-RateLimit-Remaining"] = str(
+        max(settings.RATE_LIMIT_REQUESTS - request_count, 0)
+    )
+    return response
 
 # CORS middleware
 app.add_middleware(

@@ -29,6 +29,16 @@ Register with `POST /auth/register`, then exchange the username and password at
 `POST /auth/token` to receive a bearer token. Analysis, alert, and report
 endpoints are scoped to the authenticated user.
 
+#### Current User
+
+```http
+GET /auth/me
+Authorization: Bearer <access-token>
+```
+
+Returns the authenticated user's profile from the database. Clients should use
+this endpoint instead of decoding JWT claims to build a profile.
+
 ## Endpoints
 
 ### Health
@@ -249,11 +259,12 @@ GET /satellite/sources
 - `completed` - Analysis completed successfully
 - `failed` - Analysis failed
 
-## Rate Limiting (TODO)
+## Rate Limiting
 
-API endpoints are rate-limited:
-- Free tier: 100 requests/hour
-- Premium tier: 1000 requests/hour
+API requests are limited per client IP using an atomic Redis counter shared by
+all API instances. The current default is 120 requests per 60-second window.
+The response includes `X-RateLimit-Limit` and `X-RateLimit-Remaining`; requests
+over the limit receive `429` with a `Retry-After` header.
 
 ## Pagination
 

@@ -149,9 +149,9 @@
   GET /sources             # Available data sources
   GET /images/{id}         # Get specific image
 
-/users (Future)
+/auth
   POST /register           # User registration
-  POST /login              # User login
+  POST /token              # Access-token generation
   GET /me                  # Current user profile
 
 /robotics (Future)
@@ -165,14 +165,12 @@
   GET /missions/{id}       # Mission details
 ```
 
-### Authentication (TODO)
+### Authentication
 
 ```
 User Login
    ↓
 JWT Token Generation
-   ↓
-Refresh Token Storage (Redis)
    ↓
 Request with Authorization Header
    ↓

@@ -173,11 +173,11 @@ Significant findings requiring user attention
 
 ## 🔐 Security (Remaining)
 
-- JWT authentication and current-user scoping
+- JWT authentication, database-backed `/auth/me`, and current-user scoping
 - API key management
 - Role-based access control
 - Data encryption
-- Rate limiting
+- Redis-backed rate limiting
 
 ## 📊 Development
 
@@ -190,8 +190,8 @@ the real `SentinelHubProvider` (Copernicus Data Space Ecosystem) when
 `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` are set, or the deterministic
 `DemoSatelliteProvider` otherwise. Running the worker is required for
 analyses to ever leave "pending" -- the API process no longer runs them
-in-process. The current rate limiter is process-local; use Redis for
-multi-instance deployment of that too.
+in-process. The API rate limiter uses the same Redis deployment, so limits are
+shared across multiple API instances.
 
 ### Running Tests
 ```bash
