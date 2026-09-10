@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+/*
+  AURORA design tokens.
+
+  This is a field-survey / instrument-panel aesthetic, not a generic SaaS
+  theme: the base is cool paper (not the cream+terracotta combo), and the
+  only saturated colors on the page are the ones that mean something --
+  the NDVI health scale. Numbers, coordinates and timestamps are always
+  set in the mono face so they read like instrument output and line up
+  in a column.
+*/
+@theme {
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-paper: #E9EDE6;
+  --color-paper-raised: #F3F5F0;
+  --color-ink: #14231F;
+  --color-ink-soft: #4B5A54;
+  --color-border: #C9C2AE;
+
+  --color-orbit: #2B3A67;
+  --color-orbit-soft: #556099;
+
+  --color-healthy: #4F7942;
+  --color-healthy-soft: #DCE7D6;
+  --color-stress: #B5502E;
+  --color-stress-soft: #F1DCCF;
+  --color-critical: #8C2F1B;
+  --color-critical-soft: #EFD0C6;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+.font-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
