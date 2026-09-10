@@ -171,13 +171,22 @@ Significant findings requiring user attention
 - Predictive analytics
 - Distributed AI for orbital systems
 
-## 🔐 Security (Remaining)
+## 🔐 Security
 
-- JWT authentication and current-user scoping
-- API key management
-- Role-based access control
-- Data encryption
-- Rate limiting
+Implemented:
+- Password hashing: PBKDF2-HMAC-SHA256, 120,000 rounds, per-user salt, constant-time comparison
+- Password/username length limits enforced server-side (not just in the frontend)
+- Login is timing-safe against username enumeration -- a nonexistent username does the same PBKDF2 work as a wrong password against a real one
+- Per-account login lockout (5 failed attempts -> 15 min lock, Redis-backed, keyed by username so it can't be bypassed by spraying attempts from many IPs)
+- JWT access tokens carry a `jti`; `/auth/logout` revokes the current token immediately via a Redis blocklist rather than waiting for natural expiry
+- Two-tier rate limiting: a stricter per-IP budget on `/auth/token` and `/auth/register` than on general API traffic
+- The app refuses to start with `ENVIRONMENT` set to anything other than `development` unless `SECRET_KEY` has been changed from the placeholder and is at least 32 characters
+
+Still remaining:
+- API key management (for machine-to-machine / integration use, not just user login)
+- Role-based access control (there's an `is_admin` column on `User`, currently unused by any route)
+- Rate limiting is still per-process/in-memory -- fine for one instance, needs to move to Redis before running multiple API replicas
+- No password reset / email verification flow
 
 ## 📊 Development
 
