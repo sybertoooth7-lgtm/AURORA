@@ -3,9 +3,12 @@ AURORA Configuration Management
 Handles environment variables and application settings
 """
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional
+
+DEFAULT_SECRET_KEY = "your-secret-key-change-in-production"
 
 
 class Settings(BaseSettings):
@@ -25,11 +28,21 @@ class Settings(BaseSettings):
     API_WORKERS: int = 4
 
     # Security
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    SECRET_KEY: str = DEFAULT_SECRET_KEY
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     RATE_LIMIT_REQUESTS: int = 120
     RATE_LIMIT_WINDOW_SECONDS: int = 60
+
+    # Auth-specific hardening. /auth/token and /auth/register get their own
+    # (much stricter) rate limit than general API traffic, and repeated
+    # failed logins lock the *account* out for a while regardless of which
+    # IP the attempts came from -- a purely per-IP limit doesn't stop
+    # someone spraying guesses at one account from many source addresses.
+    AUTH_RATE_LIMIT_REQUESTS: int = 10
+    AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    LOGIN_MAX_ATTEMPTS: int = 5
+    LOGIN_LOCKOUT_SECONDS: int = 900  # 15 minutes
 
     # Satellite Data — Copernicus Data Space Ecosystem (Sentinel Hub)
     # Free OAuth client credentials from https://shapps.dataspace.copernicus.eu/dashboard/
@@ -45,7 +58,8 @@ class Settings(BaseSettings):
 
     # Job queue (RQ) -- analysis runs execute in a separate worker process
     # (see worker.py) instead of FastAPI BackgroundTasks, so they survive an
-    # API restart and don't share the API process's memory/CPU.
+    # API restart and don't share the API process's memory/CPU. Also used
+    # for the login-lockout counters and the logout token blocklist below.
     REDIS_URL: str = "redis://localhost:6379/0"
     ANALYSIS_JOB_TIMEOUT_SECONDS: int = 180
 
@@ -58,6 +72,28 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+
+    @model_validator(mode="after")
+    def _reject_insecure_secret_in_production(self) -> "Settings":
+        """Fail fast rather than silently forge-able: if this ever runs
+        with ENVIRONMENT != development and nobody set a real SECRET_KEY,
+        every JWT this process issues (or accepts) is trivially forgeable
+        by anyone who has read this file -- which is public, on GitHub."""
+        if self.ENVIRONMENT != "development":
+            if self.SECRET_KEY == DEFAULT_SECRET_KEY:
+                raise ValueError(
+                    "SECRET_KEY is still the placeholder default. Set a real, "
+                    "random SECRET_KEY (e.g. `python -c \"import secrets; "
+                    "print(secrets.token_urlsafe(48))\"`) before running with "
+                    f"ENVIRONMENT={self.ENVIRONMENT!r}."
+                )
+            if len(self.SECRET_KEY) < 32:
+                raise ValueError(
+                    "SECRET_KEY is too short to be a secure signing key "
+                    "(need at least 32 characters) for a non-development "
+                    f"ENVIRONMENT={self.ENVIRONMENT!r}."
+                )
+        return self
 
 
 @lru_cache()
