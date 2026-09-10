@@ -40,10 +40,11 @@ src/
   components/
     Layout.tsx     # sidebar shell (area list + nav) wrapping the authenticated routes
     AreaMap.tsx     # Leaflet map, colors the area circle by its latest NDVI reading
+    LocationPicker.tsx # click/drag-to-place map used on the New Area form; syncs with the typed lat/lon fields
   pages/
     LoginPage.tsx / RegisterPage.tsx
     DashboardPage.tsx   # redirects to the first area, or shows an empty state
-    NewAreaPage.tsx      # form to submit a new area for monitoring
+    NewAreaPage.tsx      # map picker + form to submit a new area for monitoring
     AreaDetailPage.tsx    # map + telemetry strip + alerts + history, polls while pending/processing
 ```
 
@@ -63,4 +64,5 @@ map, the telemetry strip, alerts, and the history table.
 - `/auth/me` doesn't exist on the backend yet, so the session user's display
   name comes from decoding the JWT client-side rather than a profile fetch
 - No password reset / email verification flow
-- Map picker for choosing a location by clicking (currently lat/lon typed in)
+- No address/place search on the map picker (click/drag only -- no
+  geocoding lookup, since that needs a separate API key)
