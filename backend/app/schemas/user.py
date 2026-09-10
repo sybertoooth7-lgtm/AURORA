@@ -1,6 +1,6 @@
 """User schemas"""
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime
 from typing import Optional
 
@@ -8,9 +8,17 @@ from typing import Optional
 class UserCreate(BaseModel):
     """User creation schema"""
     email: EmailStr
-    username: str
-    password: str
-    full_name: Optional[str] = None
+    username: str = Field(min_length=3, max_length=64)
+    password: str = Field(min_length=12, max_length=128)
+    full_name: Optional[str] = Field(default=None, max_length=200)
+
+    @field_validator("username")
+    @classmethod
+    def normalize_username(cls, value: str) -> str:
+        value = value.strip().casefold()
+        if not value:
+            raise ValueError("username must not be blank")
+        return value
 
 
 class UserResponse(BaseModel):
@@ -28,8 +36,13 @@ class UserResponse(BaseModel):
 
 class TokenRequest(BaseModel):
     """Credentials accepted by the JSON token endpoint."""
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def normalize_username(cls, value: str) -> str:
+        return value.strip().casefold()
 
 
 class TokenResponse(BaseModel):

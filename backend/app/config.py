@@ -3,6 +3,7 @@ AURORA Configuration Management
 Handles environment variables and application settings
 """
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional
@@ -54,6 +55,24 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
     CORS_ORIGINS: str = "http://localhost:3000"
+
+    JWT_ISSUER: str = "aurora-api"
+    JWT_AUDIENCE: str = "aurora-client"
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        """Reject the development secret when running in production."""
+        if self.ENVIRONMENT.lower() == "production" and (
+            len(self.SECRET_KEY) < 32
+            or self.SECRET_KEY in {
+                "your-secret-key-change-in-production",
+                "change-me-to-a-long-random-value",
+            }
+        ):
+            raise ValueError(
+                "SECRET_KEY must be at least 32 characters and unique in production"
+            )
+        return self
 
     class Config:
         env_file = ".env"
