@@ -20,6 +20,20 @@ class UserCreate(BaseModel):
             raise ValueError("username must not be blank")
         return value
 
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, value: str) -> str:
+        if (
+            not any(char.islower() for char in value)
+            or not any(char.isupper() for char in value)
+            or not any(char.isdigit() for char in value)
+            or not any(not char.isalnum() for char in value)
+        ):
+            raise ValueError(
+                "password must include lowercase, uppercase, digit, and special character"
+            )
+        return value
+
 
 class UserResponse(BaseModel):
     """User response schema"""

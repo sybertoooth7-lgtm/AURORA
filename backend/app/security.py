@@ -9,11 +9,13 @@ from typing import Any
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from redis.exceptions import RedisError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
 from app.models.user import User
+from app.rate_limit import is_token_revoked
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 _PBKDF2_ITERATIONS = 600_000
@@ -26,6 +28,8 @@ _DUMMY_PASSWORD_HASH = (
 
 def hash_password(password: str) -> str:
     """Hash a password with a slow, salted standard-library primitive."""
+    if len(password.encode("utf-8")) > 512:
+        raise ValueError("password is too long")
     salt = secrets.token_hex(16)
     digest = hashlib.pbkdf2_hmac(
         "sha256", password.encode("utf-8"), salt.encode("utf-8"), _PBKDF2_ITERATIONS
@@ -36,6 +40,8 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, encoded: str) -> bool:
     """Check a password hash without exposing timing information."""
     try:
+        if len(password.encode("utf-8")) > 512:
+            return False
         algorithm, rounds, salt, expected = encoded.split("$", 3)
         if algorithm != "pbkdf2_sha256":
             return False
@@ -60,6 +66,7 @@ def create_access_token(user: User) -> str:
             "sub": str(user.id),
             "username": user.username,
             "type": "access",
+            "jti": secrets.token_urlsafe(24),
             "iss": settings.JWT_ISSUER,
             "aud": settings.JWT_AUDIENCE,
             "exp": expires,
@@ -86,13 +93,20 @@ def get_current_user(
             algorithms=[settings.ALGORITHM],
             issuer=settings.JWT_ISSUER,
             audience=settings.JWT_AUDIENCE,
-            options={"require": ["exp", "sub", "iss", "aud", "type"]},
+            options={"require": ["exp", "sub", "iss", "aud", "type", "jti"]},
         )
         if not isinstance(payload, dict):
             raise credentials_error
-        if payload.get("type") != "access":
+        if payload.get("type") != "access" or not isinstance(payload.get("jti"), str):
+            raise credentials_error
+        if is_token_revoked(payload["jti"]):
             raise credentials_error
         user_id = int(payload["sub"])
+    except RedisError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Token revocation service unavailable",
+        )
     except (jwt.PyJWTError, KeyError, TypeError, ValueError):
         raise credentials_error
 

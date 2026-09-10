@@ -39,6 +39,16 @@ Authorization: Bearer <access-token>
 Returns the authenticated user's profile from the database. Clients should use
 this endpoint instead of decoding JWT claims to build a profile.
 
+#### Logout
+
+```http
+POST /auth/logout
+Authorization: Bearer <access-token>
+```
+
+Revokes the current access token immediately. Revoked tokens remain blocked in
+Redis until their original expiration time.
+
 ## Endpoints
 
 ### Health
@@ -265,6 +275,9 @@ API requests are limited per client IP using an atomic Redis counter shared by
 all API instances. The current default is 120 requests per 60-second window.
 The response includes `X-RateLimit-Limit` and `X-RateLimit-Remaining`; requests
 over the limit receive `429` with a `Retry-After` header.
+
+`POST /auth/token` also has a stricter limit of 5 attempts per IP and per
+username over 5 minutes to slow distributed credential attacks.
 
 ## Pagination
 

@@ -1,6 +1,7 @@
 """Registration and access-token endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from redis.exceptions import RedisError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -12,8 +13,12 @@ from app.security import (
     create_access_token,
     get_current_user,
     hash_password,
+    oauth2_scheme,
     verify_password,
 )
+from app.rate_limit import record_login_attempt, revoke_token
+import jwt
+from app.config import get_settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -42,7 +47,29 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/token", response_model=TokenResponse)
-def token(credentials: TokenRequest, db: Session = Depends(get_db)):
+async def token(credentials: TokenRequest, request: Request, db: Session = Depends(get_db)):
+    settings = get_settings()
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        ip_count, ip_retry_after = await record_login_attempt(f"ip:{client_ip}")
+        username_count, username_retry_after = await record_login_attempt(
+            f"username:{credentials.username}"
+        )
+    except RedisError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Login rate limiter unavailable",
+        )
+    if (
+        ip_count > settings.LOGIN_RATE_LIMIT_REQUESTS
+        or username_count > settings.LOGIN_RATE_LIMIT_REQUESTS
+    ):
+        retry_after = max(ip_retry_after, username_retry_after)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts",
+            headers={"Retry-After": str(retry_after)},
+        )
     user = db.query(User).filter(User.username == credentials.username).first()
     password_hash = user.hashed_password if user else _DUMMY_PASSWORD_HASH
     if not verify_password(credentials.password, password_hash) or (
@@ -54,6 +81,30 @@ def token(credentials: TokenRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     return TokenResponse(access_token=create_access_token(user))
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    token: str = Depends(oauth2_scheme),
+    _current_user: User = Depends(get_current_user),
+):
+    """Revoke the current access token until it expires."""
+    settings = get_settings()
+    payload = jwt.decode(
+        token,
+        settings.SECRET_KEY,
+        algorithms=[settings.ALGORITHM],
+        issuer=settings.JWT_ISSUER,
+        audience=settings.JWT_AUDIENCE,
+        options={"verify_exp": False},
+    )
+    try:
+        revoke_token(payload["jti"], int(payload["exp"]))
+    except RedisError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Token revocation service unavailable",
+        )
 
 
 @router.get("/me", response_model=UserResponse)

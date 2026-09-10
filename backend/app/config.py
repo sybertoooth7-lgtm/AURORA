@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     RATE_LIMIT_REQUESTS: int = 120
     RATE_LIMIT_WINDOW_SECONDS: int = 60
+    LOGIN_RATE_LIMIT_REQUESTS: int = 5
+    LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 300
 
     # Satellite Data — Copernicus Data Space Ecosystem (Sentinel Hub)
     # Free OAuth client credentials from https://shapps.dataspace.copernicus.eu/dashboard/
@@ -62,7 +64,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
         """Reject the development secret when running in production."""
-        if self.ENVIRONMENT.lower() == "production" and (
+        if (self.ENVIRONMENT.lower() == "production" or not self.DEBUG) and (
             len(self.SECRET_KEY) < 32
             or self.SECRET_KEY in {
                 "your-secret-key-change-in-production",

@@ -173,11 +173,13 @@ Significant findings requiring user attention
 
 ## 🔐 Security (Remaining)
 
-- JWT authentication, database-backed `/auth/me`, and current-user scoping
+- JWT authentication, database-backed `/auth/me`, logout revocation, and
+  current-user scoping
 - API key management
 - Role-based access control
 - Data encryption
 - Redis-backed rate limiting
+- Login-specific IP and username throttling
 
 ## 📊 Development
 
@@ -209,7 +211,7 @@ mypy .
 ## 🌍 Deployment
 
 ### Production Checklist
-- [ ] Update SECRET_KEY in .env
+- [ ] Set a unique SECRET_KEY of at least 32 random characters in production
 - [ ] Set ENVIRONMENT=production
 - [ ] Restrict CORS origins
 - [ ] Configure database backups
