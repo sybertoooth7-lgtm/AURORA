@@ -1,6 +1,6 @@
 """User schemas"""
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional
 
@@ -8,9 +8,14 @@ from typing import Optional
 class UserCreate(BaseModel):
     """User creation schema"""
     email: EmailStr
-    username: str
-    password: str
-    full_name: Optional[str] = None
+    username: str = Field(min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9_.-]+$")
+    # Upper bound matters as much as the lower one here: without it, a
+    # multi-megabyte password gets run through 120,000 PBKDF2 rounds on
+    # every login attempt -- a cheap CPU-exhaustion lever. NIST SP 800-63B
+    # suggests supporting at least 64 characters; 128 is generous headroom
+    # above any real passphrase.
+    password: str = Field(min_length=8, max_length=128)
+    full_name: Optional[str] = Field(default=None, max_length=200)
 
 
 class UserResponse(BaseModel):
@@ -28,8 +33,8 @@ class UserResponse(BaseModel):
 
 class TokenRequest(BaseModel):
     """Credentials accepted by the JSON token endpoint."""
-    username: str
-    password: str
+    username: str = Field(max_length=64)
+    password: str = Field(max_length=128)
 
 
 class TokenResponse(BaseModel):
