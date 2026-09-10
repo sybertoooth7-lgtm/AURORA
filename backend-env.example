@@ -1,0 +1,31 @@
+# Copy to .env and fill in real values before running locally.
+
+# Must keep the +psycopg driver suffix (requirements.txt installs psycopg v3,
+# not psycopg2) -- a bare "postgresql://" URL will fail to connect.
+DATABASE_URL=postgresql+psycopg://aurora_user:aurora_password@localhost:5432/aurora_db
+
+API_HOST=0.0.0.0
+API_PORT=8000
+API_RELOAD=True
+
+SECRET_KEY=change-me-to-a-long-random-value
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+RATE_LIMIT_REQUESTS=120
+RATE_LIMIT_WINDOW_SECONDS=60
+
+# Optional: real satellite data via the Copernicus Data Space Ecosystem.
+# Create a free OAuth client at https://shapps.dataspace.copernicus.eu/dashboard/
+# (User Settings -> OAuth clients). Leave both blank to use the deterministic
+# demo provider instead.
+SENTINEL_CLIENT_ID=
+SENTINEL_CLIENT_SECRET=
+
+# Job queue for analysis runs (see worker.py). Needs a real Redis instance
+# running -- `docker-compose up -d redis`, or a local `redis-server`.
+REDIS_URL=redis://localhost:6379/0
+
+ENVIRONMENT=development
+DEBUG=True
+LOG_LEVEL=INFO
+# Vite dev server default port is 5173, not 3000
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
