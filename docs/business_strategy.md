@@ -60,8 +60,8 @@ the AURORA pipeline types already built (`vegetation_stress`, `land_change`,
 |---|---|---|
 | **AURORA Atlas** | Web dashboard + map UI (React/Vite frontend, `/analysis`, `/satellite`, `/ai/pipelines`) | MVP live |
 | **AURORA Sentinel API** | REST + webhook programme access to analyses, alerts, reports (`/api/*`, auth + RBAC) | MVP live |
-| **AURORA Insurance Index** | Parametric triggers from NDVI / land-change / flood / wildfire pipelines | Build in Y1–2 |
-| **AURORA Field Robotics** | Ground/field inspection service (robotics stack: navigation, perception, control) | Prototype tested Y2, revenue Y3 |
+| **AURORA Insurance Index** | Parametric triggers from NDVI / land-change / flood / wildfire pipelines | Trigger-check prototype live (`/insurance/trigger-check`); pilot pricing Y1–2 |
+| **AURORA Field Robotics** | Ground/field inspection service (robotics stack: navigation, perception, control) | Telemetry bridge + satellite-fused inspection prototype live; hardware Y2, revenue Y3 |
 | **AURORA Compliance & ESG** | EUDR/ESG/carbon land reports | Y2+ |
 
 Every product honestly labels simulated vs. real data (source = demo →
