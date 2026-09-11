@@ -1,4 +1,3 @@
-```markdown
 # AURORA Backend
 
 Space Intelligence Platform - Multi-planetary space technology infrastructure
@@ -8,7 +7,10 @@ Space Intelligence Platform - Multi-planetary space technology infrastructure
 AURORA is a comprehensive backend system for:
 - **Satellite Intelligence**: AI-powered analysis of satellite imagery
 - **Geospatial Analytics**: Land monitoring, vegetation stress, climate intelligence
-- **Autonomous Systems**: Integration with robotics and orbital platforms
+- **Parametric Insurance**: Satellite-triggered payout estimates for agriculture (AURORA-2)
+- **Robotics Field Services**: Drone/robot telemetry + post-flight NDVI damage inspection (AURORA-2)
+- **User Onboarding**: Guided first-analysis flow with honest simulated-vs-real disclosure (AURORA-2)
+- **Autonomous Systems**: Robotics, CubeSat, and multi-planetary AI simulation
 - **Space Operations**: Mission planning and infrastructure management
 
 ## 📋 Tech Stack
@@ -40,7 +42,10 @@ backend/
 │   │   ├── user.py
 │   │   ├── analysis.py
 │   │   ├── satellite.py
-│   │   └── ai.py
+│   │   ├── ai.py
+│   │   ├── insurance.py       # insurance trigger-check schemas
+│   │   ├── robotics.py        # flight telemetry + inspection schemas
+│   │   └── onboarding.py      # onboarding checklist schemas
 │   ├── routes/                # API endpoints
 │   │   ├── health.py
 │   │   ├── analysis.py
@@ -48,7 +53,11 @@ backend/
 │   │   ├── auth.py
 │   │   ├── alerts.py
 │   │   ├── reports.py
-│   │   └── ai.py              # AI pipelines, infer, model management
+│   │   ├── ai.py              # AI pipelines, infer, model management
+│   │   ├── insurance.py       # /insurance/trigger-check + defaults
+│   │   ├── robotics.py        # /robotics/flights + /robotics/inspect
+│   │   ├── onboarding.py      # /onboarding/status|complete|first-analysis
+│   │   └── system.py          # /system/capabilities
 │   ├── ai/                    # Modular AI pipeline system
 │   │   ├── __init__.py
 │   │   ├── base.py            # Pipeline ABC, PipelineResult, provenance
@@ -60,10 +69,23 @@ backend/
 │   │   ├── infrastructure.py  # infrastructure / site monitoring
 │   │   ├── environmental.py   # water + ecosystem / climate monitoring
 │   │   ├── anomaly.py         # robust-zscore anomaly detection
+│   │   ├── insurance_index.py # parametric crop-condition / damage proxy
+│   │   ├── robotics_inspection.py  # post-flight NDVI field damage
 │   │   └── computer_vision.py # PROTOTYPE torch-based vision (optional deps)
+│   ├── robotics/              # Robotics domain (AURORA-1/2)
+│   │   ├── core/              # Robot, Sensor, Actuator abstractions
+│   │   ├── navigation.py, perception.py, control.py, simulation.py
+│   │   ├── telemetry.py       # telemetry logger/entry
+│   │   └── flight.py          # in-memory flight store + health summariser
+│   ├── services/              # Business logic
+│   │   ├── analysis_runner.py # observation -> pipeline -> persistence
+│   │   └── insurance.py       # pure parametric trigger/payout evaluation
 │   └── satellite/             # Satellite data providers
 │       ├── providers.py       # Provider interface + demo provider + factory
 │       └── sentinel_hub.py    # Real Copernicus Data Space Ecosystem (Sentinel Hub) provider
+│   ├── multiplanetary/        # 7-layer AI stack + mission ops (simulation)
+│   ├── spacecraft/            # 3U CubeSat subsystems (simulation)
+│   └── space_resources/       # ISRU / resources program (simulation)
 ├── alembic/                    # Database migrations (schema is owned here, not by create_all)
 │   ├── env.py
 │   └── versions/
@@ -167,6 +189,23 @@ alembic upgrade head
 - `POST /ai/models` - Register a model version (auth; starts as prototype)
 - `PATCH /ai/models/{id}/status` - Promote to production / archive (admin)
 
+### System
+- `GET /system/capabilities` - Index of every subsystem + pipeline (public)
+
+### Parametric insurance (AURORA-2)
+- `GET /insurance/defaults` - Trigger threshold + max sum insured (public)
+- `POST /insurance/trigger-check` - Trigger + payout estimate for an area (auth)
+
+### Robotics field services (AURORA-2)
+- `POST /robotics/flights/{flight_id}/telemetry` - Ingest MQTT-style frame; returns flight health
+- `GET /robotics/flights/{flight_id}` - Flight summary + health
+- `POST /robotics/inspect` - Satellite NDVI damage proxy fused with robot flight health (auth)
+
+### Onboarding (AURORA-2)
+- `GET /onboarding/status` - Checklist + next action for the current user
+- `POST /onboarding/complete` - Mark onboarding complete
+- `POST /onboarding/first-analysis` - Run a guided first analysis
+
 Every AI result carries explicit **provenance** (`real` vs `simulated`) and a
 **model** identity whose `kind` is `prototype` or `production`. Results from the
 deterministic demo provider are always disclosed as `simulated`; nothing is ever
@@ -209,6 +248,8 @@ Significant findings requiring user attention
 | `anomaly` | anomaly_detection | Median/MAD robust z-scores over history | statistical (prototype) |
 | `wildfire` | wildfire_risk | Dry-vegetation + bare-surface + moisture-deficit composite | composite-index (prototype) |
 | `flood` | flood_monitoring | NDWI current vs. area baseline (z-score excess) | statistical (prototype) |
+| `insurance_index` | insurance_index | Crop-condition index + moisture + baseline deviation → damage proxy | composite-index (prototype) |
+| `robotics_inspection` | robotics_inspection | Post-flight NDVI field-damage proxy | composite-index (prototype) |
 
 Designed so future modules (pixel-level segmentation, autonomous robotics
 perception, spacecraft/planetary surface mapping) slot into the same
@@ -218,7 +259,7 @@ prototype -> production promotion behind admin action.
 
 ### Future Capabilities
 - Land change detection from imagery (not just NDVI stats)
-- Autonomous robotic control
+- Pixel-level segmentation for insurance loss adjustment
 - Mission planning algorithms
 - Predictive analytics
 - Distributed AI for orbital systems
@@ -262,16 +303,19 @@ Redis for multi-instance deployment of that too.
 pytest
 # All AI-pipeline / provider / security tests run offline.
 # tests/test_auth_hardening.py additionally needs a local Redis
-# (redis-server, or `docker-compose up -d redis`).
+# (redis-server, or `docker-compose up -d redis`) and is excluded from
+# offline runs with `--ignore=tests/test_auth_hardening.py`.
 ```
 
 ### Code Style
+The CI gates are **ruff** and **mypy** (config in `pyproject.toml`):
+
 ```bash
-black .
-flake8 .
-isort .
-mypy .
+ruff check .
+mypy app
 ```
+
+(Development tooling is pinned in `requirements-dev.txt`.)
 
 ## 🌍 Deployment
 
@@ -322,4 +366,3 @@ info@aurora-space.com
 ---
 
 **Building the technologies and economic infrastructure that allow humanity to explore, inhabit and responsibly utilize the Solar System.** 🌌
-```
