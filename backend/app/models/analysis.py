@@ -15,6 +15,11 @@ class AnalysisType(str, enum.Enum):
     CLIMATE_IMPACT = "climate_impact"
     INFRASTRUCTURE_CHANGE = "infrastructure_change"
     WATER_MONITORING = "water_monitoring"
+    INFRASTRUCTURE_MONITORING = "infrastructure_monitoring"
+    ENVIRONMENTAL_MONITORING = "environmental_monitoring"
+    ANOMALY_DETECTION = "anomaly_detection"
+    WILDFIRE_RISK = "wildfire_risk"
+    FLOOD_MONITORING = "flood_monitoring"
 
 
 class Analysis(Base):

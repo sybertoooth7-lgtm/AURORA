@@ -1,4 +1,12 @@
-import type { Alert, Analysis, AnalysisResult, AnalysisType, User } from './types'
+import type {
+  Alert,
+  Analysis,
+  AnalysisResult,
+  AnalysisType,
+  InferResponse,
+  PipelineDescription,
+  User,
+} from './types'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000'
 
@@ -77,4 +85,15 @@ export const api = {
 
   acknowledgeAlert: (id: number) =>
     request<Alert>(`/alerts/${id}/acknowledge`, { method: 'POST' }),
+
+  listPipelines: () => request<PipelineDescription[]>('/ai/pipelines'),
+
+  infer: (input: {
+    analysis_type: AnalysisType
+    latitude: number
+    longitude: number
+    radius_km: number
+    use_history?: boolean
+    description?: string
+  }) => request<InferResponse>('/ai/infer', { method: 'POST', body: JSON.stringify(input) }),
 }

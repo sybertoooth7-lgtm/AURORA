@@ -236,11 +236,16 @@ GET /satellite/sources
 
 ## Analysis Types
 
-- `vegetation_stress` - Vegetation stress detection
-- `land_change` - Land change detection
-- `climate_impact` - Climate impact analysis
+- `vegetation_stress` - Vegetation stress detection (agriculture)
+- `land_change` - Land change detection (land intelligence)
+- `climate_impact` - Climate impact analysis (environmental)
 - `infrastructure_change` - Infrastructure change detection
-- `water_monitoring` - Water body monitoring
+- `water_monitoring` - Water body monitoring (environmental)
+- `infrastructure_monitoring` - Infrastructure/site monitoring
+- `environmental_monitoring` - Combined water + ecosystem stress monitoring
+- `anomaly_detection` - Statistical anomaly detection vs. an area's own history
+- `wildfire_risk` - Wildfire fuel/dryness risk (proxy-based prototype)
+- `flood_monitoring` - Flood/inundation detection (NDWI vs baseline; prototype)
 
 ## Status Codes
 
@@ -248,6 +253,83 @@ GET /satellite/sources
 - `processing` - Analysis in progress
 - `completed` - Analysis completed successfully
 - `failed` - Analysis failed
+
+## AI Pipelines
+
+Every analysis type is served by a *pipeline* (see `backend/app/ai/`). Results
+carry explicit provenance -- `"provenance": "real"` for real Sentinel-2 data,
+`"simulated"` for the deterministic demo provider -- plus a `model` object
+whose `kind` (prototype|production) discloses whether the approach is validated
+for operational use or an in-progress prototype. Simulated results are never
+presented as real.
+
+### List Pipelines
+
+```http
+GET /ai/pipelines
+```
+
+Public. Describes every registered pipeline: name, description, handles
+(analysis types), model identity, preprocessing, and data requirements.
+
+### Synchronous Inference
+
+```http
+POST /ai/infer
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "analysis_type": "anomaly_detection",
+  "latitude": -1.2,
+  "longitude": 36.8,
+  "radius_km": 5,
+  "use_history": true,
+  "description": "Site anomaly check"
+}
+```
+
+Runs the pipeline for `analysis_type` synchronously over the area, then persists
+the run as a completed analysis (same record/alert/report flow as queued runs)
+so it appears in the dashboard.
+
+**Response (200):**
+
+```json
+{
+  "result": {
+    "analysis_type": "anomaly_detection",
+    "severity": 0.61,
+    "confidence": 0.88,
+    "findings": ["Anomaly flagged in ndvi (robust z-score 4.02); 3 index dimensions checked."],
+    "metrics": { "ndvi": 3.9, "change_score": 1.2, "peak_zscore": 4.02 },
+    "provenance": "real",
+    "simulated": false,
+    "source": "sentinel-2-l2a",
+    "image_id": "cdse-20260909T000000Z-...",
+    "acquired_at": "2026-09-09T00:00:00Z",
+    "model": { "name": "statistical:robust-zscore", "version": "1.0.0", "kind": "prototype" },
+    "preprocessing": ["median/MAD normalization", "per-index robust z-scores"],
+    "labels": [{ "class": "anomaly", "confidence": 0.88, "attributes": {} }],
+    "warning": null,
+    "history_length": 8
+  },
+  "created_analysis_id": 42
+}
+```
+
+### Model Management
+
+```http
+GET /ai/models                      # list model versions (auth)
+GET /ai/models/{model_id}           # model details (auth)
+POST /ai/models                     # register a model version (auth)
+PATCH /ai/models/{model_id}/status  # promote/archive (admin only)
+```
+
+New model versions are always registered as `prototype`; only an **admin** can
+raise a model to `production` (a governance gate), so prototypes can never
+self-declare as production.
 
 ## Rate Limiting (TODO)
 

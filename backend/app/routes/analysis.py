@@ -21,6 +21,30 @@ import math
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 
+def build_area_polygon_wkt(latitude: float, longitude: float, radius_km: float) -> dict:
+    """Approximate the requested search area as a geodesic polygon.
+
+    Stores the concrete area of interest for downstream imagery providers.
+    Returns dict {polygon_wkt, latitude, longitude, radius_km}.
+    """
+    latitude_delta = radius_km / 111.32
+    longitude_delta = radius_km / (111.32 * max(math.cos(math.radians(latitude)), 0.01))
+    points = [
+        (longitude - longitude_delta, latitude - latitude_delta),
+        (longitude + longitude_delta, latitude - latitude_delta),
+        (longitude + longitude_delta, latitude + latitude_delta),
+        (longitude - longitude_delta, latitude + latitude_delta),
+        (longitude - longitude_delta, latitude - latitude_delta),
+    ]
+    polygon = ", ".join(f"{longitude} {latitude}" for longitude, latitude in points)
+    return {
+        "polygon_wkt": f"POLYGON(({polygon}))",
+        "latitude": latitude,
+        "longitude": longitude,
+        "radius_km": radius_km,
+    }
+
+
 @router.post("/", response_model=AnalysisResponse)
 async def create_analysis(
     analysis: AnalysisCreate,
@@ -28,23 +52,12 @@ async def create_analysis(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new analysis"""
-    # Approximate the requested search area as a geodesic polygon. The stored
-    # geometry gives downstream imagery providers a concrete area of interest.
-    latitude_delta = analysis.radius_km / 111.32
-    longitude_delta = analysis.radius_km / (111.32 * max(math.cos(math.radians(analysis.latitude)), 0.01))
-    points = [
-        (analysis.longitude - longitude_delta, analysis.latitude - latitude_delta),
-        (analysis.longitude + longitude_delta, analysis.latitude - latitude_delta),
-        (analysis.longitude + longitude_delta, analysis.latitude + latitude_delta),
-        (analysis.longitude - longitude_delta, analysis.latitude + latitude_delta),
-        (analysis.longitude - longitude_delta, analysis.latitude - latitude_delta),
-    ]
-    polygon = ", ".join(f"{longitude} {latitude}" for longitude, latitude in points)
+    area = build_area_polygon_wkt(analysis.latitude, analysis.longitude, analysis.radius_km)
 
     db_analysis = Analysis(
         user_id=current_user.id,
         analysis_type=analysis.analysis_type,
-        geometry=WKTElement(f"POLYGON(({polygon}))", srid=4326),
+        geometry=WKTElement(area["polygon_wkt"], srid=4326),
         latitude=analysis.latitude,
         longitude=analysis.longitude,
         radius_km=analysis.radius_km,

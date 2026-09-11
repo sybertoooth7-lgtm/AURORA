@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+# Allow `pytest` (not just `python -m pytest`) to import app.* / main from
+# the backend directory without relying on the current working directory
+# being injected into sys.path.
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

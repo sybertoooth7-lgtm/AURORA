@@ -67,7 +67,18 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "text"  # text | json
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+
+    # AI pipelines
+    # Number of historical observations fetched for history-aware pipelines
+    # (anomaly detection, land change). Wider = more robust baselines but
+    # more provider data per run.
+    AI_HISTORY_LIMIT: int = 8
+    # Synchronous inference (POST /ai/infer) refuses to wait longer than this
+    # for a provider response -- above this the client should use the queued
+    # /analysis/ flow instead.
+    AI_INFER_SYNC_TIMEOUT_SECONDS: int = 30
 
     class Config:
         env_file = ".env"

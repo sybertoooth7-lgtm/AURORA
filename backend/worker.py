@@ -10,8 +10,22 @@ Run locally with:
 
 from rq import Worker
 
+from app.ai.registry import build_workspace_pipelines
+from app.logging_conf import get_logger, setup_logging
 from app.queue import ANALYSIS_QUEUE_NAME, get_redis
 
+setup_logging()
+logger = get_logger(__name__)
+
+
+def _prepare() -> None:
+    """Import pipeline modules eagerly so jobs don't pay cold-import cost."""
+    build_workspace_pipelines()
+    logger.info("Worker ready; pipelines registered")
+
+
 if __name__ == "__main__":
+    _prepare()
     worker = Worker([ANALYSIS_QUEUE_NAME], connection=get_redis())
+    logger.info("RQ worker starting", extra_keys={"queues": [ANALYSIS_QUEUE_NAME]})
     worker.work()

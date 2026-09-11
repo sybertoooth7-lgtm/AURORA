@@ -6,6 +6,7 @@ from .satellite import router as satellite_router
 from .auth import router as auth_router
 from .alerts import router as alerts_router
 from .reports import router as reports_router
+from .ai import router as ai_router
 
 __all__ = [
     "health_router",
@@ -14,4 +15,5 @@ __all__ = [
     "auth_router",
     "alerts_router",
     "reports_router",
+    "ai_router",
 ]

@@ -7,6 +7,9 @@ export type AnalysisType =
   | 'climate_impact'
   | 'infrastructure_change'
   | 'water_monitoring'
+  | 'infrastructure_monitoring'
+  | 'environmental_monitoring'
+  | 'anomaly_detection'
 
 export type AnalysisStatus = 'pending' | 'processing' | 'completed' | 'failed'
 
@@ -40,6 +43,12 @@ export interface AnalysisResultMetadata {
   resolution_m: number
   ndvi: number
   change_score: number
+  // Present in results produced by the AI pipeline system (app/ai):
+  provenance?: 'real' | 'simulated'
+  simulated?: boolean
+  model?: { name: string; version: string; kind: 'prototype' | 'production' }
+  metrics?: Record<string, number>
+  findings?: string[]
 }
 
 export interface AnalysisResult {
@@ -72,9 +81,41 @@ export function parseResultMetadata(result: AnalysisResult): AnalysisResultMetad
 }
 
 export const ANALYSIS_TYPE_LABELS: Record<AnalysisType, string> = {
-  vegetation_stress: 'Vegetation stress',
-  land_change: 'Land change',
-  climate_impact: 'Climate impact',
-  infrastructure_change: 'Infrastructure change',
-  water_monitoring: 'Water monitoring',
+  vegetation_stress: 'Vegetation Stress (Agriculture)',
+  land_change: 'Land Change Detection',
+  climate_impact: 'Climate Impact (Environmental)',
+  infrastructure_change: 'Infrastructure Change',
+  water_monitoring: 'Water Body Monitoring',
+  infrastructure_monitoring: 'Infrastructure / Site Monitoring',
+  environmental_monitoring: 'Environmental Monitoring (Water + Ecosystem)',
+  anomaly_detection: 'Statistical Anomaly Detection',
+  wildfire_risk: 'Wildfire Fuel / Dryness Risk',
+  flood_monitoring: 'Flood / Inundation Monitoring',
+}
+
+export interface PipelineDescription {
+  name: string
+  description: string
+  handles: AnalysisType[]
+  model: { name: string; version: string; kind: 'prototype' | 'production' }
+  preprocessing: string[]
+  data_requirements: { history_supported: boolean }
+}
+
+export interface PipelineResult {
+  analysis_type: AnalysisType
+  severity: number
+  confidence: number
+  findings: string[]
+  metrics: Record<string, number>
+  provenance: 'real' | 'simulated'
+  simulated: boolean
+  model: { name: string; version: string; kind: 'prototype' | 'production' }
+  warning: string | null
+  analysis_id?: number
+}
+
+export interface InferResponse {
+  result: PipelineResult
+  created_analysis_id: number
 }
