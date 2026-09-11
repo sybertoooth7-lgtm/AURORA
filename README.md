@@ -171,6 +171,7 @@ curl http://localhost:8000/health/
 
 - [Backend README](./backend/README.md)
 - [Roadmap](./docs/ROADMAP.md)
+- [Master Plan: Earth to a Multi-Planetary Civilization](./docs/MASTER_PLAN.md)
 - [Architecture Guide](./docs/ARCHITECTURE.md)
 - [Contributing Guide](./docs/CONTRIBUTING.md)
 
