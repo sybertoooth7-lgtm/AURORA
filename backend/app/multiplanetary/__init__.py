@@ -11,6 +11,15 @@ Design goals
 * Obstacle avoidance is reactive (no global map required) and supports
   store-and-forward for comms-delayed commanding.
 * Behavior trees handle autonomy levels 1-5 (teleop -> fully autonomous).
+* A seven-layer AI stack (mission control, scientific, robotics,
+  navigation, resource management, infrastructure, human assistance)
+  keeps authority, safety, and human oversight explicit.
+
+Subpackages
+-----------
+* ``layers``  -- the 7-layer decision stack and AuroraStack orchestrator.
+* ``ops``     -- comms-delay budgets, radiation model, disconnected ops,
+                 fail-safe controller, and command/cyber security.
 """
 
 from app.multiplanetary.sensors import StereoCamera, HazardCamera, LidarSensor, EnvironmentalSensor
@@ -21,6 +30,15 @@ from app.multiplanetary.avoidance import ReactiveAvoidance, PotentialFieldAvoida
 from app.multiplanetary.autonomy import BehaviorTree, AutonomyLevel, AutonomousController
 from app.multiplanetary.telemetry import DeepSpaceTelemetry, StoreAndForwardRelay
 from app.multiplanetary.simulation import PlanetaryEnvironment, LunarEnvironment, MarsEnvironment, AsteroidEnvironment
+from app.multiplanetary.layers import (
+    AuroraStack,
+    MissionControlLayer,
+    Action,
+    ActionType,
+    Layer,
+    MissionContext,
+    StackDecision,
+)
 
 __all__ = [
     "StereoCamera", "HazardCamera", "LidarSensor", "EnvironmentalSensor",
@@ -31,4 +49,6 @@ __all__ = [
     "BehaviorTree", "AutonomyLevel", "AutonomousController",
     "DeepSpaceTelemetry", "StoreAndForwardRelay",
     "PlanetaryEnvironment", "LunarEnvironment", "MarsEnvironment", "AsteroidEnvironment",
+    "AuroraStack", "MissionControlLayer", "Action", "ActionType", "Layer",
+    "MissionContext", "StackDecision",
 ]

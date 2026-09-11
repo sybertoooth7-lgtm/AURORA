@@ -5,7 +5,15 @@ Environment differences (gravity, atmosphere, lighting, dust, terrain) are
 injected as config — never hardcoded — so the same codebase evolves with the
 mission.
 
-## Capabilities
+## Subpackages
+
+| Package | Purpose |
+|---|---|
+| `(root modules)` | Sensors, vision, navigation, mapping, avoidance, autonomy, telemetry, simulation |
+| `layers/` | 7-layer AI decision stack + `AuroraStack` orchestrator |
+| `ops/` | Comms-delay budgets, radiation model, disconnected ops, fail-safe, cyber security |
+
+## Capabilities (root modules)
 
 | Module | Capability |
 |---|---|
@@ -17,6 +25,65 @@ mission.
 | `autonomy.py` | Behavior trees; autonomy levels 1–5; default rover behavior tree |
 | `telemetry.py` | Store-and-forward deep-space relay, DTN-style link model |
 | `simulation.py` | `PlanetaryEnvironment`, `LunarEnvironment`, `MarsEnvironment`, `AsteroidEnvironment` |
+
+## Layered AI stack (`layers/`)
+
+```
+1. mission_control     authority, autonomy budget, safety interlocks, oversight
+2. scientific          hypotheses, survey plans, science value
+3. robotics            fleet coordination, agent dispatch, teleop bridge
+4. navigation          terrain-aware path planning + obstacle avoidance
+5. resource_management inventory, allocation, energy budget
+6. infrastructure      ISRU plants, power grid, comms network, habitats
+7. human_assistance    advisories, verification, plain-language reporting
+```
+
+The stack runs every decision cycle: each layer proposes `Action`s, the
+`MissionControlLayer` filters them through the autonomy budget and safety
+interlocks, and anything irreversible or outside the autonomy budget becomes
+a `request_authorization` action for human oversight.
+
+```python
+from app.multiplanetary.layers import AuroraStack, MissionContext
+from app.multiplanetary.ops.fail_safe import FailSafeController, SafeModeLevel
+
+stack = AuroraStack()                      # wires all seven layers
+ctx = MissionContext(battery_percent=90.0, power_available_w=100.0,
+                     power_demand_w=50.0, one_way_delay_s=1.3)
+decision = stack.step(ctx)                 # StackDecision: approved / pending / rejected
+for action in decision.approved_actions:
+    print(action.description)
+```
+
+Fail-safe invariant: the stack checks battery, radiation, temperature, and
+watchdog health *before* running any layer.  Any trip forces safe mode, which
+suspends ISRU, halts rover motion, and enters minimal-power comms/thermal mode.
+
+```python
+from app.multiplanetary.ops.comms_delay import CommsDelayModel, TargetBody
+from app.multiplanetary.ops.security import CyberSecurityLayer
+from app.multiplanetary.ops.disconnected import DisconnectedOpsManager, MissionPlaybook
+
+delay = CommsDelayModel.for_target(TargetBody.MARS)      # 13 min one-way -> autonomy ~4
+sec = CyberSecurityLayer(secret_key=b"real-key")         # HMAC command auth, anti-replay
+ops = DisconnectedOpsManager(auto=delay.autonomy_level)  # preplanned playbook execution
+```
+
+## Operations (`ops/`)
+
+| Module | Capability |
+|---|---|
+| `comms_delay.py` | One-way light time per target body; autonomy budget derived from RTT |
+| `radiation.py` | GCR + SPE dose model; rad-hard strategy (watchdog, latchup, EOL tracking) |
+| `disconnected.py` | Disconnected ops manager: playbook execution, safe-mode fallback |
+| `fail_safe.py` | `FailSafeController` with signal thresholds and command-loss detection |
+| `security.py` | HMAC-signed commands, anti-replay nonce window, config integrity, rate limiting |
+
+## Space Resource Program (`../space_resources/`)
+
+Companion package for ISRU technology readiness, extraction process models,
+plant simulation, economics, prospecting, and an 8-phase roadmap.  See
+`app/space_resources/README.md`.
 
 ## Environment constants (simulation vs. hardware honest separation)
 
