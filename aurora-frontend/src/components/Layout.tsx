@@ -44,7 +44,7 @@ export function Layout() {
     <div className="flex h-full">
       <aside className="flex w-72 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-paper-raised)]">
         <div className="border-b border-[var(--color-border)] px-5 py-5">
-          <Link to="/" className="font-[var(--font-display)] text-xl font-semibold tracking-tight">
+          <Link to="/app" className="font-[var(--font-display)] text-xl font-semibold tracking-tight">
             AURORA
           </Link>
           <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]">Space Intelligence</p>
@@ -52,7 +52,7 @@ export function Layout() {
 
         <div className="px-5 py-4">
           <Link
-            to="/areas/new"
+            to="/app/areas/new"
             className="block w-full rounded-sm border border-[var(--color-orbit)] px-3 py-2 text-center text-sm font-medium text-[var(--color-orbit)] transition-colors hover:bg-[var(--color-orbit)] hover:text-[var(--color-paper)]"
           >
             + New area
@@ -70,7 +70,7 @@ export function Layout() {
             {areas.map((area) => (
               <li key={area.id}>
                 <NavLink
-                  to={`/areas/${area.id}`}
+                  to={`/app/areas/${area.id}`}
                   className={({ isActive }) =>
                     `block rounded-sm px-3 py-2 text-sm ${
                       isActive ? 'bg-[var(--color-orbit)] text-[var(--color-paper)]' : 'hover:bg-[var(--color-paper)]'
