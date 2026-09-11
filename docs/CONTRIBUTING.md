@@ -137,25 +137,24 @@ Fixes #123
 - [ ] Performance optimization
 - [ ] Documentation
 
-### Frontend (Coming Soon)
-- [ ] Web UI (React/Next.js)
+### Frontend
+- [x] Web UI (React + Vite + TypeScript, `aurora-frontend/`)
 - [ ] Mobile app (Flutter)
 - [ ] Data visualization
 - [ ] User experience
 
 ### ML/AI
-- [ ] Computer vision models
-- [ ] Vegetation stress detection
-- [ ] Land change detection
+- [ ] Computer vision models in production
+- [x] Statistical pipelines: vegetation stress, land change, infrastructure, environmental, anomaly, wildfire, flood
+- [x] Earth-revenue pipelines: insurance index, robotics inspection
 - [ ] Climate analysis
 - [ ] Robotics algorithms
 
 ### Infrastructure
-- [ ] DevOps
-- [ ] CI/CD pipelines
-- [ ] Containerization
+- [x] CI/CD pipelines (GitHub Actions: ruff, mypy, Alembic, pytest; frontend build)
+- [x] Containerization (Docker + docker-compose)
 - [ ] Kubernetes deployment
-- [ ] Monitoring & logging
+- [ ] Monitoring & logging (structured logs today; Prometheus/Grafana future)
 
 ### Documentation
 - [ ] API documentation
@@ -185,12 +184,13 @@ backend/
 
 ### Add a New API Endpoint
 
-1. Create schema in `app/schemas/`
-2. Create model in `app/models/` (if needed)
-3. Create route in `app/routes/`
+1. Create schema in `app/schemas/` (with a request/response pair)
+2. Create model in `app/models/` (if needed) + Alembic migration instead of `create_all`
+3. Create route in `app/routes/` using a canonical Swagger tag (see `openapi_tags` in `main.py`)
 4. Add route to `app/routes/__init__.py`
 5. Include router in `main.py`
-6. Write tests
+6. Register any new AI pipeline in `app/ai/registry.py::build_workspace_pipelines`
+7. Write tests
 
 ### Add a New Database Model
 
@@ -210,21 +210,12 @@ backend/
 
 ## Testing
 
+CI gates must pass before a PR merges (`backend/`):
+
 ```bash
-# Run all tests
-pytest
-
-# Run specific test file
-pytest tests/test_analysis.py
-
-# Run specific test
-pytest tests/test_analysis.py::test_create_analysis
-
-# Run with coverage
-pytest --cov=app tests/
-
-# Run with verbose output
-pytest -v
+ruff check .
+mypy app
+pytest          # full suite; --ignore=tests/test_auth_hardening.py without Redis
 ```
 
 ### Test Template
