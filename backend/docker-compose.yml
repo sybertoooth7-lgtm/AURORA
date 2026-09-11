@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgis/postgis:16-3.3
+    image: postgis/postgis:16-3.5
     container_name: aurora_postgres
     environment:
       POSTGRES_DB: aurora_db
