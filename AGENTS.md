@@ -34,12 +34,14 @@ npm.cmd run build
 
 ## Environment notes
 
-- The working venv has **no `pip` module**. Install packages with `uv`:
+- The toolchain is pinned in `backend/requirements-dev.txt` (`ruff==0.16.7`, `mypy==2.3.1`) so local results and CI results are identical. Prefer `uv` to install anything into the venv:
   `& "C:\Users\NEC\.local\bin\uv.exe" pip install --python "C:\Users\NEC\AppData\Local\Temp\opencode\aurora-venv\Scripts\python.exe" <package>`
+  (a pip was bootstrapped via `ensurepip` if uv is ever unavailable, but uv is the reliable path).
 - No local Postgres/Redis/Docker. As a result:
   - **Alembic migrations cannot be run locally** — they are validated in CI (`alembic upgrade head` against PostGIS 16).
   - **`tests/test_auth_hardening.py` needs Redis** and stays excluded from local runs; CI runs the full suite.
 - Real Sentinel-2 data requires `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` (Copernicus Data Space); otherwise the deterministic demo provider is used.
+- `gh` CLI is at `%LOCALAPPDATA%\Programs\gh\bin`. It authenticates CI checks via the token in the Windows Credential Manager (`git credential fill`), which lacks `read:org` — so use the GitHub REST API or git's stored creds, not `gh auth`.
 
 ## Honesty invariants (do not break)
 
