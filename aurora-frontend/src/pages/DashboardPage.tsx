@@ -5,7 +5,7 @@ export function DashboardPage() {
   const { areas } = useDashboardContext()
 
   if (areas.length > 0) {
-    return <Navigate to={`/areas/${areas[0].id}`} replace />
+    return <Navigate to={`/app/areas/${areas[0].id}`} replace />
   }
 
   return (
