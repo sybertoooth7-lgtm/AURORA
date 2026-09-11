@@ -331,11 +331,16 @@ New model versions are always registered as `prototype`; only an **admin** can
 raise a model to `production` (a governance gate), so prototypes can never
 self-declare as production.
 
-## Rate Limiting (TODO)
+## Rate Limiting
 
-API endpoints are rate-limited:
-- Free tier: 100 requests/hour
-- Premium tier: 1000 requests/hour
+All API endpoints are rate-limited per client IP (HTTP middleware in `app/main.py`):
+
+- General API traffic: **120 requests / minute** (`RATE_LIMIT_REQUESTS` / `RATE_LIMIT_WINDOW_SECONDS`)
+- Auth endpoints (`/auth/token`, `/auth/register`): **10 requests / minute** (`AUTH_RATE_LIMIT_REQUESTS` / `AUTH_RATE_LIMIT_WINDOW_SECONDS`) — on top of the per-account lockout after `LOGIN_MAX_ATTEMPTS` failed logins
+
+Requests over the limit return `429 {"detail": "Rate limit exceeded"}`.
+
+Honest caveat: the limiter is currently a **per-process in-memory** store (bounded LRU, oldest clients evicted first). It is not a global count across replicas — a client can get a fresh budget per API instance. A Redis-backed global limiter is the planned upgrade path; the middleware lives in one place so it drops in without route changes.
 
 ## Pagination
 

@@ -210,8 +210,6 @@ Building the space economy for Africa and the world.
 ## 📧 Contact
 
 - Email: info@aurora-space.com
-- Website: (Coming soon)
-- Twitter: (Coming soon)
 
 ## 🌍 Strategic Partners
 
