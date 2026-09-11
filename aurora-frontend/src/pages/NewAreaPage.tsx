@@ -69,7 +69,7 @@ export function NewAreaPage() {
         description: description || undefined,
       })
       await refreshAreas()
-      navigate(`/areas/${created.id}`)
+      navigate(`/app/areas/${created.id}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not create this area. Try again.')
     } finally {
