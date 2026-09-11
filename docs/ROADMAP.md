@@ -10,22 +10,22 @@
 - [ ] Initial MVP development
 
 ### Q2 2026
-- [ ] Space Intelligence Platform MVP complete
-- [ ] Satellite data integration (Sentinel, Landsat)
-- [ ] Basic AI analysis pipeline
+- [x] Space Intelligence Platform MVP complete (AI pipeline framework, 7 pipelines, satellite provider, capability registry)
+- [x] Satellite data integration (Sentinel-2 L2A NDVI via Copernicus Data Space Ecosystem, deterministic demo fallback)
+- [x] Basic AI analysis pipeline
 - [ ] First customer interviews
 - [ ] Product-market fit research
 
 ### Q3 2026
 - [ ] First paying customer
 - [ ] Web dashboard development
-- [ ] Advanced analysis features
+- [x] Earth-revenue integration prototype (parametric agriculture insurance, robotics field inspection, user onboarding flow) — AURORA-2
 - [ ] Seed funding round
 - [ ] Team expansion to 8-12 people
 
 ### Q4 2026
 - [ ] 5-10 paying customers
-- [ ] Advanced robotics prototyping
+- [x] Robotics telemetry bridge + satellite-fused inspection report
 - [ ] Automation pipeline improvements
 - [ ] Product roadmap for 2027
 - [ ] International partnerships
@@ -115,7 +115,7 @@
 
 | Year | Major Milestone | Team Size | Estimated Revenue |
 |------|-----------------|-----------|-------------------|
-| 2026 | Space Intelligence MVP | 5-12 | KSh 10M-100M |
+| 2026 | Space Intelligence MVP + Earth-revenue prototype (insurance, field inspection) | 5-12 | KSh 10M-100M |
 | 2027 | Series A Funding | 15-20 | KSh 100M-500M |
 | 2028 | Hardware R&D Center | 30-50 | KSh 500M-2B |
 | 2029 | First Spacecraft | 50-100 | KSh 2B-5B |
