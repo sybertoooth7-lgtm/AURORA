@@ -1,8 +1,13 @@
 # AURORA — Space Intelligence Dashboard
 
-Customer-facing frontend for the AURORA Space Intelligence Platform backend.
-Register/log in, submit an area of interest, watch it get processed, and
-see the satellite-derived NDVI/change-score readout, history, and alerts.
+Customer-facing frontend for the AURORA Space Intelligence Platform backend:
+a public landing page plus the authenticated dashboard. Register/log in,
+submit an area of interest, watch it get processed, and see the
+satellite-derived NDVI/change-score readout, history, and alerts.
+
+Routing: `/` is the public landing page (no auth), `/login` and `/register`
+are the auth pages, and the whole dashboard lives under `/app` (`/app`,
+`/app/areas/new`, `/app/areas/:id`) behind `RequireAuth` in `App.tsx`.
 
 ## Stack
 
@@ -42,6 +47,7 @@ src/
     AreaMap.tsx     # Leaflet map, colors the area circle by its latest NDVI reading
     LocationPicker.tsx # click/drag-to-place map used on the New Area form; syncs with the typed lat/lon fields
   pages/
+    LandingPage.tsx      # public marketing page at "/" -- no auth required
     LoginPage.tsx / RegisterPage.tsx
     DashboardPage.tsx   # redirects to the first area, or shows an empty state
     NewAreaPage.tsx      # map picker + form to submit a new area for monitoring
@@ -59,8 +65,6 @@ colors on the page are the ones that mean something — the NDVI health scale
 map, the telemetry strip, alerts, and the history table.
 
 ## Not built yet
-
-- Public marketing/landing page (this is the authenticated dashboard only)
 - `/auth/me` doesn't exist on the backend yet, so the session user's display
   name comes from decoding the JWT client-side rather than a profile fetch
 - No password reset / email verification flow
