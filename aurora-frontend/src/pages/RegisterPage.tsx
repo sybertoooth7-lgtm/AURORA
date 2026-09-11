@@ -19,7 +19,7 @@ export function RegisterPage() {
     setSubmitting(true)
     try {
       await register({ email, username, password, full_name: fullName || undefined })
-      navigate('/')
+      navigate('/app')
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not create your account. Try again.')
     } finally {
