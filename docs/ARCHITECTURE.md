@@ -4,14 +4,12 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   AURORA PLATFORM                            │
+│                     AURORA PLATFORM v0.2.0                   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐    │
-│  │              │  │              │  │                │    │
-│  │   WEB UI     │  │ MOBILE APP   │  │  API CLIENTS   │    │
-│  │ (React/Next) │  │   (Flutter)  │  │  (Partners)    │    │
-│  │              │  │              │  │                │    │
+│  │   WEB UI     │  │   API        │  │  API CLIENTS   │    │
+│  │ (React/Vite) │  │  CLIENTS     │  │  (Partners)    │    │
 │  └──────┬───────┘  └──────┬───────┘  └────────┬───────┘    │
 │         │                 │                    │             │
 │         └─────────────────┼────────────────────┘             │
@@ -25,30 +23,45 @@
 │         ┌─────────────────┼─────────────────┐                │
 │         │                 │                 │                │
 │    ┌────▼────┐  ┌────────▼────────┐  ┌─────▼────┐         │
-│    │PostgreSQL│ │  Redis Cache    │  │  Celery  │         │
-│    │ +PostGIS │ │                 │  │  Tasks   │         │
-│    │          │ │  Geospatial     │  │          │         │
-│    └──────────┘ │  Data Layer     │  └──────────┘         │
-│                 └─────────────────┘                         │
+│    │PostgreSQL│  │ Redis (RQ +    │  │  RQ      │         │
+│    │ + PostGIS│  │ lockout/redis) │  │  Worker  │         │
+│    └──────────┘  └────────────────┘  └──────────┘         │
 │                                                               │
-│  ┌──────────────────────────────────────────────┐           │
-│  │         AI/ML SERVICES                       │           │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  │           │
-│  │  │ Computer │  │ Robotics │  │ Mission  │  │           │
-│  │  │ Vision   │  │ Control  │  │ Planning │  │           │
-│  │  └──────────┘  └──────────┘  └──────────┘  │           │
-│  └──────────────────────────────────────────────┘           │
+│  ┌─────────────── CAPABILITY REGISTRY ───────────────────┐  │
+│  │ satellite │ ai │ robotics │ spacecraft │               │  │
+│  │ multiplanetary │ space_resources                       │  │
+│  └────────────────────────────────────────────────────────┘ │
 │                                                               │
-│  ┌──────────────────────────────────────────────┐           │
-│  │    EXTERNAL DATA SOURCES                     │           │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  │           │
-│  │  │ Sentinel │  │ Landsat  │  │Robotics  │  │           │
-│  │  │ 2 & 1    │  │ 8 & 9    │  │Telemetry │  │           │
-│  │  └──────────┘  └──────────┘  └──────────┘  │           │
-│  └──────────────────────────────────────────────┘           │
-│                                                               │
+│      GET /system/capabilities  →  every subsystem + pipeline │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## Integration model
+
+AURORA evolves as modular, independently-testable subsystems.  The
+**capability registry** (`backend/app/capabilities.py`, exposed at
+`GET /system/capabilities`) is the single index of what the platform can do:
+
+```json
+{
+  "platform": "AURORA",
+  "version": "0.2.0",
+  "subsystems": [
+    {"id": "satellite",         "modules": ["app.satellite"],         "status": "active"},
+    {"id": "ai",                "modules": ["app.ai"],                "status": "active"},
+    {"id": "robotics",          "modules": ["app.robotics"],          "status": "active"},
+    {"id": "spacecraft",        "modules": ["app.spacecraft"],        "status": "active"},
+    {"id": "multiplanetary",    "modules": ["app.multiplanetary"],    "status": "active"},
+    {"id": "space_resources",   "modules": ["app.space_resources"],   "status": "active"}
+  ],
+  "ai_pipelines": [...],       // live: mirrored from the AI registry
+  "satellite_sources": [...]   // live: real vs simulated boundary
+}
+```
+
+Adding a future capability (constellation command, ISRU plant control,
+orbital robotics) means adding one subsystem entry — the core system,
+database, and API contract do not change.
 
 ## Backend Architecture
 
@@ -56,326 +69,128 @@
 
 | Layer | Technology | Purpose |
 |-------|-----------|----------|
-| **Framework** | FastAPI | Modern async Python web framework |
-| **Database** | PostgreSQL | Main relational database |
-| **Geospatial** | PostGIS | Geographic data extension |
-| **Cache** | Redis | In-memory caching & session storage |
-| **Task Queue** | Celery | Async task processing |
-| **Message Broker** | Redis/RabbitMQ | Celery backend |
-| **ORM** | SQLAlchemy | Object-relational mapping |
-| **Validation** | Pydantic | Data validation & serialization |
-| **Container** | Docker | Containerization |
-| **Orchestration** | Kubernetes | Future: Production orchestration |
+| **Framework** | FastAPI + uvicorn | Async web framework (single source of version: `settings.APP_VERSION`) |
+| **Database** | PostgreSQL + PostGIS | Relational data + geometry (SQLAlchemy 2.x / GeoAlchemy2) |
+| **Cache** | Redis | RQ job queue, login lockout counters, token blocklist |
+| **Task Queue** | RQ (worker.py) | Analysis execution survives API restarts (not Celery) |
+| **Validation** | Pydantic v2 | Schemas in `app/schemas/` |
+| **Container** | Docker + docker-compose | API + worker + Postgres + Redis |
+| **Config** | pydantic-settings | Single `Settings` class, `.env`, fail-fast secret guard |
 
-### Data Models
+### Module layout (`backend/app/`)
 
-```
-┌─────────────┐
-│   Users     │
-├─────────────┤
-│ id (PK)     │
-│ email       │
-│ username    │
-│ hashed_pwd  │
-│ is_active   │
-└──────┬──────┘
-       │ (1:N)
-       └──────────────┐
-                      │
-        ┌─────────────▼────────────┐
-        │   Analyses               │
-        ├─────────────────────────┤
-        │ id (PK)                 │
-        │ user_id (FK)            │
-        │ analysis_type           │
-        │ geometry (PostGIS)      │
-        │ status                  │
-        │ created_at              │
-        └─────────────┬───────────┘
-                      │ (1:N)
-                      │
-        ┌─────────────▼──────────────┐
-        │  AnalysisResults          │
-        ├──────────────────────────┤
-        │ id (PK)                  │
-        │ analysis_id (FK)         │
-        │ result_geometry          │
-        │ severity_score           │
-        │ confidence               │
-        │ finding                  │
-        └──────────────────────────┘
-
-┌────────────────────┐
-│ SatelliteImages    │
-├────────────────────┤
-│ id (PK)            │
-│ source             │
-│ image_id           │
-│ date_acquired      │
-│ geometry (PostGIS) │
-│ cloud_coverage     │
-│ resolution_m       │
-│ url                │
-└────────────────────┘
-
-┌────────────────┐
-│   Alerts       │
-├────────────────┤
-│ id (PK)        │
-│ user_id (FK)   │
-│ result_id (FK) │
-│ alert_type     │
-│ title          │
-│ description    │
-│ is_read        │
-└────────────────┘
-```
+| Path | Responsibility |
+|---|---|
+| `config.py` | Central settings (`APP_VERSION`, DB, security, satellite, queue, AI) |
+| `database.py`, `queue.py` | SQLAlchemy session bound to `get_db`; RQ Redis bindings |
+| `security.py` | JWT auth, RBAC (`require_admin`), login lockout |
+| `exceptions.py`, `logging_conf.py` | Uniform error codes + structured logging |
+| `capabilities.py` | Platform-wide capability registry |
+| `models/` | SQLAlchemy ORM: User, Analysis(+Result), SatelliteImage, Alert, AIModel |
+| `schemas/` | Pydantic request/response models |
+| `routes/` | FastAPI routers: health, system, auth, analysis, satellite, alerts, reports, ai |
+| `services/` | Business logic boundary (`analysis_runner`) |
+| `satellite/` | Provider interface (`SatelliteObservation`), demo + Sentinel Hub providers |
+| `ai/` | Pipeline framework: registry, 7 pipelines, preprocessing, model repository, inference |
+| `robotics/` | Terrestrial robot: core, navigation, perception, control, simulation, telemetry |
+| `spacecraft/` | AURORA-1 3U CubeSat: ADCS, power, thermal, comms, payload, FSW, mission |
+| `multiplanetary/` | 7-layer AI stack + ops (comms delay, radiation, disconnected, fail-safe, security) |
+| `space_resources/` | ISRU: TRL registry, extraction, plant sim, economics, prospecting, roadmap |
 
 ### API Endpoints
 
 ```
+/system
+  GET /capabilities            # platform capability index (public)
+
 /health
-  GET /                    # Health check
-  GET /ready               # Readiness probe
+  GET /                        # health + version (public)
+  GET /ready                   # readiness probe (public)
+
+/auth
+  POST /register  POST /token  # JWT auth with lockout + rate limiting
+  GET  /me                     # current profile
 
 /analysis
-  POST /                   # Create analysis
-  GET /{id}                # Get analysis details
-  GET /                    # List analyses
-  GET /{id}/results        # Get analysis results
+  POST /                       # create analysis (queued to RQ worker)
+  GET  /                       # list analyses
+  GET  /{id}                   # details
+  GET  /{id}/results           # results
 
 /satellite
-  GET /images              # List satellite images
-  GET /sources             # Available data sources
-  GET /images/{id}         # Get specific image
+  GET /images                  # satellite image list
+  GET /sources                 # available data sources
+  GET /images/{id}             # specific image
 
-/users (Future)
-  POST /register           # User registration
-  POST /login              # User login
-  GET /me                  # Current user profile
+/ai
+  GET  /pipelines              # pipeline registry (public)
+  POST /infer                  # synchronous inference (auth)
+  GET  /models  POST /models   # model registry (auth)
+  PATCH /models/{id}/status    # promote/archive (admin)
 
-/robotics (Future)
-  GET /robots              # List robots
-  GET /robots/{id}         # Robot status
-  POST /robots/{id}/tasks  # Send task to robot
+/alerts
+  GET  /                       # list alerts (auth)
 
-/missions (Future)
-  GET /missions            # List missions
-  POST /missions           # Create mission
-  GET /missions/{id}       # Mission details
+/reports
+  GET  /{analysis_id}          # report export (auth)
 ```
 
-### Authentication (TODO)
+### Data models (SQLAlchemy + PostGIS)
 
 ```
-User Login
-   ↓
-JWT Token Generation
-   ↓
-Refresh Token Storage (Redis)
-   ↓
-Request with Authorization Header
-   ↓
-Token Verification
-   ↓
-Role-Based Access Control (RBAC)
+User ─┬─< Analysis ──< AnalysisResult
+      └─< Alert ──< AnalysisResult
+SatelliteImage
+AIModel                     # ai_models registry (prototype/production/archived)
 ```
 
-### Processing Pipeline
+Schema is owned by **Alembic** (`alembic upgrade head`; Dockerfile runs it
+automatically).  Migrations:
+`db5c3b1b933e` (initial), `a1b2c3d4e5f6` (+AI models + 3 analysis types),
+`b5c6d7e8f9a0` (+wildfire/flood types).
 
-#### Analysis Processing
-
-```
-User Creates Analysis
-         ↓
-Request Validation (Pydantic)
-         ↓
-Analysis Record Created (DB)
-         ↓
-Celery Task Queued
-         ↓
-Satellite Data Retrieval
-         ↓
-Preprocessing (Georeferencing, etc.)
-         ↓
-AI/ML Analysis
-         ↓
-Results Storage (DB)
-         ↓
-Alert Generation (if needed)
-         ↓
-Notification to User
-```
-
-#### AI Pipeline
+### AI pipeline flow
 
 ```
-Satellite Image Input
-         ↓
-Normalization (0-1 range)
-         ↓
-Feature Extraction (ResNet50)
-         ↓
-Analysis Selection
-         ├─→ Vegetation Stress (NDVI)
-         ├─→ Land Change Detection
-         ├─→ Climate Impact Analysis
-         └─→ Infrastructure Monitoring
-         ↓
-Result Computation
-         ↓
-Geometric Polygon Generation
-         ↓
-Severity Scoring (0-1)
-         ↓
-Confidence Calculation
-         ↓
-Output Report
+POST /analysis  or  POST /ai/infer
+        ↓
+Provider boundary (demo ⇄ Sentinel Hub when credentials configured)
+        ↓
+SatelliteObservation(+history)
+        ↓
+PipelineRegistry → selected pipeline (vegetation/land_change/.../flood)
+        ↓
+PipelineResult (severity, confidence, findings, metrics)
+        ↓
+Persist Analysis + AnalysisResult + (Alert if severity ≥ 0.35)
+        ↓
+Dashboard / alerts / report
 ```
-
-## Database Schema
-
-### PostGIS Integration
-
-All location-based data uses PostGIS geometry types:
-
-```sql
--- Analysis geometry (polygon of analysis area)
-CREATE TABLE analyses (
-    id SERIAL PRIMARY KEY,
-    geometry GEOMETRY(POLYGON, 4326),  -- WGS84 CRS
-    ...
-);
-
--- Create spatial index
-CREATE INDEX idx_analyses_geom ON analyses USING GIST (geometry);
-
--- Query examples
-SELECT * FROM satellite_images 
-WHERE ST_Intersects(geometry, 
-    ST_MakeEnvelope(-0.3, -1.3, 0.3, -1.0, 4326));
-```
-
-## Deployment Architecture
-
-### Development
-
-```
-Local Machine
-    ├── Python venv
-    ├── PostgreSQL (local)
-    ├── Redis (local)
-    └── FastAPI (uvicorn reload)
-```
-
-### Production (Target)
-
-```
-Kubernetes Cluster
-    ├── FastAPI Pods (replicas)
-    ├── PostgreSQL StatefulSet
-    ├── Redis Cache
-    ├── Celery Workers
-    ├── Ingress (Load Balancer)
-    └── PersistentVolumes
-```
-
-### Docker Deployment
-
-```dockerfile
-FROM python:3.11-slim
-RUN apt-get install postgresql-client
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0"]
-```
-
-## Scalability Considerations
-
-### Horizontal Scaling
-- Multiple FastAPI instances behind load balancer
-- Database read replicas for queries
-- Distributed Redis clusters
-- Celery worker pool scaling
-
-### Vertical Scaling
-- Increase CPU/RAM for API servers
-- Database performance tuning
-- Connection pooling optimization
-
-### Caching Strategy
-- User session caching (Redis)
-- Satellite image metadata caching
-- Analysis result caching
-- Computed geometry caching
 
 ## Security Architecture
 
-```
-┌─────────────────────┐
-│  Internet           │
-└──────────┬──────────┘
-           │
-        ┌──▼──────────────┐
-        │ WAF/DDoS        │
-        │ Protection      │
-        └──┬──────────────┘
-           │
-        ┌──▼──────────────┐
-        │ HTTPS/TLS       │
-        │ Encryption      │
-        └──┬──────────────┘
-           │
-        ┌──▼──────────────┐
-        │ API Gateway     │
-        │ Rate Limiting   │
-        └──┬──────────────┘
-           │
-        ┌──▼──────────────┐
-        │ Authentication  │
-        │ (JWT Tokens)    │
-        └──┬──────────────┘
-           │
-        ┌──▼──────────────┐
-        │ RBAC            │
-        │ Authorization   │
-        └──┬──────────────┘
-           │
-        ┌──▼──────────────┐
-        │ Application     │
-        │ Logic           │
-        └──┬──────────────┘
-           │
-        ┌──▼──────────────┐
-        │ Database        │
-        │ (Encrypted)     │
-        └─────────────────┘
-```
+- JWT access tokens (HS256), 30 min expiry, per-account login lockout
+  (5 attempts → 15 min) stored in Redis.
+- Auth rate limiting (10 req/min per IP) vs. general 120 req/min.
+- `require_admin` gate on irreversible governance actions
+  (model promotion/archive).
+- Production secrets guard: placeholders rejected when
+  `ENVIRONMENT != development`.
+- Mission ops security: HMAC command auth, anti-replay, config integrity
+  (`app/multiplanetary/ops/security.py`) for the space-autonomy domain.
+
+## Deployment
+
+- **Dev**: local venv + Postgres + Redis + `uvicorn` (reload) + `python worker.py`.
+- **Prod (docker-compose.yml)**: `api`, `worker`, `postgres`, `redis` services.
+- **Target (future)**: Kubernetes with FastAPI replicas, DB/Redis HA.
 
 ## Monitoring & Logging
 
-### Metrics
-- API response times
-- Database query performance
-- Celery task execution times
-- Error rates
-- User engagement
-
-### Logging
-- Application logs (INFO, WARNING, ERROR, DEBUG)
-- Database query logs
-- Celery task logs
-- Access logs
-- Security events
-
-### Tools (Future)
-- Prometheus: Metrics collection
-- Grafana: Visualization
-- ELK Stack: Log aggregation
-- Sentry: Error tracking
-- DataDog: APM
+- Structured logging (`LOG_FORMAT=text|json`) via `app/logging_conf.py`;
+  every request + every pipeline run is logged with `extra_keys`.
+- Metrics tracked: request duration/status, pipeline runs, model promotion,
+  security events.  Future: Prometheus/Grafana/Sentry.
 
 ---
 

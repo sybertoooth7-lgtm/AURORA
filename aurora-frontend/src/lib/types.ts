@@ -10,6 +10,8 @@ export type AnalysisType =
   | 'infrastructure_monitoring'
   | 'environmental_monitoring'
   | 'anomaly_detection'
+  | 'wildfire_risk'
+  | 'flood_monitoring'
 
 export type AnalysisStatus = 'pending' | 'processing' | 'completed' | 'failed'
 

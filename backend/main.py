@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AURORA Backend",
     description="Space Intelligence Platform - AI + Satellite Data + Geospatial Analytics",
-    version="0.2.0",
+    version=settings.APP_VERSION,
     lifespan=lifespan
 )
 
@@ -195,6 +195,7 @@ app.include_router(routes.auth_router)
 app.include_router(routes.alerts_router)
 app.include_router(routes.reports_router)
 app.include_router(routes.ai_router)
+app.include_router(routes.system_router)
 
 
 @app.get("/")
@@ -204,9 +205,10 @@ async def root():
         "name": "AURORA",
         "description": "Space Intelligence Platform",
         "status": "operational",
-        "version": "0.2.0",
+        "version": settings.APP_VERSION,
         "docs": "/docs",
         "ai": "/ai/pipelines",
+        "capabilities": "/system/capabilities",
     }
 
 

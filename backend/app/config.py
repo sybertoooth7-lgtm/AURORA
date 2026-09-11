@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     API_RELOAD: bool = True
     API_WORKERS: int = 4
 
+    # Platform version (single source of truth for /, /health and the API
+    # metadata -- bump it here, never in three places).
+    APP_VERSION: str = "0.2.0"
+
     # Security
     SECRET_KEY: str = DEFAULT_SECRET_KEY
     ALGORITHM: str = "HS256"

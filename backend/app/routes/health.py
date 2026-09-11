@@ -2,6 +2,8 @@
 
 from fastapi import APIRouter
 
+from app.config import get_settings
+
 router = APIRouter(prefix="/health", tags=["health"])
 
 
@@ -11,7 +13,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "AURORA Backend",
-        "version": "0.1.0"
+        "version": get_settings().APP_VERSION,
     }
 
 
