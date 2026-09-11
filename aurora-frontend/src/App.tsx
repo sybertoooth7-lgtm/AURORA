@@ -3,6 +3,7 @@ import { Layout } from './components/Layout'
 import { AuthProvider, useAuth } from './lib/auth'
 import { AreaDetailPage } from './pages/AreaDetailPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { NewAreaPage } from './pages/NewAreaPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -16,10 +17,11 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route
-        path="/"
+        path="/app"
         element={
           <RequireAuth>
             <Layout />
