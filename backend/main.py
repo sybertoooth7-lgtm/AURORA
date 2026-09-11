@@ -171,7 +171,7 @@ async def aurora_error_handler(request: Request, exc: AuroraError):
         getattr(exc, "log_level", "warning").upper(),
         "aurora_error",
         extra_keys={"code": exc.code, "path": request.url.path},
-        exc_info=exc if isinstance(exc, (KeyError,)) or settings.DEBUG else None,
+        exc_info=exc if isinstance(exc, KeyError) or settings.DEBUG else None,
     )
     return JSONResponse(status_code=exc.status_code, content=exc.to_response())
 

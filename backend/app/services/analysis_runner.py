@@ -118,7 +118,7 @@ def run_analysis(analysis_id: int) -> None:
         )
     except Exception as exc:  # noqa: BLE001 - worker boundary: surface everything
         db.rollback()
-        error_type = "pipeline" if isinstance(exc, (UnknownPipelineError,)) else "provider"
+        error_type = "pipeline" if isinstance(exc, UnknownPipelineError) else "provider"
         logger.error(
             "Analysis failed",
             exc_info=exc,
