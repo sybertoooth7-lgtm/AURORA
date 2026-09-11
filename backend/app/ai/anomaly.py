@@ -12,7 +12,6 @@ on: the anomaly *interface* (history -> deviations) stays the same while
 the input sources broaden.
 """
 
-from typing import List, Optional
 
 import numpy as np
 
@@ -40,7 +39,7 @@ class AnomalyPipeline(Pipeline):
     preprocessing = ["median/MAD normalization", "per-index robust z-scores"]
 
     @staticmethod
-    def _index_history(history: List[SatelliteObservation], attr: str, varied: bool) -> List[float]:
+    def _index_history(history: list[SatelliteObservation], attr: str, varied: bool) -> list[float]:
         values = []
         for obs in history:
             value = getattr(obs, attr)
@@ -53,7 +52,7 @@ class AnomalyPipeline(Pipeline):
     def run(
         self,
         observation: SatelliteObservation,
-        history: Optional[List[SatelliteObservation]] = None,
+        history: list[SatelliteObservation] | None = None,
     ) -> PipelineResult:
         history = history or []
         history_length = len(history)
@@ -87,8 +86,8 @@ class AnomalyPipeline(Pipeline):
             ("ndwi", False),
             ("evi", False),
         ]
-        zscores: List[float] = []
-        dimensions: List[str] = []
+        zscores: list[float] = []
+        dimensions: list[str] = []
         for attr, varied in index_specs:
             current = getattr(observation, attr)
             series = self._index_history(history, attr, varied)

@@ -5,10 +5,9 @@ roughness, and temperature -- all parameters that affect the same robot
 software differently depending on which body it is operating on.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
-import random
 import math
+import random
+from dataclasses import dataclass
 
 
 @dataclass
@@ -18,18 +17,18 @@ class PlanetaryEnvironment:
     atmosphere_pressure_pa: float = 101325.0
     has_atmosphere: bool = True
     solar_flux_wm2: float = 1361.0
-    temperature_range_c: Tuple[float, float] = (-40.0, 60.0)
+    temperature_range_c: tuple[float, float] = (-40.0, 60.0)
     mean_temperature_c: float = 15.0
     day_length_s: float = 86400.0
     dust_density: float = 0.0
     radiation_multiplier: float = 1.0
     terrain_roughness: float = 0.1
-    slope_range_deg: Tuple[float, float] = (0.0, 30.0)
+    slope_range_deg: tuple[float, float] = (0.0, 30.0)
     regolith_depth_m: float = 5.0
 
     def generate_height_map(
         self, width: int, height: int, resolution: float = 1.0, seed: int = 42
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         rng = random.Random(seed)
         hmap = [[0.0] * width for _ in range(height)]
         for gy in range(height):
@@ -46,11 +45,11 @@ class PlanetaryEnvironment:
 
     def generate_obstacles(
         self, count: int, area_km2: float = 1.0, seed: int = 42
-    ) -> List[Dict]:
+    ) -> list[dict]:
         rng = random.Random(seed)
         obstacles = []
         side_m = math.sqrt(area_km2) * 1000
-        for i in range(count):
+        for _ in range(count):
             x = rng.uniform(0, side_m)
             y = rng.uniform(0, side_m)
             if self.name == "lunar":
@@ -65,7 +64,7 @@ class PlanetaryEnvironment:
             obstacles.append({"x": x, "y": y, "radius": r, "type": obs_type})
         return obstacles
 
-    def light_conditions(self, time_of_day_s: float) -> Dict:
+    def light_conditions(self, time_of_day_s: float) -> dict:
         if not self.has_atmosphere:
             fraction = max(0.0, math.sin(2 * math.pi * time_of_day_s / self.day_length_s))
             return {"illumination": fraction, "shadow_length_factor": 1.0 / max(fraction, 0.01)}

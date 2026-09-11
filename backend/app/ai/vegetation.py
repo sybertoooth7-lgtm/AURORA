@@ -9,7 +9,6 @@ thresholds are still tuned per crop and marked prototype until validated
 against field ground-truth data.
 """
 
-from typing import List, Optional
 
 from app.ai import preprocessing as pp
 from app.ai.base import (
@@ -37,7 +36,7 @@ class VegetationPipeline(Pipeline):
     def run(
         self,
         observation: SatelliteObservation,
-        history: Optional[List[SatelliteObservation]] = None,
+        history: list[SatelliteObservation] | None = None,
     ) -> PipelineResult:
         ndvi = observation.ndvi
         severity = pp.ndvi_stress_severity(ndvi)

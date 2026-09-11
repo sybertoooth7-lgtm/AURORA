@@ -33,6 +33,9 @@ def test_capabilities_lists_all_subsystems(client):
     assert subsystem_ids == {
         "satellite",
         "ai",
+        "insurance",
+        "robotics_field_services",
+        "onboarding",
         "robotics",
         "spacecraft",
         "multiplanetary",
@@ -47,6 +50,8 @@ def test_capabilities_reports_ai_pipelines(client):
     assert "vegetation_stress" in handles
     assert "wildfire_risk" in handles
     assert "flood_monitoring" in handles
+    assert "insurance_index" in handles
+    assert "robotics_inspection" in handles
 
 
 def test_capabilities_reports_satellite_sources(client):

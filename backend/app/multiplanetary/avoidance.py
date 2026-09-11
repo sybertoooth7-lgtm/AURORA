@@ -10,7 +10,6 @@ and on hardware.
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -62,7 +61,7 @@ class ReactiveAvoidance:
         self.forward_speed = forward_speed
         self.turn_speed = turn_speed
 
-    def compute(self, obstacles: List[Obstacle]) -> AvoidanceCommand:
+    def compute(self, obstacles: list[Obstacle]) -> AvoidanceCommand:
         if not obstacles:
             return AvoidanceCommand(
                 linear_velocity=self.forward_speed,
@@ -119,9 +118,9 @@ class PotentialFieldAvoidance:
 
     def compute(
         self,
-        current_pos: Tuple[float, float],
-        goal: Tuple[float, float],
-        obstacles: List[Obstacle],
+        current_pos: tuple[float, float],
+        goal: tuple[float, float],
+        obstacles: list[Obstacle],
     ) -> AvoidanceCommand:
         dx = goal[0] - current_pos[0]
         dy = goal[1] - current_pos[1]

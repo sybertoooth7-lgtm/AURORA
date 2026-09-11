@@ -10,7 +10,6 @@ identify specific structures; that requires pixel-level imagery and is the
 natural next stage. This is why the model is marked prototype.
 """
 
-from typing import List, Optional
 
 from app.ai import preprocessing as pp
 from app.ai.base import (
@@ -38,7 +37,7 @@ class InfrastructurePipeline(Pipeline):
     def run(
         self,
         observation: SatelliteObservation,
-        history: Optional[List[SatelliteObservation]] = None,
+        history: list[SatelliteObservation] | None = None,
     ) -> PipelineResult:
         change = pp.clip01(observation.change_score)
         bsi = pp.clip01(observation.bsi) if observation.bsi is not None else None

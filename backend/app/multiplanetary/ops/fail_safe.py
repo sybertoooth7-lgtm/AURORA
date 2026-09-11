@@ -7,9 +7,10 @@ system into a known-safe state.  The fail-safe invariant: safe mode
 must always be reachable.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Callable
+from typing import Any
 
 
 class SafeModeLevel(Enum):
@@ -61,12 +62,12 @@ class FailSafeController:
         command_loss_timeout_s: float = 300.0,
     ):
         self._level = initial_level
-        self._signals: Dict[str, HealthSignal] = {}
+        self._signals: dict[str, HealthSignal] = {}
         self._watchdog_count: int = 0
         self._max_watchdog_before_safe = max_watchdog_before_safe
         self._command_loss_timeout_s = command_loss_timeout_s
         self._last_command_time: float = 0.0
-        self._on_safe_mode: Optional[Callable] = None
+        self._on_safe_mode: Callable | None = None
 
     def register_signal(self, signal: HealthSignal) -> None:
         self._signals[signal.name] = signal
@@ -120,7 +121,7 @@ class FailSafeController:
         self._level = SafeModeLevel.NORMAL
         self._watchdog_count = 0
 
-    def status(self) -> Dict[str, any]:
+    def status(self) -> dict[str, Any]:
         return {
             "level": self._level.value,
             "is_safe_mode": self.is_safe_mode,

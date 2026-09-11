@@ -1,5 +1,5 @@
-from app.security import hash_password, verify_password
 from app.satellite.providers import DemoSatelliteProvider
+from app.security import hash_password, verify_password
 
 
 def test_password_hash_round_trip():

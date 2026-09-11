@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, FrozenSet, List, Optional
+from typing import Any
 
 from app.models.analysis import AnalysisType
 from app.satellite.providers import SatelliteObservation
@@ -57,7 +57,7 @@ class ModelRef:
     version: str
     kind: ModelKind
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         return {"name": self.name, "version": self.version, "kind": self.kind.value}
 
 
@@ -72,7 +72,7 @@ class Label:
 
     class_: str
     confidence: float
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    attributes: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -82,19 +82,19 @@ class PipelineResult:
     analysis_type: AnalysisType
     severity: float  # 0..1
     confidence: float  # 0..1
-    findings: List[str]
-    metrics: Dict[str, float]
+    findings: list[str]
+    metrics: dict[str, float | None]
     provenance: Provenance
     source: str
     image_id: str
     acquired_at: datetime
     model: ModelRef
-    preprocessing: List[str] = field(default_factory=list)
-    labels: List[Label] = field(default_factory=list)
-    warning: Optional[str] = None
+    preprocessing: list[str] = field(default_factory=list)
+    labels: list[Label] = field(default_factory=list)
+    warning: str | None = None
     history_length: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "analysis_type": self.analysis_type.value,
             "severity": round(self.severity, 4),
@@ -120,7 +120,7 @@ class PipelineResult:
             "history_length": self.history_length,
         }
 
-    def to_metadata(self) -> Dict[str, Any]:
+    def to_metadata(self) -> dict[str, Any]:
         """JSON-safe dict for persisting in ``analysis_results.metadata``."""
         return self.to_dict()
 
@@ -148,19 +148,19 @@ class Pipeline(ABC):
 
     name: str = ""
     description: str = ""
-    handles: FrozenSet[AnalysisType] = frozenset()
+    handles: frozenset[AnalysisType] = frozenset()
     model: ModelRef = ModelRef(name="base", version="0.0.0", kind=ModelKind.PROTOTYPE)
-    preprocessing: List[str] = ["no preprocessing (area-aggregated statistics input)"]
+    preprocessing: list[str] = ["no preprocessing (area-aggregated statistics input)"]
 
     @abstractmethod
     def run(
         self,
         observation: SatelliteObservation,
-        history: Optional[List[SatelliteObservation]] = None,
+        history: list[SatelliteObservation] | None = None,
     ) -> PipelineResult:
         """Run inference over one (latest) observation and optionally its history."""
 
-    def describe(self) -> Dict[str, Any]:
+    def describe(self) -> dict[str, Any]:
         """Registry-facing description of the pipeline."""
         return {
             "name": self.name,

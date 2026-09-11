@@ -1,8 +1,8 @@
 """Satellite imagery schemas"""
 
-from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+
+from pydantic import BaseModel
 
 
 class SatelliteImageResponse(BaseModel):
@@ -11,9 +11,9 @@ class SatelliteImageResponse(BaseModel):
     source: str
     image_id: str
     date_acquired: datetime
-    cloud_coverage: Optional[float]
-    resolution_m: Optional[float]
-    url: Optional[str]
+    cloud_coverage: float | None
+    resolution_m: float | None
+    url: str | None
     created_at: datetime
 
     class Config:

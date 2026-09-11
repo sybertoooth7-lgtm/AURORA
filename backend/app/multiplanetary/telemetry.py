@@ -8,7 +8,7 @@ relay satellites (like Mars Reconnaissance Orbiter) provide store-and-forward.
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class RelayMode(Enum):
@@ -21,13 +21,13 @@ class RelayMode(Enum):
 class TelemetryPacket:
     source: str
     timestamp: float
-    data: Dict[str, Any]
+    data: dict[str, Any]
     priority: int = 0
     size_bytes: int = 0
     attempts: int = 0
-    relay_path: List[str] = field(default_factory=list)
+    relay_path: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "source": self.source,
             "timestamp": self.timestamp,
@@ -51,7 +51,7 @@ class LinkState:
     def round_trip_delay_s(self) -> float:
         return self.one_way_delay_s * 2
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "distance_au": round(self.distance_au, 4),
             "one_way_delay_s": round(self.one_way_delay_s, 2),
@@ -70,8 +70,8 @@ class StoreAndForwardRelay:
     def __init__(self, storage_capacity_packets: int = 5000, relay_mode: RelayMode = RelayMode.STORE_AND_FORWARD):
         self.storage_capacity = storage_capacity_packets
         self.relay_mode = relay_mode
-        self._storage: List[TelemetryPacket] = []
-        self._transmitted: List[TelemetryPacket] = []
+        self._storage: list[TelemetryPacket] = []
+        self._transmitted: list[TelemetryPacket] = []
         self._dropped: int = 0
         self._total_bytes_stored = 0
         self._total_bytes_transmitted = 0
@@ -84,10 +84,10 @@ class StoreAndForwardRelay:
         self._total_bytes_stored += packet.size_bytes
         return True
 
-    def transmit_batch(self, max_bytes: int, link: LinkState) -> List[TelemetryPacket]:
+    def transmit_batch(self, max_bytes: int, link: LinkState) -> list[TelemetryPacket]:
         if not link.available:
             return []
-        transmitted: List[TelemetryPacket] = []
+        transmitted: list[TelemetryPacket] = []
         remaining = max_bytes
         self._storage.sort(key=lambda p: -p.priority)
         while self._storage and remaining > 0:
@@ -127,7 +127,7 @@ class DeepSpaceTelemetry:
     and relay scheduling.
     """
 
-    def __init__(self, relay: Optional[StoreAndForwardRelay] = None):
+    def __init__(self, relay: StoreAndForwardRelay | None = None):
         self.relay = relay or StoreAndForwardRelay()
         self._packet_counter = 0
         self._link_state = LinkState()
@@ -135,7 +135,7 @@ class DeepSpaceTelemetry:
     def set_link_state(self, link_state: LinkState) -> None:
         self._link_state = link_state
 
-    def send(self, source: str, data: Dict[str, Any], priority: int = 0) -> TelemetryPacket:
+    def send(self, source: str, data: dict[str, Any], priority: int = 0) -> TelemetryPacket:
         self._packet_counter += 1
         pkt = TelemetryPacket(
             source=source,
@@ -147,12 +147,12 @@ class DeepSpaceTelemetry:
         self.relay.store(pkt)
         return pkt
 
-    def transmit_available(self, contact_s: float = 300.0) -> List[TelemetryPacket]:
+    def transmit_available(self, contact_s: float = 300.0) -> list[TelemetryPacket]:
         max_bytes = int(contact_s * self._link_state.data_rate_bps / 8)
         return self.relay.transmit_batch(max_bytes, self._link_state)
 
     @property
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         return {
             "packets_sent": self._packet_counter,
             "storage_depth": self.relay.storage_depth,

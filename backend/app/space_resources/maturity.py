@@ -6,7 +6,6 @@ risk profile, and development timeline.  No fictional capabilities.
 
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Dict, List, Optional
 
 
 class TRL(IntEnum):
@@ -56,10 +55,10 @@ class ResourceTechnology:
     risk: RiskProfile
     timeline: Timeline
     description: str
-    hardware: List[str] = field(default_factory=list)
+    hardware: list[str] = field(default_factory=list)
     target_body: str = "lunar"
     terrestrial_heritage: str = ""
-    dependency_ids: List[str] = field(default_factory=list)
+    dependency_ids: list[str] = field(default_factory=list)
 
     @property
     def production_efficiency(self) -> float:
@@ -78,7 +77,7 @@ class ResourceTechnology:
         else:
             return "operational"
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
@@ -96,7 +95,7 @@ class ResourceTechnology:
 
 class TRLRegistry:
     def __init__(self):
-        self._technologies: Dict[str, ResourceTechnology] = {}
+        self._technologies: dict[str, ResourceTechnology] = {}
 
     def register(self, tech: ResourceTechnology) -> None:
         for dep_id in tech.dependency_ids:
@@ -104,27 +103,27 @@ class TRLRegistry:
                 raise ValueError(f"Dependency {dep_id} not registered for {tech.id}")
         self._technologies[tech.id] = tech
 
-    def get(self, tech_id: str) -> Optional[ResourceTechnology]:
+    def get(self, tech_id: str) -> ResourceTechnology | None:
         return self._technologies.get(tech_id)
 
-    def by_trl(self, min_trl: int = 1, max_trl: int = 9) -> List[ResourceTechnology]:
+    def by_trl(self, min_trl: int = 1, max_trl: int = 9) -> list[ResourceTechnology]:
         return [t for t in self._technologies.values() if min_trl <= t.trl.value <= max_trl]
 
-    def by_resource(self, resource_type: str) -> List[ResourceTechnology]:
+    def by_resource(self, resource_type: str) -> list[ResourceTechnology]:
         return [t for t in self._technologies.values() if t.resource_type == resource_type]
 
-    def by_body(self, target_body: str) -> List[ResourceTechnology]:
+    def by_body(self, target_body: str) -> list[ResourceTechnology]:
         return [t for t in self._technologies.values() if t.target_body == target_body]
 
     @property
-    def all(self) -> List[ResourceTechnology]:
+    def all(self) -> list[ResourceTechnology]:
         return list(self._technologies.values())
 
     @property
     def count(self) -> int:
         return len(self._technologies)
 
-    def dependency_chain(self, tech_id: str) -> List[str]:
+    def dependency_chain(self, tech_id: str) -> list[str]:
         chain = [tech_id]
         tech = self._technologies.get(tech_id)
         if tech:

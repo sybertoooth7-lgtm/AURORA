@@ -7,7 +7,7 @@ leave the analysis in a clear "failed" state with the error logged.
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from geoalchemy2.elements import WKTElement
 
@@ -101,7 +101,7 @@ def run_analysis(analysis_id: int) -> None:
                 description=db_result.finding,
             ))
         analysis.status = "completed"
-        analysis.completed_at = datetime.now(timezone.utc)
+        analysis.completed_at = datetime.now(UTC)
         db.commit()
 
         logger.info(

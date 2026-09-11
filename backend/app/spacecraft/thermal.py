@@ -7,9 +7,7 @@ eclipse (~-150 C) depending on orbit.  The thermal model runs a simple
 energy balance each tick.
 """
 
-import math
 from dataclasses import dataclass
-from typing import Dict, Optional
 
 
 @dataclass
@@ -22,7 +20,7 @@ class ThermalState:
     albedo_heating_w: float = 0.0
     earth_ir_w: float = 0.0
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         return {
             "temperature_c": round(self.temperature_c, 2),
             "heater_on": self.heater_on,

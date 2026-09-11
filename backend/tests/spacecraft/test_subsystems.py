@@ -1,15 +1,15 @@
 """Tests for CubeSat spacecraft subsystems (no DB, no network)."""
 
-import math
 import pytest
-from app.spacecraft.adcs import ADCS, Quaternion, AttitudeState, SunSensor, Magnetometer, ReactionWheel
-from app.spacecraft.power import PowerSystem, SolarPanelModel, BatteryModel
+
+from app.spacecraft.adcs import ADCS, AttitudeState, Quaternion
+from app.spacecraft.comms import LinkBudget, Packet, RadioTransceiver
+from app.spacecraft.fsw import FaultManager, FaultSeverity, TaskScheduler
+from app.spacecraft.mission import MissionPhase, MissionTimeline
+from app.spacecraft.payload import ImagingPayload
+from app.spacecraft.power import BatteryModel, PowerSystem, SolarPanelModel
+from app.spacecraft.simulation import EclipseModel, OrbitalState, SpacecraftSimulator
 from app.spacecraft.thermal import ThermalModel, ThermalState
-from app.spacecraft.comms import RadioTransceiver, LinkBudget, Packet, GroundStation
-from app.spacecraft.payload import ImagingPayload, PayloadManager, PayloadMode
-from app.spacecraft.fsw import FlightSoftware, TaskScheduler, FaultManager, FaultSeverity, FSWMode
-from app.spacecraft.mission import MissionTimeline, GroundSegment, TelemetryDownlink, MissionPhase
-from app.spacecraft.simulation import SpacecraftSimulator, OrbitalState, EclipseModel
 
 
 class TestQuaternion:

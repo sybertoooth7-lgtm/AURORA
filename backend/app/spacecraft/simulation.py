@@ -13,16 +13,15 @@ Orbit model (LEO)
 """
 
 import math
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from dataclasses import dataclass
 
-from app.spacecraft.adcs import ADCS, AttitudeState
-from app.spacecraft.comms import GroundStation, RadioTransceiver
+from app.spacecraft.adcs import ADCS
+from app.spacecraft.comms import GroundStation
+from app.spacecraft.fsw import FlightSoftware
+from app.spacecraft.mission import GroundSegment, TelemetryDownlink
+from app.spacecraft.payload import ImagingPayload, PayloadManager
 from app.spacecraft.power import PowerSystem
 from app.spacecraft.thermal import ThermalModel
-from app.spacecraft.fsw import FlightSoftware, FSWMode
-from app.spacecraft.payload import ImagingPayload, PayloadManager
-from app.spacecraft.mission import MissionTimeline, GroundSegment, TelemetryDownlink
 
 
 @dataclass
@@ -38,7 +37,7 @@ class OrbitalState:
         self.true_anomaly_deg = (self.true_anomaly_deg + angular_vel_deg * dt) % 360.0
 
     @property
-    def position_eci(self) -> Tuple[float, float, float]:
+    def position_eci(self) -> tuple[float, float, float]:
         r = 6371.0 + self.altitude_km
         ta = math.radians(self.true_anomaly_deg)
         return (r * math.cos(ta), r * math.sin(ta), 0.0)
@@ -122,7 +121,7 @@ class SpacecraftSimulator:
         self.payload_manager.add_payload("camera", self.payload)
         self.ground_segment = GroundSegment()
         self.telemetry = TelemetryDownlink()
-        self._history: List[SpacecraftState] = []
+        self._history: list[SpacecraftState] = []
         self._ground_station = GroundStation("gs-0", 0.0, 0.0)
         self.ground_segment.add_station("gs-0", self._ground_station)
 
@@ -155,14 +154,14 @@ class SpacecraftSimulator:
         self._history.append(state)
         return state
 
-    def run(self, duration_s: float) -> List[SpacecraftState]:
+    def run(self, duration_s: float) -> list[SpacecraftState]:
         steps = int(duration_s / self.dt)
         for _ in range(steps):
             self.tick()
         return self._history
 
     @property
-    def history(self) -> List[SpacecraftState]:
+    def history(self) -> list[SpacecraftState]:
         return list(self._history)
 
     def reset(self) -> None:

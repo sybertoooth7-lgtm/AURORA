@@ -12,6 +12,8 @@ export type AnalysisType =
   | 'anomaly_detection'
   | 'wildfire_risk'
   | 'flood_monitoring'
+  | 'insurance_index'
+  | 'robotics_inspection'
 
 export type AnalysisStatus = 'pending' | 'processing' | 'completed' | 'failed'
 
@@ -93,6 +95,8 @@ export const ANALYSIS_TYPE_LABELS: Record<AnalysisType, string> = {
   anomaly_detection: 'Statistical Anomaly Detection',
   wildfire_risk: 'Wildfire Fuel / Dryness Risk',
   flood_monitoring: 'Flood / Inundation Monitoring',
+  insurance_index: 'Crop Index (Parametric Insurance)',
+  robotics_inspection: 'Robotics Field Inspection',
 }
 
 export interface PipelineDescription {

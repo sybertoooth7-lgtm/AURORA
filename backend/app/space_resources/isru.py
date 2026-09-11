@@ -6,8 +6,7 @@ logging.  The plant coordinates subsystems, manages power budget, and
 tracks cumulative production.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
 
 from app.space_resources.extraction import (
     ExtractionProcess,
@@ -67,7 +66,7 @@ class ISRUComponent:
 @dataclass
 class ProductionRecord:
     hours: float
-    results: List[ExtractionResult]
+    results: list[ExtractionResult]
     total_energy_wh: float
     total_mass_kg: float
 
@@ -80,9 +79,9 @@ class ISRUPlant:
     ):
         self.name = name
         self._max_power_w = max_power_w
-        self._components: Dict[str, ISRUComponent] = {}
-        self._tanks: Dict[str, StorageTank] = {}
-        self._history: List[ProductionRecord] = []
+        self._components: dict[str, ISRUComponent] = {}
+        self._tanks: dict[str, StorageTank] = {}
+        self._history: list[ProductionRecord] = []
         self._total_energy_wh = 0.0
 
     def add_component(self, component: ISRUComponent) -> None:
@@ -108,8 +107,8 @@ class ISRUPlant:
         for comp in self._components.values():
             comp.stop()
 
-    def run_cycle(self, hours: float) -> List[ExtractionResult]:
-        all_results: List[ExtractionResult] = []
+    def run_cycle(self, hours: float) -> list[ExtractionResult]:
+        all_results: list[ExtractionResult] = []
         total_energy = 0.0
         total_mass = 0.0
         for comp in self._components.values():
@@ -131,13 +130,13 @@ class ISRUPlant:
         ))
         return all_results
 
-    def tick_boiloff(self, dt_days: float) -> Dict[str, float]:
-        losses: Dict[str, float] = {}
+    def tick_boiloff(self, dt_days: float) -> dict[str, float]:
+        losses: dict[str, float] = {}
         for resource_type, tank in self._tanks.items():
             losses[resource_type] = round(tank.tick_boiloff(dt_days), 6)
         return losses
 
-    def inventory(self) -> Dict[str, float]:
+    def inventory(self) -> dict[str, float]:
         return {rt: round(t.level_kg, 4) for rt, t in self._tanks.items()}
 
     @property
@@ -149,7 +148,7 @@ class ISRUPlant:
         return len(self._history)
 
     @property
-    def status(self) -> Dict:
+    def status(self) -> dict:
         return {
             "name": self.name,
             "components": {

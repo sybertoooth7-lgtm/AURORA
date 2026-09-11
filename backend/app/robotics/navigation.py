@@ -5,12 +5,12 @@ All navigation runs on a 2D/3D grid that is either simulated or
 populated from real sensor data.
 """
 
+import heapq
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, FrozenSet, List, Optional, Set, Tuple
-import heapq
-import math
+from typing import Any
 
 
 class NavMode(Enum):
@@ -26,7 +26,7 @@ class Waypoint:
     x: float
     y: float
     z: float = 0.0
-    yaw: Optional[float] = None
+    yaw: float | None = None
     label: str = ""
 
     def distance_to(self, other: "Waypoint") -> float:
@@ -40,9 +40,9 @@ class Waypoint:
 @dataclass
 class Path:
     """Ordered list of waypoints from start to goal."""
-    waypoints: List[Waypoint]
+    waypoints: list[Waypoint]
     cost: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def length(self) -> float:
         if len(self.waypoints) < 2:
@@ -64,7 +64,7 @@ class GridMap:
         self.width = width
         self.height = height
         self.resolution = resolution
-        self._grid: List[List[float]] = [
+        self._grid: list[list[float]] = [
             [0.0 for _ in range(width)] for _ in range(height)
         ]
 
@@ -87,17 +87,17 @@ class GridMap:
             return self._grid[gy][gx]
         return 1.0
 
-    def world_to_grid(self, wx: float, wy: float) -> Tuple[int, int]:
+    def world_to_grid(self, wx: float, wy: float) -> tuple[int, int]:
         return int(wx / self.resolution), int(wy / self.resolution)
 
-    def grid_to_world(self, gx: int, gy: int) -> Tuple[float, float]:
+    def grid_to_world(self, gx: int, gy: int) -> tuple[float, float]:
         return gx * self.resolution + self.resolution / 2, gy * self.resolution + self.resolution / 2
 
     def occupied_count(self) -> int:
         return sum(1 for row in self._grid for v in row if v >= 0.5)
 
 
-def astar(grid: GridMap, start: Waypoint, goal: Waypoint) -> Optional[Path]:
+def astar(grid: GridMap, start: Waypoint, goal: Waypoint) -> Path | None:
     """A* path planning on a GridMap.
 
     Returns a Path if reachable, None otherwise. Moves are 8-connected.
@@ -110,8 +110,8 @@ def astar(grid: GridMap, start: Waypoint, goal: Waypoint) -> Optional[Path]:
 
     open_set: list = []
     heapq.heappush(open_set, (0.0, sx, sy))
-    came_from: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {(sx, sy): None}
-    g_score: Dict[Tuple[int, int], float] = {(sx, sy): 0.0}
+    came_from: dict[tuple[int, int], tuple[int, int] | None] = {(sx, sy): None}
+    g_score: dict[tuple[int, int], float] = {(sx, sy): 0.0}
 
     def heuristic(ax: int, ay: int) -> float:
         return math.sqrt((ax - gx) ** 2 + (ay - gy) ** 2)
@@ -119,8 +119,8 @@ def astar(grid: GridMap, start: Waypoint, goal: Waypoint) -> Optional[Path]:
     while open_set:
         _, cx, cy = heapq.heappop(open_set)
         if (cx, cy) == (gx, gy):
-            path_wps: List[Waypoint] = []
-            cur: Optional[Tuple[int, int]] = (gx, gy)
+            path_wps: list[Waypoint] = []
+            cur: tuple[int, int] | None = (gx, gy)
             while cur is not None:
                 wx, wy = grid.grid_to_world(cur[0], cur[1])
                 path_wps.append(Waypoint(x=wx, y=wy))
@@ -151,14 +151,14 @@ class Navigator(ABC):
     """
 
     mode: NavMode = NavMode.WAYPOINT_FOLLOWING
-    current_goal: Optional[Waypoint] = None
+    current_goal: Waypoint | None = None
 
     @abstractmethod
-    def navigate_to(self, waypoint: Waypoint) -> Optional[Path]:
+    def navigate_to(self, waypoint: Waypoint) -> Path | None:
         """Plan a path and start following it."""
 
     @abstractmethod
-    def update(self, current_pose: Any, dt: float) -> Optional[Waypoint]:
+    def update(self, current_pose: Any, dt: float) -> Waypoint | None:
         """Return the next waypoint to follow, or None if at goal."""
 
     def cancel(self) -> None:
@@ -171,25 +171,25 @@ class SimpleNavigator(Navigator):
 
     def __init__(self, grid: GridMap):
         self.grid = grid
-        self._path: Optional[Path] = None
+        self._path: Path | None = None
         self._wp_index: int = 0
         self._reached_threshold: float = 0.5
 
-    def navigate_to(self, waypoint: Waypoint) -> Optional[Path]:
+    def navigate_to(self, waypoint: Waypoint) -> Path | None:
         if self.current_goal is None:
             raise ValueError("Set current_goal before navigating")
         self.current_goal = waypoint
         self.mode = NavMode.WAYPOINT_FOLLOWING
         return self._path
 
-    def navigate_from_to(self, start: Waypoint, goal: Waypoint) -> Optional[Path]:
+    def navigate_from_to(self, start: Waypoint, goal: Waypoint) -> Path | None:
         self.current_goal = goal
         self.mode = NavMode.WAYPOINT_FOLLOWING
         self._path = astar(self.grid, start, goal)
         self._wp_index = 0
         return self._path
 
-    def update(self, current_pose: Any, dt: float) -> Optional[Waypoint]:
+    def update(self, current_pose: Any, dt: float) -> Waypoint | None:
         if self._path is None or self._wp_index >= len(self._path.waypoints):
             return None
         wp = self._path.waypoints[self._wp_index]

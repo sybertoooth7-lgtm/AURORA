@@ -6,15 +6,15 @@ actions are permitted based on the autonomy level and preloaded
 mission playbooks.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
 class MissionPlaybook:
     name: str
-    triggers: Dict[str, float]
-    actions: List[Dict[str, any]]
+    triggers: dict[str, float]
+    actions: list[dict[str, Any]]
     priority: int = 0
 
 
@@ -22,7 +22,7 @@ class MissionPlaybook:
 class DisconnectedState:
     elapsed_s: float = 0.0
     max_autonomous_s: float = 3600.0
-    playbook_active: Optional[str] = None
+    playbook_active: str | None = None
     actions_executed: int = 0
     fallback_safe: bool = False
 
@@ -31,9 +31,9 @@ class DisconnectedOpsManager:
     def __init__(self, autonomy_level: int = 3, max_autonomous_s: float = 3600.0):
         self._autonomy_level = autonomy_level
         self._max_autonomous_s = max_autonomous_s
-        self._playbooks: List[MissionPlaybook] = []
+        self._playbooks: list[MissionPlaybook] = []
         self._current_state = DisconnectedState(max_autonomous_s=max_autonomous_s)
-        self._actions_log: List[Dict[str, any]] = []
+        self._actions_log: list[dict[str, Any]] = []
 
     def register_playbook(self, playbook: MissionPlaybook) -> None:
         self._playbooks.append(playbook)
@@ -58,7 +58,7 @@ class DisconnectedOpsManager:
                 break
         return self._current_state
 
-    def execute_playbook_action(self) -> Optional[Dict[str, any]]:
+    def execute_playbook_action(self) -> dict[str, Any] | None:
         if not self._current_state.playbook_active:
             return None
         if self._current_state.fallback_safe:
@@ -76,5 +76,5 @@ class DisconnectedOpsManager:
         return self._current_state
 
     @property
-    def actions_log(self) -> List[Dict[str, any]]:
+    def actions_log(self) -> list[dict[str, Any]]:
         return list(self._actions_log)

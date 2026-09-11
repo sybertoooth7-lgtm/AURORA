@@ -12,8 +12,10 @@ Results from this module must be treated as prototype and never presented
 as production-grade until validated.
 """
 
+
+from typing import Any
+
 import numpy as np
-from typing import Dict
 
 from app.ai.base import ModelKind, ModelRef
 
@@ -28,7 +30,7 @@ class SatelliteImageAnalyzer:
         import torch  # noqa: F401 - optional; raises ImportError if missing
 
         self.device = device if torch.cuda.is_available() else "cpu"
-        self.model = None
+        self.model = None  # type: ignore[assignment]  # class-level ModelRef proto is overwritten after load
         self._load_model()
 
     def _load_model(self):
@@ -39,7 +41,7 @@ class SatelliteImageAnalyzer:
         self._torch_model.to(self.device)
         self._torch_model.eval()
 
-    def analyze_vegetation_stress(self, image: np.ndarray) -> Dict[str, float]:
+    def analyze_vegetation_stress(self, image: np.ndarray) -> dict[str, Any]:
         """Return stress metrics for a (NxMx3 or 4 band) image array.
 
         Requires torch/torchvision; architecture remains as the original
@@ -55,7 +57,7 @@ class SatelliteImageAnalyzer:
 
     def detect_land_changes(
         self, image_before: np.ndarray, image_after: np.ndarray
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         diff = np.abs(image_after.astype(float) - image_before.astype(float))
         change_score = np.mean(diff) / 255.0
         return {

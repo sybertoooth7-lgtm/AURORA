@@ -1,10 +1,10 @@
 """Authentication helpers for the API."""
 
-from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import secrets
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -53,7 +53,7 @@ def verify_password(password: str, encoded: str) -> bool:
         return False
 
 
-def verify_password_or_dummy(password: str, encoded: Optional[str]) -> bool:
+def verify_password_or_dummy(password: str, encoded: str | None) -> bool:
     """Like verify_password, but always does real PBKDF2 work even when
     `encoded` is None (i.e. the username wasn't found), so a login attempt
     against a nonexistent account takes the same time as a wrong password
@@ -100,7 +100,7 @@ def clear_failed_logins(username: str) -> None:
 
 def create_access_token(user: User) -> str:
     settings = get_settings()
-    expires = datetime.now(timezone.utc) + timedelta(
+    expires = datetime.now(UTC) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
     return jwt.encode(
@@ -115,7 +115,7 @@ def create_access_token(user: User) -> str:
     )
 
 
-def _decode_token(token: str) -> Dict[str, Any]:
+def _decode_token(token: str) -> dict[str, Any]:
     settings = get_settings()
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -123,11 +123,11 @@ def _decode_token(token: str) -> Dict[str, Any]:
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload: Dict[str, Any] = jwt.decode(
+        payload: dict[str, Any] = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
     except jwt.PyJWTError:
-        raise credentials_error
+        raise credentials_error from None
     return payload
 
 
@@ -142,7 +142,7 @@ def revoke_token(token: str) -> None:
     exp = payload.get("exp")
     if not jti or not exp:
         return
-    ttl = int(exp - datetime.now(timezone.utc).timestamp())
+    ttl = int(exp - datetime.now(UTC).timestamp())
     if ttl > 0:
         get_redis().set(f"auth:revoked:{jti}", "1", ex=ttl)
 
@@ -150,7 +150,6 @@ def revoke_token(token: str) -> None:
 def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> User:
-    settings = get_settings()
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or expired access token",
@@ -160,7 +159,7 @@ def get_current_user(
     try:
         user_id = int(payload["sub"])
     except (KeyError, TypeError, ValueError):
-        raise credentials_error
+        raise credentials_error from None
 
     jti = payload.get("jti")
     if jti and get_redis().exists(f"auth:revoked:{jti}"):

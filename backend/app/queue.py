@@ -17,13 +17,13 @@ from app.config import get_settings
 ANALYSIS_QUEUE_NAME = "analysis"
 
 
-@lru_cache()
+@lru_cache
 def get_redis() -> Redis:
     """Return a cached Redis connection built from settings.REDIS_URL."""
     return Redis.from_url(get_settings().REDIS_URL)
 
 
-@lru_cache()
+@lru_cache
 def get_analysis_queue() -> Queue:
     """Return the (cached) queue that analysis jobs are enqueued onto."""
     return Queue(ANALYSIS_QUEUE_NAME, connection=get_redis())

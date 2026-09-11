@@ -15,14 +15,21 @@ Design principles
   relay -- modelled explicitly so it can be tested.
 """
 
-from app.spacecraft.adcs import ADCS, AttitudeState, SunSensor, Magnetometer, ReactionWheel, Magnetorquer
-from app.spacecraft.power import PowerSystem, BatteryModel, SolarPanelModel
+from app.spacecraft.adcs import (
+    ADCS,
+    AttitudeState,
+    Magnetometer,
+    Magnetorquer,
+    ReactionWheel,
+    SunSensor,
+)
+from app.spacecraft.comms import GroundStation, Packet, RadioTransceiver
+from app.spacecraft.fsw import FaultManager, FlightSoftware, TaskScheduler
+from app.spacecraft.mission import GroundSegment, MissionTimeline, TelemetryDownlink
+from app.spacecraft.payload import ImagingPayload, PayloadManager
+from app.spacecraft.power import BatteryModel, PowerSystem, SolarPanelModel
+from app.spacecraft.simulation import EclipseModel, OrbitalState, SpacecraftSimulator
 from app.spacecraft.thermal import ThermalModel
-from app.spacecraft.comms import RadioTransceiver, Packet, GroundStation
-from app.spacecraft.payload import PayloadManager, ImagingPayload
-from app.spacecraft.fsw import FlightSoftware, TaskScheduler, FaultManager
-from app.spacecraft.mission import MissionTimeline, GroundSegment, TelemetryDownlink
-from app.spacecraft.simulation import SpacecraftSimulator, OrbitalState, EclipseModel
 
 __all__ = [
     "ADCS", "AttitudeState", "SunSensor", "Magnetometer", "ReactionWheel", "Magnetorquer",

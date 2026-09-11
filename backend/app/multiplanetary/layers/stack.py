@@ -16,7 +16,6 @@ Design principles
   no layer can suppress them.
 """
 
-from typing import List, Optional
 
 from app.multiplanetary.layers.core import (
     Action,
@@ -25,13 +24,13 @@ from app.multiplanetary.layers.core import (
     MissionContext,
     StackDecision,
 )
+from app.multiplanetary.layers.human_assistance import HumanAssistanceLayer
+from app.multiplanetary.layers.infrastructure import InfrastructureLayer
 from app.multiplanetary.layers.mission_control import MissionControlLayer
-from app.multiplanetary.layers.scientific import ScientificIntelligenceLayer
-from app.multiplanetary.layers.robotics import RoboticsLayer
 from app.multiplanetary.layers.navigation_layer import NavigationLayer
 from app.multiplanetary.layers.resource_management import ResourceManagementLayer
-from app.multiplanetary.layers.infrastructure import InfrastructureLayer
-from app.multiplanetary.layers.human_assistance import HumanAssistanceLayer
+from app.multiplanetary.layers.robotics import RoboticsLayer
+from app.multiplanetary.layers.scientific import ScientificIntelligenceLayer
 
 
 class AuroraStack:
@@ -39,13 +38,13 @@ class AuroraStack:
 
     def __init__(
         self,
-        mission_control: Optional[MissionControlLayer] = None,
-        scientific: Optional[ScientificIntelligenceLayer] = None,
-        robotics: Optional[RoboticsLayer] = None,
-        navigation: Optional[NavigationLayer] = None,
-        resources: Optional[ResourceManagementLayer] = None,
-        infrastructure: Optional[InfrastructureLayer] = None,
-        human_assistance: Optional[HumanAssistanceLayer] = None,
+        mission_control: MissionControlLayer | None = None,
+        scientific: ScientificIntelligenceLayer | None = None,
+        robotics: RoboticsLayer | None = None,
+        navigation: NavigationLayer | None = None,
+        resources: ResourceManagementLayer | None = None,
+        infrastructure: InfrastructureLayer | None = None,
+        human_assistance: HumanAssistanceLayer | None = None,
     ):
         self.mission_control = mission_control or MissionControlLayer()
         self.scientific = scientific or ScientificIntelligenceLayer()
@@ -54,7 +53,7 @@ class AuroraStack:
         self.resources = resources or ResourceManagementLayer()
         self.infrastructure = infrastructure or InfrastructureLayer()
         self.human_assistance = human_assistance or HumanAssistanceLayer()
-        self._layers: List[Layer] = [
+        self._layers: list[Layer] = [
             self.human_assistance,
             self.resources,
             self.infrastructure,
@@ -66,7 +65,7 @@ class AuroraStack:
         self._safe_mode = False
         self._cycle_count = 0
 
-    def _check_fail_safe(self, ctx: MissionContext) -> Optional[str]:
+    def _check_fail_safe(self, ctx: MissionContext) -> str | None:
         if ctx.battery_percent < 5.0:
             return "battery critically low"
         if ctx.environment_sensor.get("radiation_event", False):
@@ -77,7 +76,7 @@ class AuroraStack:
             return "temperature exceeds survival threshold"
         return None
 
-    def _safe_mode_actions(self) -> List[Action]:
+    def _safe_mode_actions(self) -> list[Action]:
         return [
             Action(
                 layer="stack",
@@ -132,7 +131,7 @@ class AuroraStack:
                 warnings=[fail_safe_trip or "safe mode active"],
             )
 
-        proposed: List[Action] = []
+        proposed: list[Action] = []
         for layer in self._layers:
             try:
                 actions = layer.evaluate(ctx)

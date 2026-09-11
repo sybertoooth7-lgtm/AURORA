@@ -9,7 +9,6 @@ operational. The description, model name (``composite-index:fire-proxy``), and
 prototype model kind make that explicit to consumers.
 """
 
-from typing import List, Optional
 
 from app.ai import preprocessing as pp
 from app.ai.base import (
@@ -38,7 +37,7 @@ class WildfirePipeline(Pipeline):
     def run(
         self,
         observation: SatelliteObservation,
-        history: Optional[List[SatelliteObservation]] = None,
+        history: list[SatelliteObservation] | None = None,
     ) -> PipelineResult:
         history_length = len(history or [])
         # Antecedent dry spell: higher prior NDVI stress raises current risk.
@@ -54,12 +53,12 @@ class WildfirePipeline(Pipeline):
             moisture_deficit = pp.clip01(max(0.0 - observation.ndwi, 0.0) / 0.4)
         bareness = pp.clip01(observation.bsi) if observation.bsi is not None else None
 
-        findings: List[str] = []
+        findings: list[str] = []
         metrics: dict = {"ndvi": round(observation.ndvi, 4), "fire_fuel_proxy": round(dry_vegetation, 4)}
         if observation.ndwi is not None:
             metrics["ndwi"] = round(observation.ndwi, 4)
         if bareness is not None:
-            metrics["bsi"] = round(observation.bsi, 4)
+            metrics["bsi"] = round(bareness, 4)
 
         # Weights renormalize over whatever proxies are actually available so
         # missing inputs degrade gracefully instead of skewing the composite.

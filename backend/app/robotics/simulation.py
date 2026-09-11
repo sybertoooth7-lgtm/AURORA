@@ -14,10 +14,10 @@ Simulation model
 
 import math
 import random
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
-from app.robotics.core.robot import Pose3D, Velocity3D, RobotSnapshot
+from app.robotics.core.robot import Pose3D, RobotSnapshot, Velocity3D
 from app.robotics.navigation import GridMap, Waypoint
 
 
@@ -37,11 +37,11 @@ class SimConfig:
 class SimulatedWorld:
     """Mutable world state for the simulator."""
 
-    def __init__(self, grid: GridMap, config: Optional[SimConfig] = None):
+    def __init__(self, grid: GridMap, config: SimConfig | None = None):
         self.config = config or SimConfig()
         self.grid = grid
-        self.obstacles: List[Dict[str, Any]] = []
-        self.dynamic_obstacles: List[Dict[str, Any]] = []
+        self.obstacles: list[dict[str, Any]] = []
+        self.dynamic_obstacles: list[dict[str, Any]] = []
 
     def add_obstacle(self, x: float, y: float, radius: float = 1.0) -> None:
         self.obstacles.append({"x": x, "y": y, "radius": radius})
@@ -52,7 +52,7 @@ class SimulatedWorld:
                 if dx * dx + dy * dy <= r_cells * r_cells:
                     self.grid.set_occupied(gx + dx, gy + dy)
 
-    def add_random_obstacles(self, count: int, rng: Optional[random.Random] = None) -> None:
+    def add_random_obstacles(self, count: int, rng: random.Random | None = None) -> None:
         rng = rng or random.Random(self.config.seed)
         for _ in range(count):
             x = rng.uniform(0, self.grid.width * self.grid.resolution)
@@ -68,7 +68,7 @@ class KinematicSimulator:
     and robot together so sensor readings reflect the simulated state.
     """
 
-    def __init__(self, world: SimulatedWorld, config: Optional[SimConfig] = None):
+    def __init__(self, world: SimulatedWorld, config: SimConfig | None = None):
         self.config = config or world.config
         self.world = world
         self.time = 0.0
@@ -80,7 +80,7 @@ class KinematicSimulator:
         self._vy = 0.0
         self._battery_wh = self.config.battery_capacity_wh
         self._battery_percent = 100.0
-        self._history: List[RobotSnapshot] = []
+        self._history: list[RobotSnapshot] = []
 
     def reset(self, x: float = 0.0, y: float = 0.0, yaw: float = 0.0) -> None:
         self.time = 0.0
@@ -100,7 +100,7 @@ class KinematicSimulator:
         self._battery_wh = max(0.0, self._battery_wh - draw)
         self._battery_percent = (self._battery_wh / self.config.battery_capacity_wh) * 100.0
 
-    def tick(self, linear_vel: float, angular_vel: float, dt: Optional[float] = None) -> RobotSnapshot:
+    def tick(self, linear_vel: float, angular_vel: float, dt: float | None = None) -> RobotSnapshot:
         dt = dt or self.config.dt
         self._yaw += angular_vel * dt
         self._vx = linear_vel * math.cos(self._yaw)
@@ -133,7 +133,7 @@ class KinematicSimulator:
         return self._battery_percent
 
     @property
-    def history(self) -> List[RobotSnapshot]:
+    def history(self) -> list[RobotSnapshot]:
         return list(self._history)
 
     @property

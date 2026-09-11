@@ -10,7 +10,6 @@ clouds and depth maps, and can be swapped for real-camera backends.
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 from app.multiplanetary.sensors import PointCloud
 
@@ -18,8 +17,8 @@ from app.multiplanetary.sensors import PointCloud
 @dataclass
 class MotionEstimate:
     timestamp: float
-    translation: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-    rotation: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    translation: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    rotation: tuple[float, float, float] = (0.0, 0.0, 0.0)
     confidence: float = 0.8
     inlier_fraction: float = 0.9
     metadata: dict = None  # type: ignore[assignment]
@@ -43,7 +42,7 @@ class MotionEstimate:
 @dataclass
 class TRNResult:
     timestamp: float
-    position: Tuple[float, float, float]
+    position: tuple[float, float, float]
     confidence: float
     match_score: float
     map_id: str = ""
@@ -72,7 +71,7 @@ class VisualOdometry:
     def __init__(self, min_inlier_fraction: float = 0.5, max_iterations: int = 20):
         self.min_inlier_fraction = min_inlier_fraction
         self.max_iterations = max_iterations
-        self._prev_cloud: Optional[PointCloud] = None
+        self._prev_cloud: PointCloud | None = None
         self._total_translation = [0.0, 0.0, 0.0]
         self._total_rotation = [0.0, 0.0, 0.0]
 
@@ -120,7 +119,7 @@ class VisualOdometry:
         )
 
     @property
-    def position_estimate(self) -> Tuple[float, float, float]:
+    def position_estimate(self) -> tuple[float, float, float]:
         return tuple(self._total_translation)  # type: ignore[return-value]
 
     def reset(self) -> None:
@@ -137,17 +136,17 @@ class TerrainRelativeNavigation:
     to determine absolute position.
     """
 
-    def __init__(self, map_points: Optional[List[Tuple[float, float, float]]] = None, match_threshold: float = 2.0):
+    def __init__(self, map_points: list[tuple[float, float, float]] | None = None, match_threshold: float = 2.0):
         self.map_points = map_points or []
         self.match_threshold = match_threshold
-        self._feature_database: List[dict] = []
+        self._feature_database: list[dict] = []
 
-    def load_map(self, points: List[Tuple[float, float, float]], map_id: str = "default") -> None:
+    def load_map(self, points: list[tuple[float, float, float]], map_id: str = "default") -> None:
         self.map_points.extend(points)
         for p in points:
             self._feature_database.append({"point": p, "map_id": map_id})
 
-    def localize(self, current_features: List[Tuple[float, float, float]], timestamp: float = 0.0) -> TRNResult:
+    def localize(self, current_features: list[tuple[float, float, float]], timestamp: float = 0.0) -> TRNResult:
         if not self.map_points or not current_features:
             return TRNResult(timestamp=timestamp, position=(0, 0, 0), confidence=0.0, match_score=0.0)
 

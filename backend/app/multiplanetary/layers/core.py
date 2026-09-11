@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class ActionType(Enum):
@@ -26,7 +26,7 @@ class Action:
     action_type: ActionType
     target: str                        # e.g. 'rover-1', 'isru-plant', 'comms'
     description: str
-    payload: Dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     requires_authorization: bool = False   # human oversight gate
     reversible: bool = True                # fail-safe invariant input
     severity: str = "info"                 # info|warning|critical
@@ -36,7 +36,7 @@ class Action:
     def is_irreversible(self) -> bool:
         return not self.reversible
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "layer": self.layer,
             "action_type": self.action_type.value,
@@ -69,16 +69,16 @@ class MissionContext:
     power_available_w: float = 100.0
     power_demand_w: float = 50.0
     temperature_c: float = 25.0
-    navigation: Dict[str, Any] = field(default_factory=dict)
-    inventory: Dict[str, float] = field(default_factory=dict)   # kg / units
-    infrastructure: Dict[str, Any] = field(default_factory=dict)
-    fleet: Dict[str, Any] = field(default_factory=dict)
-    environment_sensor: Dict[str, Any] = field(default_factory=dict)
-    science_hypotheses: List[Dict[str, Any]] = field(default_factory=list)
+    navigation: dict[str, Any] = field(default_factory=dict)
+    inventory: dict[str, float] = field(default_factory=dict)   # kg / units
+    infrastructure: dict[str, Any] = field(default_factory=dict)
+    fleet: dict[str, Any] = field(default_factory=dict)
+    environment_sensor: dict[str, Any] = field(default_factory=dict)
+    science_hypotheses: list[dict[str, Any]] = field(default_factory=list)
     current_plan: str = ""
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "environment": self.environment,
@@ -112,13 +112,13 @@ class Layer(ABC):
     name: str = "layer"
 
     def __init__(self) -> None:
-        self.last_actions: List[Action] = []
+        self.last_actions: list[Action] = []
 
     @abstractmethod
-    def evaluate(self, ctx: MissionContext) -> List[Action]:
+    def evaluate(self, ctx: MissionContext) -> list[Action]:
         """Examine the context and return proposed actions for this cycle."""
 
-    def record(self, actions: List[Action]) -> None:
+    def record(self, actions: list[Action]) -> None:
         self.last_actions = actions
 
 
@@ -126,13 +126,13 @@ class Layer(ABC):
 class StackDecision:
     """Result of one full stack decision cycle."""
     timestamp: float
-    approved_actions: List[Action] = field(default_factory=list)
-    pending_authorization: List[Action] = field(default_factory=list)
-    rejected_actions: List[Action] = field(default_factory=list)
+    approved_actions: list[Action] = field(default_factory=list)
+    pending_authorization: list[Action] = field(default_factory=list)
+    rejected_actions: list[Action] = field(default_factory=list)
     safe_mode_active: bool = False
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "approved": [a.to_dict() for a in self.approved_actions],

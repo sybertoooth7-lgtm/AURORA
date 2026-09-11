@@ -1,29 +1,30 @@
 """Satellite imagery endpoints"""
 
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
 from app.database import get_db
 from app.models.satellite_imagery import SatelliteImage
-from typing import List
 
-router = APIRouter(prefix="/satellite", tags=["satellite"])
+router = APIRouter(prefix="/satellite", tags=["Satellite Data"])
 
 
-@router.get("/images", response_model=List[dict])
+@router.get("/images", response_model=list[dict])
 async def list_satellite_images(
     db: Session = Depends(get_db),
-    source: str = None,
+    source: str | None = None,
     skip: int = 0,
     limit: int = 100
 ):
     """List satellite images"""
     query = db.query(SatelliteImage)
-    
+
     if source:
         query = query.filter(SatelliteImage.source == source)
-    
+
     images = query.offset(skip).limit(limit).all()
-    
+
     return [
         {
             "id": img.id,

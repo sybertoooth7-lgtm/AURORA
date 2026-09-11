@@ -19,7 +19,7 @@ from app.security import (
     verify_password_or_dummy,
 )
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 # Separate from app.security.oauth2_scheme's tokenUrl-carrying instance so
 # /auth/logout can accept a token without FastAPI's docs treating it as the

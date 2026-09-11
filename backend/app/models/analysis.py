@@ -1,11 +1,14 @@
 """Analysis models"""
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, Text, ForeignKey, Enum as SQLEnum
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-from geoalchemy2 import Geometry
-from app.database import Base
 import enum
+
+from geoalchemy2 import Geometry
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from app.database import Base
 
 
 class AnalysisType(str, enum.Enum):
@@ -20,6 +23,8 @@ class AnalysisType(str, enum.Enum):
     ANOMALY_DETECTION = "anomaly_detection"
     WILDFIRE_RISK = "wildfire_risk"
     FLOOD_MONITORING = "flood_monitoring"
+    INSURANCE_INDEX = "insurance_index"
+    ROBOTICS_INSPECTION = "robotics_inspection"
 
 
 class Analysis(Base):

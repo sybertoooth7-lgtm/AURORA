@@ -1,5 +1,12 @@
 """Tests for the AURORA space resource program (TRL, extraction, ISRU, economics, prospecting, roadmap)."""
 
+from app.space_resources.economics import DeliveryCostProfile, EconomicsModel, InfrastructureAsset
+from app.space_resources.extraction import (
+    ConstructionMaterialSinterer,
+    ExtractionStatus,
+    WaterIceExtractor,
+)
+from app.space_resources.isru import ISRUComponent, ISRUPlant, StorageTank
 from app.space_resources.maturity import (
     TRL,
     ResourceTechnology,
@@ -7,24 +14,13 @@ from app.space_resources.maturity import (
     Timeline,
     register_default_technologies,
 )
-from app.space_resources.extraction import (
-    ConstructionMaterialSinterer,
-    ExtractionResult,
-    ExtractionStatus,
-    WaterIceExtractor,
-)
-from app.space_resources.isru import ISRUPlant, ISRUComponent, StorageTank
-from app.space_resources.economics import DeliveryCostProfile, EconomicsModel, InfrastructureAsset
 from app.space_resources.prospecting import (
-    ProspectSite,
     ProspectingPlanner,
-    ProspectingTask,
+    ProspectSite,
     ResourceOccurrence,
     ResourceSignificance,
-    SitePriority,
 )
 from app.space_resources.roadmap import ProgramMilestone, ProgramPhase, ProgramRoadmap
-
 
 # ─── TRL Registry ───
 
@@ -74,7 +70,7 @@ def test_registry_blocks_missing_dependency():
     )
     try:
         registry.register(tech)
-        assert False, "should raise for missing dependency"
+        raise AssertionError("should raise for missing dependency")
     except ValueError:
         pass
 

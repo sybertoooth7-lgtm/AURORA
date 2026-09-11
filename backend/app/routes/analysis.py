@@ -1,24 +1,25 @@
 """Analysis endpoints"""
 
+import math
+
 from fastapi import APIRouter, Depends, HTTPException
+from geoalchemy2.elements import WKTElement
 from sqlalchemy.orm import Session
+
 from app.config import get_settings
 from app.database import get_db
+from app.models.analysis import Analysis, AnalysisResult
+from app.models.user import User
 from app.queue import get_analysis_queue
 from app.schemas.analysis import (
     AnalysisCreate,
     AnalysisResponse,
     AnalysisResultListResponse,
 )
-from app.models.analysis import Analysis, AnalysisResult
-from app.models.user import User
 from app.security import get_current_user
 from app.services.analysis_runner import run_analysis
-from geoalchemy2.elements import WKTElement
-from typing import List
-import math
 
-router = APIRouter(prefix="/analysis", tags=["analysis"])
+router = APIRouter(prefix="/analysis", tags=["Analysis"])
 
 
 def build_area_polygon_wkt(latitude: float, longitude: float, radius_km: float) -> dict:
@@ -90,7 +91,7 @@ async def get_analysis(
     return analysis
 
 
-@router.get("/", response_model=List[AnalysisResponse])
+@router.get("/", response_model=list[AnalysisResponse])
 async def list_analyses(
     db: Session = Depends(get_db),
     skip: int = 0,

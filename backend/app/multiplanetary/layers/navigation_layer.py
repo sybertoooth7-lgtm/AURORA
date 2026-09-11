@@ -7,27 +7,26 @@ emits ``COMMAND`` actions that mission control vets before any actor
 executes them.
 """
 
-from typing import List, Optional
 
 from app.multiplanetary.layers.core import Action, ActionType, Layer, MissionContext
-from app.multiplanetary.navigation import TerrainNavigator, Waypoint, Path
+from app.multiplanetary.navigation import Path, TerrainNavigator, Waypoint
 
 
 class NavigationLayer(Layer):
     name = "navigation"
 
-    def __init__(self, navigator: Optional[TerrainNavigator] = None):
+    def __init__(self, navigator: TerrainNavigator | None = None):
         super().__init__()
         self._navigator = navigator
-        self._goal: Optional[Waypoint] = None
-        self._path: Optional[Path] = None
+        self._goal: Waypoint | None = None
+        self._path: Path | None = None
         self._last_confidence = 1.0
 
     def set_goal(self, goal: Waypoint) -> None:
         self._goal = goal
         self._path = None
 
-    def _plan(self, current: Waypoint) -> Optional[Path]:
+    def _plan(self, current: Waypoint) -> Path | None:
         if self._navigator is None:
             return None
         if self._goal is None:
@@ -35,8 +34,8 @@ class NavigationLayer(Layer):
         self._path = self._navigator.plan_path(current, self._goal)
         return self._path
 
-    def evaluate(self, ctx: MissionContext) -> List[Action]:
-        actions: List[Action] = []
+    def evaluate(self, ctx: MissionContext) -> list[Action]:
+        actions: list[Action] = []
         current = None
         pos = ctx.navigation.get("position")
         if isinstance(pos, dict):
@@ -86,7 +85,7 @@ class NavigationLayer(Layer):
             ))
         return actions
 
-    def _next_waypoint(self, current: Waypoint) -> Optional[Waypoint]:
+    def _next_waypoint(self, current: Waypoint) -> Waypoint | None:
         if self._path is None or not self._path.waypoints:
             return None
         for wp in self._path.waypoints:

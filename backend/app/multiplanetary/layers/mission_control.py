@@ -16,13 +16,10 @@ guard it:
 The rest of the stack "*proposes*", mission control "*disposes*".
 """
 
-import math
-from typing import List, Optional
 
 from app.multiplanetary.layers.core import (
     Action,
     ActionType,
-    InvalidAction,
     Layer,
     MissionContext,
 )
@@ -43,8 +40,8 @@ class MissionControlLayer(Layer):
         self.max_temperature_c = max_temperature_c
         self.min_navigation_confidence = min_navigation_confidence
         self.max_radiation_dose_gy = max_radiation_dose_gy
-        self._approved: List[str] = []
-        self._rejected: List[str] = []
+        self._approved: list[str] = []
+        self._rejected: list[str] = []
 
     def autonomy_budget(self, ctx: MissionContext) -> int:
         """Realistic autonomy level affordable this cycle.
@@ -63,7 +60,7 @@ class MissionControlLayer(Layer):
             level = 3  # disconnected handling requires at least level 3
         return level
 
-    def _safety_check(self, action: Action, ctx: MissionContext) -> Optional[str]:
+    def _safety_check(self, action: Action, ctx: MissionContext) -> str | None:
         """Returns a rejection reason if the action violates an interlock."""
         if action.target == "rover" or action.target.startswith("rover"):
             nav_conf = ctx.navigation.get("confidence", 1.0)
@@ -80,8 +77,8 @@ class MissionControlLayer(Layer):
             return "irreversible action missing authorization gate"
         return None
 
-    def evaluate(self, ctx: MissionContext) -> List[Action]:
-        actions: List[Action] = []
+    def evaluate(self, ctx: MissionContext) -> list[Action]:
+        actions: list[Action] = []
         budget = self.autonomy_budget(ctx)
         if ctx.autonomy_level > budget:
             actions.append(Action(
@@ -107,13 +104,13 @@ class MissionControlLayer(Layer):
 
     def filter_actions(
         self,
-        proposed: List[Action],
+        proposed: list[Action],
         ctx: MissionContext,
-    ) -> tuple[List[Action], List[Action], List[Action]]:
+    ) -> tuple[list[Action], list[Action], list[Action]]:
         """Split proposed into approved / pending-authorization / rejected."""
-        approved: List[Action] = []
-        pending: List[Action] = []
-        rejected: List[Action] = []
+        approved: list[Action] = []
+        pending: list[Action] = []
+        rejected: list[Action] = []
         budget = self.autonomy_budget(ctx)
 
         for action in proposed:

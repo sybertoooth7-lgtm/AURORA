@@ -4,9 +4,8 @@ PostgreSQL + PostGIS for geospatial data
 """
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.pool import StaticPool
-from geoalchemy2 import Geometry
+from sqlalchemy.orm import declarative_base, sessionmaker
+
 from app.config import get_settings
 
 settings = get_settings()

@@ -9,7 +9,6 @@ validation against river-gauge or flooding records.
 """
 
 from statistics import mean
-from typing import List, Optional
 
 from app.ai import preprocessing as pp
 from app.ai.base import (
@@ -38,7 +37,7 @@ class FloodPipeline(Pipeline):
     def run(
         self,
         observation: SatelliteObservation,
-        history: Optional[List[SatelliteObservation]] = None,
+        history: list[SatelliteObservation] | None = None,
     ) -> PipelineResult:
         history_length = len(history or [])
         ndwi = observation.ndwi
@@ -77,7 +76,7 @@ class FloodPipeline(Pipeline):
         severity = pp.clip01(severity)
 
         baseline_used = baseline_value is not None
-        findings: List[str] = []
+        findings: list[str] = []
         if baseline_used:
             findings.append(
                 f"NDWI {ndwi:.3f} vs baseline {baseline_value:.3f} "

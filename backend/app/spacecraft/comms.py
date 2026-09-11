@@ -9,7 +9,7 @@ modes.
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class CommsMode(Enum):
@@ -27,13 +27,13 @@ class Packet:
     payload: bytes
     seq: int = 0
     timestamp: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def size_bytes(self) -> int:
         return len(self.payload) + 16  # AX.25 header overhead
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "source": self.source,
             "dest": self.dest,
@@ -103,9 +103,9 @@ class RadioTransceiver:
         self.link = LinkBudget(frequency_mhz=frequency_mhz, tx_power_dbm=tx_power_dbm)
         self.mode = CommsMode.OFF
         self.is_simulated = is_simulated
-        self._tx_buffer: List[Packet] = []
-        self._rx_buffer: List[Packet] = []
-        self._store_forward: List[Packet] = []
+        self._tx_buffer: list[Packet] = []
+        self._rx_buffer: list[Packet] = []
+        self._store_forward: list[Packet] = []
         self._packets_tx = 0
         self._packets_rx = 0
         self._bytes_tx = 0
@@ -122,7 +122,7 @@ class RadioTransceiver:
         self._seq += 1
         self._tx_buffer.append(packet)
 
-    def transmit(self, distance_km: float) -> List[Packet]:
+    def transmit(self, distance_km: float) -> list[Packet]:
         if self.mode == CommsMode.OFF:
             return []
         sent = []
@@ -137,12 +137,12 @@ class RadioTransceiver:
         self._tx_buffer = [p for p in self._tx_buffer if p not in sent]
         return sent
 
-    def receive(self, packets: List[Packet]) -> None:
+    def receive(self, packets: list[Packet]) -> None:
         self._rx_buffer.extend(packets)
         self._packets_rx += len(packets)
 
     @property
-    def stats(self) -> Dict[str, int]:
+    def stats(self) -> dict[str, int]:
         return {
             "packets_tx": self._packets_tx,
             "packets_rx": self._packets_rx,

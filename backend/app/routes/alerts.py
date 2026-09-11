@@ -1,7 +1,6 @@
 """User alert endpoints."""
 
-from datetime import datetime, timezone
-from typing import List
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -11,7 +10,7 @@ from app.models.alert import Alert
 from app.models.user import User
 from app.security import get_current_user
 
-router = APIRouter(prefix="/alerts", tags=["alerts"])
+router = APIRouter(prefix="/alerts", tags=["Alerts"])
 
 
 def _serialize(alert: Alert) -> dict:
@@ -27,7 +26,7 @@ def _serialize(alert: Alert) -> dict:
     }
 
 
-@router.get("", response_model=List[dict])
+@router.get("", response_model=list[dict])
 def list_alerts(
     unread_only: bool = False,
     db: Session = Depends(get_db),
@@ -51,7 +50,7 @@ def acknowledge_alert(
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
     alert.is_read = True
-    alert.acknowledged_at = datetime.now(timezone.utc)
+    alert.acknowledged_at = datetime.now(UTC)
     db.commit()
     db.refresh(alert)
     return _serialize(alert)

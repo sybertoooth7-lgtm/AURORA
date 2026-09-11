@@ -9,7 +9,6 @@ control interlocks would reject (insufficient battery, no navigation
 lock), and tracks each agent's current assignment.
 """
 
-from typing import List
 
 from app.multiplanetary.layers.core import Action, ActionType, Layer, MissionContext
 
@@ -25,8 +24,8 @@ class RoboticsLayer(Layer):
         }
         self._assignments: dict = {}
 
-    def evaluate(self, ctx: MissionContext) -> List[Action]:
-        actions: List[Action] = []
+    def evaluate(self, ctx: MissionContext) -> list[Action]:
+        actions: list[Action] = []
         plan = ctx.current_plan
         if not plan:
             return actions

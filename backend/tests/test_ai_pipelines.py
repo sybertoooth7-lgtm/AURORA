@@ -5,7 +5,7 @@ always come out simulated), history-aware anomaly detection, registry
 resolution, and index math helpers.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import numpy as np
 import pytest
@@ -36,7 +36,7 @@ def make_observation(
     return SatelliteObservation(
         source=source,
         image_id=image_id,
-        acquired_at=datetime.now(timezone.utc),
+        acquired_at=datetime.now(UTC),
         cloud_coverage=0.05,
         resolution_m=10.0,
         ndvi=ndvi,

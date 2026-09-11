@@ -5,10 +5,10 @@ command execution, and telemetry collection.  The FSW is the central
 orchestrator that ties all subsystems together.
 """
 
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
-import time
+from typing import Any
 
 
 class FSWMode(Enum):
@@ -40,7 +40,7 @@ class FaultEvent:
 class TelemetryPacket:
     timestamp: float
     subsystem: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
 
 class TaskScheduler:
@@ -61,7 +61,7 @@ class TaskScheduler:
         last_run: float = 0.0
 
     def __init__(self):
-        self._tasks: List[TaskScheduler.Task] = []
+        self._tasks: list[TaskScheduler.Task] = []
 
     def schedule(
         self, name: str, callback: Callable, priority: int = 0,
@@ -75,8 +75,8 @@ class TaskScheduler:
     def unschedule(self, name: str) -> None:
         self._tasks = [t for t in self._tasks if t.name != name]
 
-    def tick(self, current_time: float) -> List[str]:
-        executed: List[str] = []
+    def tick(self, current_time: float) -> list[str]:
+        executed: list[str] = []
         for task in sorted(self._tasks, key=lambda t: -t.priority):
             if not task.enabled:
                 continue
@@ -102,10 +102,10 @@ class FaultManager:
     """
 
     def __init__(self, max_history: int = 200):
-        self._history: List[FaultEvent] = []
+        self._history: list[FaultEvent] = []
         self._max_history = max_history
-        self._fault_counts: Dict[str, int] = {}
-        self._recovery_callbacks: Dict[str, Callable] = {}
+        self._fault_counts: dict[str, int] = {}
+        self._recovery_callbacks: dict[str, Callable] = {}
 
     def register_recovery(self, subsystem: str, callback: Callable) -> None:
         self._recovery_callbacks[subsystem] = callback
@@ -133,7 +133,7 @@ class FaultManager:
     def critical_count(self) -> int:
         return sum(1 for e in self._history if e.severity == FaultSeverity.CRITICAL)
 
-    def recent(self, n: int = 10) -> List[FaultEvent]:
+    def recent(self, n: int = 10) -> list[FaultEvent]:
         return self._history[-n:]
 
     def reset(self) -> None:
@@ -153,14 +153,14 @@ class FlightSoftware:
         self.mode = FSWMode.BOOT
         self.scheduler = TaskScheduler()
         self.fault_manager = FaultManager()
-        self._telemetry_buffer: List[TelemetryPacket] = []
-        self._boot_time: Optional[float] = None
+        self._telemetry_buffer: list[TelemetryPacket] = []
+        self._boot_time: float | None = None
 
     def boot(self, timestamp: float) -> None:
         self._boot_time = timestamp
         self.mode = FSWMode.NOMINAL
 
-    def tick(self, current_time: float) -> Dict[str, Any]:
+    def tick(self, current_time: float) -> dict[str, Any]:
         executed = self.scheduler.tick(current_time)
         critical = self.fault_manager.critical_count
         if critical > 0 and self.mode != FSWMode.EMERGENCY:
@@ -175,13 +175,13 @@ class FlightSoftware:
             "faults": self.fault_manager.critical_count,
         }
 
-    def collect_telemetry(self, subsystem: str, data: Dict[str, Any], timestamp: float) -> None:
+    def collect_telemetry(self, subsystem: str, data: dict[str, Any], timestamp: float) -> None:
         pkt = TelemetryPacket(timestamp=timestamp, subsystem=subsystem, data=data)
         self._telemetry_buffer.append(pkt)
         if len(self._telemetry_buffer) > 500:
             self._telemetry_buffer = self._telemetry_buffer[-500:]
 
-    def drain_telemetry(self) -> List[TelemetryPacket]:
+    def drain_telemetry(self) -> list[TelemetryPacket]:
         out = list(self._telemetry_buffer)
         self._telemetry_buffer.clear()
         return out

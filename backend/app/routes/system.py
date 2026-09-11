@@ -10,7 +10,7 @@ from fastapi import APIRouter
 from app.capabilities import build_capabilities
 from app.config import get_settings
 
-router = APIRouter(prefix="/system", tags=["system"])
+router = APIRouter(prefix="/system", tags=["System"])
 
 
 @router.get("/capabilities")

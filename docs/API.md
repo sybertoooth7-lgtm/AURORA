@@ -345,12 +345,60 @@ Use `skip` and `limit` query parameters:
 GET /analysis/?skip=0&limit=50
 ```
 
-## Interactive Documentation
+---
+
+### Parametric Agriculture Insurance
+
+```http
+GET  /insurance/defaults                  # public trigger defaults + policy limit
+POST /insurance/trigger-check             # run insurance-index pipeline + apply trigger (auth)
+```
+
+`POST /insurance/trigger-check` accepts area coordinates, a `sum_insured_usd`,
+and an optional `trigger_threshold` (defaults to the platform value from
+`/insurance/defaults`). The response discloses whether the prototype trigger
+has been breached and returns an honest *estimate* (never a settlement).
+
+The run is persisted under the authenticated user so the dashboard / alerts
+see it.
+
+---
+
+### Robotics Field Services
+
+```http
+POST /robotics/flights/{flight_id}/telemetry   # ingest one MQTT-style frame (auth)
+GET  /robotics/flights/{flight_id}              # flight summary + health (auth)
+POST /robotics/inspect                          # post-flight NDVI inspection report (auth)
+```
+
+Telemetry frames are stored in an in-memory, bounded, per-process store.
+`/robotics/inspect` fuses the satellite damage proxy with the robot's flight
+health (when `flight_id` is supplied) and persists the run as an analysis
+result.
+
+---
+
+### Onboarding
+
+```http
+GET  /onboarding/status           # dynamic progress checklist (auth)
+POST /onboarding/complete         # mark onboarding finished (auth)
+POST /onboarding/first-analysis   # guided first-analysis execution (auth)
+```
+
+The checklist adapts to the user's current progress (analysis count, live
+data configured) and includes explicit instructions when Sentinel Hub OAuth
+credentials have not yet been set up.
+
+---
+
+### Interactive Documentation
 
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
 ---
 
-**API Version**: 0.1.0  
-**Last Updated**: 2026-09-09
+**API Version**: 0.2.0  
+**Last Updated**: 2026-09-11

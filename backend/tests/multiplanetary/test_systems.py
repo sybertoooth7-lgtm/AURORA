@@ -1,18 +1,33 @@
 """Tests for multi-planetary AI (no DB, no network)."""
 
-import math
 import pytest
-from app.multiplanetary.sensors import StereoCamera, HazardCamera, LidarSensor, EnvironmentalSensor, PointCloud
-from app.multiplanetary.vision import VisualOdometry, TerrainRelativeNavigation, MotionEstimate
-from app.multiplanetary.navigation import TerrainGridMap, SlopeConstraint, RoughnessConstraint, constrained_astar, TerrainNavigator, Waypoint
-from app.multiplanetary.mapping import OctoMap, TerrainMap, Voxel
-from app.multiplanetary.avoidance import ReactiveAvoidance, PotentialFieldAvoidance, Obstacle
+
 from app.multiplanetary.autonomy import (
-    BehaviorTree, BehaviorNode, NodeStatus, ConditionNode, ActionNode,
-    SequenceNode, SelectorNode, AutonomyLevel, AutonomousController,
+    ActionNode,
+    AutonomousController,
+    BehaviorTree,
+    NodeStatus,
+    SelectorNode,
+    SequenceNode,
 )
-from app.multiplanetary.telemetry import DeepSpaceTelemetry, StoreAndForwardRelay, RelayMode, LinkState
-from app.multiplanetary.simulation import PlanetaryEnvironment, LunarEnvironment, MarsEnvironment, AsteroidEnvironment, get_environment
+from app.multiplanetary.avoidance import Obstacle, PotentialFieldAvoidance, ReactiveAvoidance
+from app.multiplanetary.mapping import OctoMap, TerrainMap
+from app.multiplanetary.navigation import (
+    SlopeConstraint,
+    TerrainGridMap,
+    TerrainNavigator,
+    Waypoint,
+)
+from app.multiplanetary.sensors import EnvironmentalSensor, HazardCamera, PointCloud, StereoCamera
+from app.multiplanetary.simulation import (
+    AsteroidEnvironment,
+    LunarEnvironment,
+    MarsEnvironment,
+    PlanetaryEnvironment,
+    get_environment,
+)
+from app.multiplanetary.telemetry import DeepSpaceTelemetry, LinkState, StoreAndForwardRelay
+from app.multiplanetary.vision import VisualOdometry
 
 
 class TestPointCloud:
@@ -167,7 +182,7 @@ class TestBehaviorTree:
 class TestAutonomousController:
     def test_default_rover_tree(self):
         ac = AutonomousController()
-        tree = ac.build_default_rover_tree()
+        ac.build_default_rover_tree()
         ctx = {"battery_percent": 100, "obstacle_count": 0}
         result = ac.tick(ctx)
         assert result["status"] in ("success", "failure")

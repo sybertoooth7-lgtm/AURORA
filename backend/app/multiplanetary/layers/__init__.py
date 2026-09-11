@@ -27,13 +27,13 @@ from app.multiplanetary.layers.core import (
     MissionContext,
     StackDecision,
 )
+from app.multiplanetary.layers.human_assistance import HumanAssistanceLayer
+from app.multiplanetary.layers.infrastructure import InfrastructureLayer
 from app.multiplanetary.layers.mission_control import MissionControlLayer
-from app.multiplanetary.layers.scientific import ScientificIntelligenceLayer
-from app.multiplanetary.layers.robotics import RoboticsLayer
 from app.multiplanetary.layers.navigation_layer import NavigationLayer
 from app.multiplanetary.layers.resource_management import ResourceManagementLayer
-from app.multiplanetary.layers.infrastructure import InfrastructureLayer
-from app.multiplanetary.layers.human_assistance import HumanAssistanceLayer
+from app.multiplanetary.layers.robotics import RoboticsLayer
+from app.multiplanetary.layers.scientific import ScientificIntelligenceLayer
 from app.multiplanetary.layers.stack import AuroraStack
 
 __all__ = [

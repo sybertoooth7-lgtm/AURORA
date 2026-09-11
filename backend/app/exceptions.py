@@ -5,7 +5,6 @@ in main.py converts them into consistent, documented JSON responses with an
 request-id that ties the error back to the structured logs.
 """
 
-from typing import Optional
 
 
 class AuroraError(Exception):
@@ -15,13 +14,13 @@ class AuroraError(Exception):
     log_level = "warning"
     code = "aurora_error"
 
-    def __init__(self, message: str, *, details: Optional[dict] = None):
+    def __init__(self, message: str, *, details: dict | None = None):
         super().__init__(message)
         self.message = message
         self.details = details or {}
 
     def to_response(self) -> dict:
-        payload = {"detail": self.message, "code": self.code}
+        payload: dict[str, object] = {"detail": self.message, "code": self.code}
         if self.details:
             payload["details"] = self.details
         return payload

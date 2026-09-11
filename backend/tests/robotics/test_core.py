@@ -1,15 +1,16 @@
 """Tests for AURORA robotics core (no DB, no network, no hardware)."""
 
-import math
 import pytest
-from app.robotics.core.robot import Pose3D, Velocity3D, RobotSnapshot, RobotState, Sensor, SensorReading, Actuator, ActuatorCommand, Robot
-from app.robotics.navigation import Waypoint, Path, GridMap, astar, SimpleNavigator, NavMode
+
+from app.robotics.control import PIDController, PIDGains
+from app.robotics.core.robot import Pose3D
+from app.robotics.navigation import GridMap, SimpleNavigator, Waypoint, astar
 from app.robotics.perception import (
-    BBox2D, Detection, DetectionClass, PerceptionResult,
-    SyntheticPerceptionEngine, SegmentationMask,
+    BBox2D,
+    DetectionClass,
+    SyntheticPerceptionEngine,
 )
-from app.robotics.control import PIDGains, PIDController, VelocityPIDController, PositionPIDController
-from app.robotics.simulation import SimConfig, SimulatedWorld, KinematicSimulator
+from app.robotics.simulation import KinematicSimulator, SimConfig, SimulatedWorld
 from app.robotics.telemetry import TelemetryLogger
 
 

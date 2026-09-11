@@ -7,7 +7,6 @@ and risk assessments.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class ProgramPhase(Enum):
@@ -89,13 +88,13 @@ class ProgramMilestone:
     name: str
     phase: ProgramPhase
     description: str
-    technology_ids: List[str] = field(default_factory=list)
-    success_criteria: List[str] = field(default_factory=list)
+    technology_ids: list[str] = field(default_factory=list)
+    success_criteria: list[str] = field(default_factory=list)
     risk_notes: str = ""
     estimated_cost_usd: float = 0.0
     is_critical_path: bool = False
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
@@ -111,19 +110,19 @@ class ProgramMilestone:
 
 class ProgramRoadmap:
     def __init__(self):
-        self._milestones: List[ProgramMilestone] = []
+        self._milestones: list[ProgramMilestone] = []
 
     def add_milestone(self, milestone: ProgramMilestone) -> None:
         self._milestones.append(milestone)
 
-    def milestones_for_phase(self, phase: ProgramPhase) -> List[ProgramMilestone]:
+    def milestones_for_phase(self, phase: ProgramPhase) -> list[ProgramMilestone]:
         return [m for m in self._milestones if m.phase == phase]
 
     @property
-    def all_milestones(self) -> List[ProgramMilestone]:
+    def all_milestones(self) -> list[ProgramMilestone]:
         return sorted(self._milestones, key=lambda m: (m.phase.value, m.id))
 
-    def phase_summary(self) -> List[Dict]:
+    def phase_summary(self) -> list[dict]:
         summary = []
         for phase in ProgramPhase:
             milestones = self.milestones_for_phase(phase)
@@ -141,7 +140,7 @@ class ProgramRoadmap:
             })
         return summary
 
-    def program_summary(self) -> Dict:
+    def program_summary(self) -> dict:
         total_cost = sum(m.estimated_cost_usd for m in self._milestones)
         total_years = sum(p.estimated_duration_years for p in ProgramPhase)
         critical = [m for m in self._milestones if m.is_critical_path]
@@ -153,8 +152,8 @@ class ProgramRoadmap:
             "phases": self.phase_summary(),
         }
 
-    def technology_dependency_graph(self) -> Dict[str, List[str]]:
-        graph: Dict[str, List[str]] = {}
+    def technology_dependency_graph(self) -> dict[str, list[str]]:
+        graph: dict[str, list[str]] = {}
         for m in self._milestones:
             for tech_id in m.technology_ids:
                 graph.setdefault(tech_id, []).append(m.id)

@@ -7,10 +7,9 @@ integrity.  Operational on both the spacecraft and the ground segment.
 
 import hashlib
 import hmac
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class SecurityLevel(Enum):
@@ -34,10 +33,10 @@ class SecurityEvent:
     threat: ThreatType
     severity: str
     description: str
-    source_ip: Optional[str] = None
+    source_ip: str | None = None
     mitigated: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "threat": self.threat.value,
@@ -55,12 +54,12 @@ class CyberSecurityLayer:
     ):
         self._secret_key = secret_key
         self._level = SecurityLevel.NOMINAL
-        self._events: List[SecurityEvent] = []
-        self._nonce_window: Dict[str, float] = {}
-        self._command_history: List[Dict[str, Any]] = []
+        self._events: list[SecurityEvent] = []
+        self._nonce_window: dict[str, float] = {}
+        self._command_history: list[dict[str, Any]] = []
         self._max_command_history: int = 1000
         self._rate_limit_per_minute = rate_limit_per_minute
-        self._config_hashes: Dict[str, str] = {}
+        self._config_hashes: dict[str, str] = {}
         self._blocked_sources: set = set()
 
     def sign_command(self, command_id: str, payload: bytes, timestamp: float) -> str:
@@ -69,7 +68,7 @@ class CyberSecurityLayer:
 
     def verify_command(
         self, command_id: str, payload: bytes, timestamp: float,
-        signature: str, source_ip: Optional[str] = None,
+        signature: str, source_ip: str | None = None,
     ) -> bool:
         if source_ip and source_ip in self._blocked_sources:
             self._log_event(SecurityEvent(
@@ -133,7 +132,7 @@ class CyberSecurityLayer:
             k: v for k, v in self._nonce_window.items() if now - v < 3600
         }
 
-    def _check_rate_limit(self, timestamp: float, source_ip: Optional[str]) -> None:
+    def _check_rate_limit(self, timestamp: float, source_ip: str | None) -> None:
         recent = [c for c in self._command_history if timestamp - c["timestamp"] < 60]
         if len(recent) > self._rate_limit_per_minute:
             self._log_event(SecurityEvent(
@@ -154,9 +153,9 @@ class CyberSecurityLayer:
         return self._level
 
     @property
-    def events(self) -> List[SecurityEvent]:
+    def events(self) -> list[SecurityEvent]:
         return list(self._events)
 
     @property
-    def recent_events(self) -> List[SecurityEvent]:
+    def recent_events(self) -> list[SecurityEvent]:
         return self._events[-10:]

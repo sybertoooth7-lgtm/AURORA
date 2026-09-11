@@ -10,7 +10,7 @@ surface mapping), this module is still the right home for the pure band
 math; new stages just receive actual imagery arrays instead of scalars.
 """
 
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -114,14 +114,14 @@ def anomaly_severity_from_zscores(
     return clip01((peak - threshold) / (max_severity - threshold))
 
 
-def average_bands(observation_bands: Optional[dict]) -> float:
+def average_bands(observation_bands: dict | None) -> float:
     """Mean reflectance across provided bands (used as a texture proxy)."""
     if not observation_bands:
         return 0.0
     return float(np.mean([float(v) for v in observation_bands.values()]))
 
 
-def require_valued(*values: Optional[float]) -> bool:
+def require_valued(*values: float | None) -> bool:
     """True when every provided value is present and finite."""
     for value in values:
         if value is None or not np.isfinite(float(value)):

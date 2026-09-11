@@ -4,9 +4,8 @@ Each extractor is a simplified physics-based model of the real process:
 power in → resource out, with efficiency, yield, and waste tracking.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class ExtractionStatus(Enum):

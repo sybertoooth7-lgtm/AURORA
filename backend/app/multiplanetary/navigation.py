@@ -7,9 +7,8 @@ rough terrain exceeding wheel-traversal limits.
 
 import math
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple
 
-from app.robotics.navigation import GridMap, Waypoint, Path, astar
+from app.robotics.navigation import GridMap, Path, Waypoint
 
 
 @dataclass
@@ -29,9 +28,9 @@ class TerrainGridMap(GridMap):
 
     def __init__(self, width: int, height: int, resolution: float = 1.0):
         super().__init__(width, height, resolution)
-        self._slope: List[List[float]] = [[0.0] * width for _ in range(height)]
-        self._roughness: List[List[float]] = [[0.0] * width for _ in range(height)]
-        self._elevation: List[List[float]] = [[0.0] * width for _ in range(height)]
+        self._slope: list[list[float]] = [[0.0] * width for _ in range(height)]
+        self._roughness: list[list[float]] = [[0.0] * width for _ in range(height)]
+        self._elevation: list[list[float]] = [[0.0] * width for _ in range(height)]
 
     def set_elevation(self, gx: int, gy: int, elevation: float) -> None:
         if self.in_bounds(gx, gy):
@@ -71,9 +70,9 @@ def constrained_astar(
     grid: TerrainGridMap,
     start: Waypoint,
     goal: Waypoint,
-    slope_constraint: Optional[SlopeConstraint] = None,
-    roughness_constraint: Optional[RoughnessConstraint] = None,
-) -> Optional[Path]:
+    slope_constraint: SlopeConstraint | None = None,
+    roughness_constraint: RoughnessConstraint | None = None,
+) -> Path | None:
     """A* with slope + roughness constraints for planetary terrain."""
     sc = slope_constraint or SlopeConstraint()
     rc = roughness_constraint or RoughnessConstraint()
@@ -87,7 +86,7 @@ def constrained_astar(
     import heapq
     open_set: list = []
     heapq.heappush(open_set, (0.0, sx, sy))
-    came_from = {(sx, sy): None}
+    came_from: dict[tuple[int, int], tuple[int, int] | None] = {(sx, sy): None}
     g_score = {(sx, sy): 0.0}
 
     def heuristic(ax, ay):
@@ -96,8 +95,8 @@ def constrained_astar(
     while open_set:
         _, cx, cy = heapq.heappop(open_set)
         if (cx, cy) == (gx, gy):
-            path_wps: List[Waypoint] = []
-            cur = (gx, gy)
+            path_wps: list[Waypoint] = []
+            cur: tuple[int, int] | None = (gx, gy)
             while cur is not None:
                 wx, wy = grid.grid_to_world(cur[0], cur[1])
                 path_wps.append(Waypoint(x=wx, y=wy))
@@ -131,9 +130,9 @@ class TerrainNavigator:
         self.terrain_grid = terrain_grid
         self.slope_constraint = SlopeConstraint()
         self.roughness_constraint = RoughnessConstraint()
-        self._path: Optional[Path] = None
+        self._path: Path | None = None
 
-    def plan_path(self, start: Waypoint, goal: Waypoint) -> Optional[Path]:
+    def plan_path(self, start: Waypoint, goal: Waypoint) -> Path | None:
         self.terrain_grid.compute_slopes()
         self._path = constrained_astar(
             self.terrain_grid, start, goal,
@@ -141,7 +140,7 @@ class TerrainNavigator:
         )
         return self._path
 
-    def replan_if_needed(self, current: Waypoint, goal: Waypoint, threshold_m: float = 2.0) -> Optional[Path]:
+    def replan_if_needed(self, current: Waypoint, goal: Waypoint, threshold_m: float = 2.0) -> Path | None:
         if self._path is None:
             return self.plan_path(current, goal)
         if self._path.waypoints:

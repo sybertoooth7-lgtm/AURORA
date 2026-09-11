@@ -9,7 +9,7 @@ repository tests below).
 import pytest
 from fastapi.testclient import TestClient
 
-from app.ai.repository import ModelValidationError, VALID_STATUSES, canonical_metrics
+from app.ai.repository import VALID_STATUSES, ModelValidationError, canonical_metrics
 from main import app
 
 

@@ -1,9 +1,8 @@
 """Provider boundary for satellite observations."""
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
 import hashlib
-from typing import List, Optional
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 
 from app.config import get_settings
 
@@ -31,9 +30,9 @@ class SatelliteObservation:
     resolution_m: float
     ndvi: float
     change_score: float
-    ndwi: Optional[float] = None
-    evi: Optional[float] = None
-    bsi: Optional[float] = None
+    ndwi: float | None = None
+    evi: float | None = None
+    bsi: float | None = None
     provided_bands: dict = field(default_factory=dict)
 
     @property
@@ -66,7 +65,7 @@ class SatelliteProvider:
 
     def fetch_history(
         self, latitude: float, longitude: float, radius_km: float, limit: int = 10
-    ) -> List[SatelliteObservation]:
+    ) -> list[SatelliteObservation]:
         """Chronological recent observations for a fixed area.
 
         Optional; pipelines that look for deviations against a baseline
@@ -86,11 +85,11 @@ class DemoSatelliteProvider(SatelliteProvider):
 
     @staticmethod
     def _seed(latitude: float, longitude: float, radius_km: float) -> bytes:
-        return f"{latitude:.4f}:{longitude:.4f}:{radius_km:.2f}".encode("utf-8")
+        return f"{latitude:.4f}:{longitude:.4f}:{radius_km:.2f}".encode()
 
     def _deterministic_observations(
         self, latitude: float, longitude: float, radius_km: float, count: int
-    ) -> List[SatelliteObservation]:
+    ) -> list[SatelliteObservation]:
         seed = self._seed(latitude, longitude, radius_km)
         digest = hashlib.sha256(seed).digest()
         ndvi = 0.25 + (digest[0] / 255) * 0.55
@@ -102,8 +101,8 @@ class DemoSatelliteProvider(SatelliteProvider):
         # Make the "history" deterministic but not a flat line: offset each
         # observation by a function of the digest so time-series pipelines
         # (anomaly / change) see realistic variation between passes.
-        observations: List[SatelliteObservation] = []
-        now = datetime.now(timezone.utc)
+        observations: list[SatelliteObservation] = []
+        now = datetime.now(UTC)
         for i in range(count):
             wobble = (digest[(5 + i) % len(digest)] / 255 - 0.5) * 0.1
             acquired = now - timedelta(days=count - i) if count - i > 0 else now
@@ -134,7 +133,7 @@ class DemoSatelliteProvider(SatelliteProvider):
         return SatelliteObservation(
             source="demo",
             image_id=f"demo-{digest.hex()[:16]}",
-            acquired_at=datetime.now(timezone.utc),
+            acquired_at=datetime.now(UTC),
             cloud_coverage=round((digest[2] / 255) * 0.25, 4),
             resolution_m=10.0,
             ndvi=round(ndvi, 4),
@@ -146,7 +145,7 @@ class DemoSatelliteProvider(SatelliteProvider):
 
     def fetch_history(
         self, latitude: float, longitude: float, radius_km: float, limit: int = 10
-    ) -> List[SatelliteObservation]:
+    ) -> list[SatelliteObservation]:
         return self._deterministic_observations(latitude, longitude, radius_km, count=max(1, limit))
 
 

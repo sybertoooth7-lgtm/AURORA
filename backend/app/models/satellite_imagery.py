@@ -1,8 +1,9 @@
 """Satellite imagery model"""
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, Text
-from sqlalchemy.sql import func
 from geoalchemy2 import Geometry
+from sqlalchemy import Column, DateTime, Float, Integer, String, Text
+from sqlalchemy.sql import func
+
 from app.database import Base
 
 

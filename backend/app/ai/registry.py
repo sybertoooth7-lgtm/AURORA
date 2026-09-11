@@ -7,7 +7,6 @@ registry, deterministically, from the same code).
 """
 
 from dataclasses import dataclass
-from typing import Dict, FrozenSet, List, Optional
 
 from app.ai.base import Pipeline
 from app.models.analysis import AnalysisType
@@ -25,8 +24,8 @@ class RegisteredPipeline:
 
 class PipelineRegistry:
     def __init__(self) -> None:
-        self._pipelines: Dict[str, RegisteredPipeline] = {}
-        self._by_type: Dict[AnalysisType, Pipeline] = {}
+        self._pipelines: dict[str, RegisteredPipeline] = {}
+        self._by_type: dict[AnalysisType, Pipeline] = {}
 
     def register(self, pipeline: Pipeline, active: bool = True) -> None:
         if not pipeline.name or not pipeline.handles:
@@ -51,13 +50,13 @@ class PipelineRegistry:
             )
         return pipeline
 
-    def get(self, name: str) -> Optional[RegisteredPipeline]:
+    def get(self, name: str) -> RegisteredPipeline | None:
         return self._pipelines.get(name)
 
-    def list_active(self) -> List[RegisteredPipeline]:
+    def list_active(self) -> list[RegisteredPipeline]:
         return [entry for entry in self._pipelines.values() if entry.active]
 
-    def list_descriptions(self) -> List[dict]:
+    def list_descriptions(self) -> list[dict]:
         return sorted(
             (entry.pipeline.describe() for entry in self.list_active()),
             key=lambda info: info["name"],
@@ -78,7 +77,9 @@ def build_workspace_pipelines() -> None:
     from app.ai.environmental import EnvironmentalPipeline
     from app.ai.flood import FloodPipeline
     from app.ai.infrastructure import InfrastructurePipeline
+    from app.ai.insurance_index import InsuranceIndexPipeline
     from app.ai.land_change import LandChangePipeline
+    from app.ai.robotics_inspection import RoboticsInspectionPipeline
     from app.ai.vegetation import VegetationPipeline
     from app.ai.wildfire import WildfirePipeline
 
@@ -90,6 +91,8 @@ def build_workspace_pipelines() -> None:
         AnomalyPipeline(),
         WildfirePipeline(),
         FloodPipeline(),
+        InsuranceIndexPipeline(),
+        RoboticsInspectionPipeline(),
     ):
         if not _registry.get(pipeline.name):
             _registry.register(pipeline)
@@ -106,10 +109,10 @@ def get_pipeline(analysis_type: AnalysisType) -> Pipeline:
     return get_registry().resolve(analysis_type)
 
 
-def list_pipelines() -> FrozenSet[str]:
-    """Names of the currently registered pipelines (for the API)."""
+def list_pipelines() -> frozenset[dict]:
+    """Registered pipeline descriptions (for the API)."""
     return frozenset(get_registry().list_descriptions())
 
 
-def list_pipeline_descriptions() -> List[dict]:
+def list_pipeline_descriptions() -> list[dict]:
     return get_registry().list_descriptions()

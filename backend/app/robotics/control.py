@@ -4,9 +4,7 @@ Provides a PID controller that works for both simulation and hardware
 backends (ROS 2 / direct PWM).
 """
 
-import time
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -30,8 +28,8 @@ class PIDController:
         self.gains = gains
         self.name = name
         self._integral = 0.0
-        self._prev_error: Optional[float] = None
-        self._last_time: Optional[float] = None
+        self._prev_error: float | None = None
+        self._last_time: float | None = None
 
     def reset(self) -> None:
         self._integral = 0.0

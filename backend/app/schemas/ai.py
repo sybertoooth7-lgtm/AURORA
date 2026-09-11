@@ -1,8 +1,9 @@
 """Schemas for the /ai inference and model-management endpoints."""
 
-from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.analysis import AnalysisType
 
@@ -15,7 +16,7 @@ class InferRequest(BaseModel):
     longitude: float = Field(ge=-180, le=180)
     radius_km: float = Field(gt=0, le=500)
     use_history: bool = True
-    description: Optional[str] = Field(default=None, max_length=500)
+    description: str | None = Field(default=None, max_length=500)
 
 
 class ModelIdentityResponse(BaseModel):
@@ -27,7 +28,7 @@ class ModelIdentityResponse(BaseModel):
 class LabelResponse(BaseModel):
     class_: str = Field(alias="class")
     confidence: float
-    attributes: Dict[str, Any] = Field(default_factory=dict)
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"populate_by_name": True}
 
@@ -38,19 +39,19 @@ class PipelineResultResponse(BaseModel):
     analysis_type: str
     severity: float
     confidence: float
-    findings: List[str]
-    metrics: Dict[str, float]
+    findings: list[str]
+    metrics: dict[str, float]
     provenance: str
     simulated: bool
     source: str
     image_id: str
     acquired_at: datetime
     model: ModelIdentityResponse
-    preprocessing: List[str]
-    labels: List[LabelResponse] = Field(default_factory=list)
-    warning: Optional[str] = None
+    preprocessing: list[str]
+    labels: list[LabelResponse] = Field(default_factory=list)
+    warning: str | None = None
     history_length: int = 0
-    analysis_id: Optional[int] = None
+    analysis_id: int | None = None
 
 
 class InferResponse(BaseModel):
@@ -66,15 +67,15 @@ class ModelCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     version: str = Field(min_length=1, max_length=40)
     framework: str = Field(default="band-math", max_length=60)
-    description: Optional[str] = Field(default=None, max_length=500)
-    parameters: Dict[str, Any] = Field(default_factory=dict)
-    metrics: Dict[str, Any] = Field(default_factory=dict)
-    artifact_uri: Optional[str] = Field(default=None, max_length=500)
+    description: str | None = Field(default=None, max_length=500)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    artifact_uri: str | None = Field(default=None, max_length=500)
     status: str = "prototype"
 
     @field_validator("metrics", "parameters")
     @classmethod
-    def _json_safe(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+    def _json_safe(cls, value: dict[str, Any]) -> dict[str, Any]:
         try:
             import json
 
@@ -90,12 +91,12 @@ class ModelResponse(BaseModel):
     version: str
     status: str
     framework: str
-    description: Optional[str]
-    parameters: Dict[str, Any] = Field(default_factory=dict)
-    metrics: Dict[str, Any] = Field(default_factory=dict)
-    artifact_uri: Optional[str]
-    created_at: Optional[str]
-    updated_at: Optional[str]
+    description: str | None
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    artifact_uri: str | None
+    created_at: str | None
+    updated_at: str | None
 
 
 class ModelStatusUpdate(BaseModel):
@@ -107,7 +108,7 @@ class ModelStatusUpdate(BaseModel):
 class PipelineDescription(BaseModel):
     name: str
     description: str
-    handles: List[str]
+    handles: list[str]
     model: ModelIdentityResponse
-    preprocessing: List[str]
-    data_requirements: Dict[str, Any] = Field(default_factory=dict)
+    preprocessing: list[str]
+    data_requirements: dict[str, Any] = Field(default_factory=dict)

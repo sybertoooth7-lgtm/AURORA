@@ -5,12 +5,13 @@ Lockout/revocation tests need a real Redis (they exercise app.queue.get_redis()
 directly) -- same expectation as running the app itself locally.
 """
 
-import time
 
 import pytest
 from pydantic import ValidationError
 
 from app.config import DEFAULT_SECRET_KEY, Settings
+from app.models.user import User
+from app.queue import get_redis
 from app.security import (
     clear_failed_logins,
     create_access_token,
@@ -19,8 +20,6 @@ from app.security import (
     revoke_token,
     verify_password_or_dummy,
 )
-from app.models.user import User
-from app.queue import get_redis
 
 
 @pytest.fixture(autouse=True)
@@ -67,6 +66,7 @@ def test_revoked_token_is_flagged_in_redis():
     revoke_token(token)
 
     import jwt as pyjwt
+
     from app.config import get_settings
 
     settings = get_settings()

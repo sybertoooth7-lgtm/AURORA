@@ -12,9 +12,7 @@ Hardware reference (3U CubeSat)
 * Peak load: ~5 W (transmit burst + imaging).
 """
 
-import math
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -27,7 +25,7 @@ class PowerBudget:
     battery_voltage: float = 6.6
     eclipse: bool = False
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         return {
             "solar_generation_w": round(self.solar_generation_w, 4),
             "battery_discharge_w": round(self.battery_discharge_w, 4),
@@ -78,7 +76,7 @@ class BatteryModel:
         self.coulomb_efficiency = coulomb_efficiency
         self.capacity_fade_per_cycle = capacity_fade_per_cycle
         self._soc_wh = capacity_wh
-        self._cycle_count = 0
+        self._cycle_count = 0.0
 
     @property
     def soc_percent(self) -> float:
@@ -107,14 +105,14 @@ class BatteryModel:
         return actual
 
     def reset_cycles(self) -> None:
-        self._cycle_count = 0
+        self._cycle_count = 0.0
 
 
 class PowerSystem:
     def __init__(
         self,
-        solar: Optional[SolarPanelModel] = None,
-        battery: Optional[BatteryModel] = None,
+        solar: SolarPanelModel | None = None,
+        battery: BatteryModel | None = None,
         base_load_w: float = 1.5,
         peak_load_w: float = 5.0,
     ):

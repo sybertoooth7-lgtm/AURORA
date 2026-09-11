@@ -5,3 +5,43 @@
 pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["alembic/versions/", "migrations/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "ASYNC"]
+ignore = [
+    "E501",
+    "B008",
+    # str+Enum base classes are deliberate: values must serialize exactly as
+    # written (SQLAlchemy enum columns persist by member name, and switching
+    # to StrEnum changes str() semantics).
+    "UP042",
+    # Empty interface stubs (initialize/shutdown) on ABCs are intentional.
+    "B027",
+]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+no_implicit_optional = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+warn_unused_ignores = false
+exclude = ["tests/", "alembic/"]
+# The declarative models use legacy untyped `Column(...)` attributes, so SQLAlchemy
+# member access is seen as `Column[int]`/`Column[str]` instead of the runtime
+# scalar types. These codes are therefore dominated by Column-typing noise; real
+# bugs in the remaining codes (name/member errors, type construction) are still
+# reported. Migrating the models to SQLAlchemy 2.0 `Mapped[...]` declarations
+# would let these codes be turned back on.
+disable_error_code = [
+    "arg-type",
+    "assignment",
+    "return-value",
+    "annotation-unchecked",
+    "var-annotated",
+]

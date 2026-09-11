@@ -10,7 +10,6 @@ available) EVI. All values are area means and prototypes until
 ground-validated.
 """
 
-from typing import List, Optional
 
 from app.ai import preprocessing as pp
 from app.ai.base import (
@@ -44,7 +43,7 @@ class EnvironmentalPipeline(Pipeline):
     def run(
         self,
         observation: SatelliteObservation,
-        history: Optional[List[SatelliteObservation]] = None,
+        history: list[SatelliteObservation] | None = None,
     ) -> PipelineResult:
         history_length = len(history or [])
         change = pp.clip01(observation.change_score)
@@ -52,7 +51,7 @@ class EnvironmentalPipeline(Pipeline):
         evi = observation.evi
         ndwi = observation.ndwi
 
-        findings: List[str] = []
+        findings: list[str] = []
         metrics: dict = {"change_score": round(change, 4), "ndvi": round(ndvi, 4)}
 
         # Water stress component (when the provider gives NDWI).

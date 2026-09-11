@@ -10,10 +10,11 @@ Conventions
 """
 
 import json
-from datetime import datetime, timezone
 import time
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
+from geoalchemy2.elements import WKTElement
 from sqlalchemy.orm import Session
 
 from app.ai import get_pipeline, list_pipeline_descriptions
@@ -49,11 +50,10 @@ from app.schemas.ai import (
     PipelineResultResponse,
 )
 from app.security import get_current_user, require_admin
-from geoalchemy2.elements import WKTElement
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/ai", tags=["ai"])
+router = APIRouter(prefix="/ai", tags=["AI Pipelines"])
 
 
 @router.get("/pipelines", response_model=list[PipelineDescription])
@@ -121,7 +121,7 @@ def _persist_analysis_result(db: Session, user_id: int, analysis_type, area: dic
         radius_km=area["radius_km"],
         status="completed",
         description=area["description"],
-        completed_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(UTC),
     )
     db.add(db_analysis)
     db.flush()

@@ -9,7 +9,6 @@ against natural variation. The direction of change (greening vs. browning)
 is inferred from the NDVI sign.
 """
 
-from typing import List, Optional
 
 from app.ai import preprocessing as pp
 from app.ai.base import (
@@ -37,7 +36,7 @@ class LandChangePipeline(Pipeline):
     def run(
         self,
         observation: SatelliteObservation,
-        history: Optional[List[SatelliteObservation]] = None,
+        history: list[SatelliteObservation] | None = None,
     ) -> PipelineResult:
         change = pp.clip01(observation.change_score)
         direction = "greening" if observation.ndvi >= 0.3 else "browning or surface change"
@@ -46,7 +45,7 @@ class LandChangePipeline(Pipeline):
         # When we have history, pull a z-score of the latest NDVI against the
         # past so natural seasonality doesn't get flagged as real change.
         zscore = 0.0
-        if history_length >= 2:
+        if history is not None and len(history) >= 2:
             historical_ndvi = [h.ndvi for h in history]
             zscore = pp.robust_zscore(observation.ndvi, historical_ndvi)
             change = pp.clip01(max(change, pp.anomaly_severity_from_zscores([zscore])))

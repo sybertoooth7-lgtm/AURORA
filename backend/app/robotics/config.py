@@ -7,7 +7,7 @@ planetary configs override specific fields.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class Environment(Enum):
@@ -35,7 +35,7 @@ class SensorConfig:
     noise_std: float = 0.02
     range_m: float = 100.0
     fov_deg: float = 60.0
-    resolution: Optional[tuple] = None
+    resolution: tuple | None = None
     is_simulated: bool = True
 
 
@@ -124,8 +124,8 @@ class MissionConfig:
 @dataclass
 class RoboticsConfig:
     mission: MissionConfig = field(default_factory=MissionConfig)
-    sensors: List[SensorConfig] = field(default_factory=list)
-    actuators: List[ActuatorConfig] = field(default_factory=list)
+    sensors: list[SensorConfig] = field(default_factory=list)
+    actuators: list[ActuatorConfig] = field(default_factory=list)
     navigation: NavigationConfig = field(default_factory=NavigationConfig)
     perception: PerceptionConfig = field(default_factory=PerceptionConfig)
     power: PowerConfig = field(default_factory=PowerConfig)
@@ -133,6 +133,6 @@ class RoboticsConfig:
     comms: CommsConfig = field(default_factory=CommsConfig)
     adcs: ADCSConfig = field(default_factory=ADCSConfig)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         from dataclasses import asdict
         return asdict(self)

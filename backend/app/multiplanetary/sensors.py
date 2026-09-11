@@ -7,13 +7,13 @@ harsh planetary environments (vacuum, radiation, extreme temperatures).
 import math
 import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 @dataclass
 class PointCloud:
-    points: List[Tuple[float, float, float]]
-    intensities: Optional[List[float]] = None
+    points: list[tuple[float, float, float]]
+    intensities: list[float] | None = None
     timestamp: float = 0.0
     frame_id: str = "body_frame"
 
@@ -21,7 +21,7 @@ class PointCloud:
     def size(self) -> int:
         return len(self.points)
 
-    def bounds(self) -> Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]:
+    def bounds(self) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
         xs = [p[0] for p in self.points]
         ys = [p[1] for p in self.points]
         zs = [p[2] for p in self.points]
@@ -33,8 +33,8 @@ class HazardMap:
     width: int
     height: int
     resolution_m: float
-    hazard_level: List[List[float]]
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    hazard_level: list[list[float]]
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def is_hazardous(self, gx: int, gy: int, threshold: float = 0.5) -> bool:
         if 0 <= gx < self.width and 0 <= gy < self.height:
@@ -48,7 +48,7 @@ class StereoCamera:
         name: str = "stereo_cam",
         baseline_m: float = 0.12,
         focal_length_px: float = 640.0,
-        resolution: Tuple[int, int] = (640, 480),
+        resolution: tuple[int, int] = (640, 480),
         fov_deg: float = 60.0,
         is_simulated: bool = True,
     ):
@@ -67,7 +67,7 @@ class StereoCamera:
 
     def generate_point_cloud(self, depth_map: Any, timestamp: float = 0.0) -> PointCloud:
         h, w = self.resolution[1], self.resolution[0]
-        points: List[Tuple[float, float, float]] = []
+        points: list[tuple[float, float, float]] = []
         step = max(1, h // 50)
         for y in range(0, h, step):
             for x in range(0, w, step):
@@ -110,7 +110,7 @@ class LidarSensor:
         self._rng = random.Random(42)
 
     def scan(self, num_rays: int = 360, timestamp: float = 0.0) -> PointCloud:
-        points: List[Tuple[float, float, float]] = []
+        points: list[tuple[float, float, float]] = []
         for i in range(num_rays):
             angle = 2 * math.pi * i / num_rays
             r = self.max_range_m * (0.3 + 0.7 * self._rng.random())
@@ -126,7 +126,7 @@ class EnvironmentalReading:
     radiation_mgymy_h: float = 0.0
     dust_opacity: float = 0.0
     wind_speed_ms: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class EnvironmentalSensor:

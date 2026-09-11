@@ -6,8 +6,7 @@ deorbit), ground station scheduling, and telemetry relay.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
-import math
+from typing import Any
 
 
 class MissionPhase(Enum):
@@ -26,7 +25,7 @@ class MissionEvent:
     timestamp_s: float
     phase: MissionPhase
     description: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -48,7 +47,7 @@ class MissionTimeline:
     def __init__(self, mission_duration_days: float = 365.0):
         self.mission_duration_days = mission_duration_days
         self.mission_duration_s = mission_duration_days * 86400.0
-        self._events: List[MissionEvent] = []
+        self._events: list[MissionEvent] = []
         self._current_phase = MissionPhase.PRE_LAUNCH
         self._current_time_s = 0.0
 
@@ -92,8 +91,8 @@ class GroundSegment:
     """Ground station network and contact scheduling."""
 
     def __init__(self):
-        self._stations: Dict[str, Any] = {}
-        self._contact_windows: List[ContactWindow] = []
+        self._stations: dict[str, Any] = {}
+        self._contact_windows: list[ContactWindow] = []
 
     def add_station(self, name: str, station: Any) -> None:
         self._stations[name] = station
@@ -104,7 +103,7 @@ class GroundSegment:
     def add_contact_window(self, window: ContactWindow) -> None:
         self._contact_windows.append(window)
 
-    def next_contact(self, current_time_s: float) -> Optional[ContactWindow]:
+    def next_contact(self, current_time_s: float) -> ContactWindow | None:
         future = [w for w in self._contact_windows if w.start_s > current_time_s]
         if not future:
             return None
@@ -113,7 +112,7 @@ class GroundSegment:
     def total_contact_s(self) -> float:
         return sum(w.duration_s for w in self._contact_windows)
 
-    def contacts_for_station(self, station_name: str) -> List[ContactWindow]:
+    def contacts_for_station(self, station_name: str) -> list[ContactWindow]:
         return [w for w in self._contact_windows if w.ground_station == station_name]
 
 
@@ -122,20 +121,20 @@ class TelemetryDownlink:
 
     def __init__(self, queue_capacity_packets: int = 1000):
         self._queue_capacity = queue_capacity_packets
-        self._queue: List[Dict[str, Any]] = []
-        self._downlinked: List[Dict[str, Any]] = []
+        self._queue: list[dict[str, Any]] = []
+        self._downlinked: list[dict[str, Any]] = []
         self._total_bytes = 0
 
-    def enqueue(self, telemetry: Dict[str, Any]) -> bool:
+    def enqueue(self, telemetry: dict[str, Any]) -> bool:
         if len(self._queue) >= self._queue_capacity:
             return False
         self._queue.append(telemetry)
         self._total_bytes += len(str(telemetry))
         return True
 
-    def downlink_batch(self, max_bytes: int, contact_s: float, data_rate_bps: int = 9600) -> List[Dict[str, Any]]:
+    def downlink_batch(self, max_bytes: int, contact_s: float, data_rate_bps: int = 9600) -> list[dict[str, Any]]:
         available_bytes = min(max_bytes, int(contact_s * data_rate_bps / 8))
-        sent: List[Dict[str, Any]] = []
+        sent: list[dict[str, Any]] = []
         remaining = available_bytes
         while self._queue and remaining > 0:
             pkt = self._queue.pop(0)

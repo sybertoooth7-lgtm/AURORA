@@ -5,8 +5,7 @@ mapping and a 2.5D terrain height map for slope analysis.
 """
 
 import math
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
+from dataclasses import dataclass
 
 
 @dataclass
@@ -15,7 +14,7 @@ class Voxel:
     y: int
     z: int
     occupancy: float = 0.5
-    color: Optional[Tuple[int, int, int]] = None
+    color: tuple[int, int, int] | None = None
     observation_count: int = 0
 
     @property
@@ -33,18 +32,18 @@ class OctoMap:
     def __init__(self, resolution: float = 0.1, max_range: float = 10.0):
         self.resolution = resolution
         self.max_range = max_range
-        self._voxels: Dict[Tuple[int, int, int], Voxel] = {}
+        self._voxels: dict[tuple[int, int, int], Voxel] = {}
         self._hit_count = 0
         self._miss_count = 0
 
-    def world_to_voxel(self, x: float, y: float, z: float) -> Tuple[int, int, int]:
+    def world_to_voxel(self, x: float, y: float, z: float) -> tuple[int, int, int]:
         return (
             int(x / self.resolution),
             int(y / self.resolution),
             int(z / self.resolution),
         )
 
-    def voxel_to_world(self, vx: int, vy: int, vz: int) -> Tuple[float, float, float]:
+    def voxel_to_world(self, vx: int, vy: int, vz: int) -> tuple[float, float, float]:
         return (
             vx * self.resolution + self.resolution / 2,
             vy * self.resolution + self.resolution / 2,
@@ -66,7 +65,7 @@ class OctoMap:
             voxel.occupancy = voxel.occupancy * (1.0 - alpha)
             self._miss_count += 1
 
-    def insert_ray(self, origin: Tuple[float, float, float], endpoint: Tuple[float, float, float]) -> None:
+    def insert_ray(self, origin: tuple[float, float, float], endpoint: tuple[float, float, float]) -> None:
         step = self.resolution * 0.5
         dx = endpoint[0] - origin[0]
         dy = endpoint[1] - origin[1]
@@ -88,7 +87,7 @@ class OctoMap:
         voxel = self._voxels.get((vx, vy, vz))
         return voxel.is_occupied if voxel else False
 
-    def occupied_voxels(self) -> List[Voxel]:
+    def occupied_voxels(self) -> list[Voxel]:
         return [v for v in self._voxels.values() if v.is_occupied]
 
     @property

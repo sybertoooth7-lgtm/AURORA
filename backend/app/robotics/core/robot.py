@@ -17,8 +17,7 @@ Robot lifecycle
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
-import time
+from typing import Any
 
 
 class RobotState(Enum):
@@ -42,7 +41,7 @@ class Pose3D:
     qy: float = 0.0
     qz: float = 0.0
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         return {"x": self.x, "y": self.y, "z": self.z,
                 "qw": self.qw, "qx": self.qx, "qy": self.qy, "qz": self.qz}
 
@@ -57,7 +56,7 @@ class Velocity3D:
     wy: float = 0.0
     wz: float = 0.0
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         return {"vx": self.vx, "vy": self.vy, "vz": self.vz,
                 "wx": self.wx, "wy": self.wy, "wz": self.wz}
 
@@ -70,10 +69,10 @@ class RobotSnapshot:
     velocity: Velocity3D
     battery_percent: float
     state: RobotState
-    sensor_readings: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    sensor_readings: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "pose": self.pose.to_dict(),
@@ -116,10 +115,10 @@ class SensorReading:
     sensor_name: str
     sensor_type: str
     timestamp: float
-    data: Dict[str, Any]
+    data: dict[str, Any]
     is_simulated: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "sensor_name": self.sensor_name,
             "sensor_type": self.sensor_type,
@@ -176,11 +175,11 @@ class Robot(ABC):
     """
 
     name: str = "unnamed_robot"
-    config: Dict[str, Any] = field(default_factory=dict)
+    config: dict[str, Any] = {}
 
     def __post_init__(self):
-        self._sensors: List[Sensor] = []
-        self._actuators: List[Actuator] = []
+        self._sensors: list[Sensor] = []
+        self._actuators: list[Actuator] = []
         self._state = RobotState.INIT
         self._pose = Pose3D()
         self._velocity = Velocity3D()

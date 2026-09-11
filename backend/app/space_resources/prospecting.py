@@ -6,7 +6,6 @@ accessibility, and risk, and produces a survey/extraction plan.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class SitePriority(Enum):
@@ -49,8 +48,8 @@ class ProspectSite:
     id: str
     name: str
     body: str
-    coordinates: Dict[str, float]
-    resources: List[ResourceOccurrence] = field(default_factory=list)
+    coordinates: dict[str, float]
+    resources: list[ResourceOccurrence] = field(default_factory=list)
     terrain_difficulty: float = 0.5
     solar_power_availability: float = 0.7
     thermal_environment_c: float = -173.0
@@ -62,7 +61,7 @@ class ProspectSite:
         return sum(r.estimated_mass_kg for r in self.resources)
 
     @property
-    def primary_resources(self) -> List[ResourceOccurrence]:
+    def primary_resources(self) -> list[ResourceOccurrence]:
         return [r for r in self.resources if r.significance == ResourceSignificance.PRIMARY]
 
     @property
@@ -76,7 +75,7 @@ class ProspectSite:
         return (resource_score * 0.4 + access_score * 0.2 +
                 power_score * 0.2 + thermal_score * 0.2)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
@@ -97,14 +96,14 @@ class ProspectingTask:
     task_type: str
     duration_hours: float
     priority: int
-    required_instruments: List[str] = field(default_factory=list)
-    dependencies: List[str] = field(default_factory=list)
+    required_instruments: list[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
 
 
 class ProspectingPlanner:
     def __init__(self):
-        self._sites: Dict[str, ProspectSite] = {}
-        self._tasks: List[ProspectingTask] = []
+        self._sites: dict[str, ProspectSite] = {}
+        self._tasks: list[ProspectingTask] = []
 
     def add_site(self, site: ProspectSite) -> None:
         self._sites[site.id] = site
@@ -115,24 +114,24 @@ class ProspectingPlanner:
             return True
         return False
 
-    def get_site(self, site_id: str) -> Optional[ProspectSite]:
+    def get_site(self, site_id: str) -> ProspectSite | None:
         return self._sites.get(site_id)
 
     @property
-    def sites(self) -> List[ProspectSite]:
+    def sites(self) -> list[ProspectSite]:
         return list(self._sites.values())
 
-    def ranked_sites(self, body: str | None = None) -> List[ProspectSite]:
+    def ranked_sites(self, body: str | None = None) -> list[ProspectSite]:
         candidates = list(self._sites.values())
         if body:
             candidates = [s for s in candidates if s.body == body]
         return sorted(candidates, key=lambda s: -s.site_value_score)
 
-    def generate_survey_plan(self, site_id: str) -> List[ProspectingTask]:
+    def generate_survey_plan(self, site_id: str) -> list[ProspectingTask]:
         site = self._sites.get(site_id)
         if not site:
             return []
-        tasks: List[ProspectingTask] = []
+        tasks: list[ProspectingTask] = []
         tasks.append(ProspectingTask(
             site_id=site_id,
             task_type="orbital_reconnaissance",
@@ -159,7 +158,7 @@ class ProspectingPlanner:
             ))
         return tasks
 
-    def generate_extraction_plan(self, site_id: str) -> Dict:
+    def generate_extraction_plan(self, site_id: str) -> dict:
         site = self._sites.get(site_id)
         if not site:
             return {"error": "site not found"}
@@ -187,9 +186,9 @@ class ProspectingPlanner:
             ),
         }
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         sites = self.sites
-        bodies = {}
+        bodies: dict[str, list[ProspectSite]] = {}
         for s in sites:
             bodies.setdefault(s.body, []).append(s)
         return {

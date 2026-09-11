@@ -3,10 +3,10 @@ AURORA Configuration Management
 Handles environment variables and application settings
 """
 
+from functools import lru_cache
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
-from functools import lru_cache
-from typing import Optional
 
 DEFAULT_SECRET_KEY = "your-secret-key-change-in-production"
 
@@ -52,8 +52,8 @@ class Settings(BaseSettings):
     # Free OAuth client credentials from https://shapps.dataspace.copernicus.eu/dashboard/
     # (User Settings -> OAuth clients). Leave unset to fall back to the
     # deterministic demo provider used for local dev and tests.
-    SENTINEL_CLIENT_ID: Optional[str] = None
-    SENTINEL_CLIENT_SECRET: Optional[str] = None
+    SENTINEL_CLIENT_ID: str | None = None
+    SENTINEL_CLIENT_SECRET: str | None = None
     SENTINEL_TOKEN_URL: str = (
         "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
     )
@@ -84,6 +84,18 @@ class Settings(BaseSettings):
     # /analysis/ flow instead.
     AI_INFER_SYNC_TIMEOUT_SECONDS: int = 30
 
+    # Parametric agriculture insurance (AURORA-2 Earth revenue).
+    INSURANCE_DEFAULT_TRIGGER_THRESHOLD: float = 0.4
+    INSURANCE_MAX_SUM_INSURED_USD: float = 50_000_000.0
+    # Sentinel Hub OAuth setup page for the onboarding "connect live data"
+    # checklist item (label/URL are the constants used across the product).
+    ONBOARDING_SENTINEL_SETUP_URL: str = "https://shapps.dataspace.copernicus.eu/dashboard/"
+
+    # Robotics field-inspection flights (AURORA-2 Earth revenue). The MVP
+    # flight telemetry store is in-memory per process (see app.robotics.flight)
+    # -- this bounds how many frames each flight keeps before eviction.
+    ROBOTICS_FLIGHT_RETENTION_FRAMES: int = 1000
+
     class Config:
         env_file = ".env"
         case_sensitive = True
@@ -111,7 +123,7 @@ class Settings(BaseSettings):
         return self
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance"""
     return Settings()

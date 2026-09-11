@@ -1,8 +1,8 @@
 """User schemas"""
 
-from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
-from typing import Optional
+
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -15,7 +15,7 @@ class UserCreate(BaseModel):
     # suggests supporting at least 64 characters; 128 is generous headroom
     # above any real passphrase.
     password: str = Field(min_length=8, max_length=128)
-    full_name: Optional[str] = Field(default=None, max_length=200)
+    full_name: str | None = Field(default=None, max_length=200)
 
 
 class UserResponse(BaseModel):
@@ -23,7 +23,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     username: str
-    full_name: Optional[str]
+    full_name: str | None
     is_active: bool
     created_at: datetime
 

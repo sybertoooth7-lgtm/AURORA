@@ -4,10 +4,10 @@ Maintains the live status of all physical infrastructure and proposes
 maintenance, expansion, or load-shedding actions.
 """
 
-from typing import List
+
+from typing import Any
 
 from app.multiplanetary.layers.core import Action, ActionType, Layer, MissionContext
-
 
 DEFAULT_INFRA = {
     "isru": {
@@ -38,7 +38,7 @@ class InfrastructureLayer(Layer):
 
     def __init__(self, infra: dict | None = None):
         super().__init__()
-        self._infra = dict(DEFAULT_INFRA)
+        self._infra: dict[str, Any] = dict(DEFAULT_INFRA)
         if infra:
             self._infra.update(infra)
 
@@ -53,9 +53,9 @@ class InfrastructureLayer(Layer):
     def status(self) -> dict:
         return dict(self._infra)
 
-    def evaluate(self, ctx: MissionContext) -> List[Action]:
-        actions: List[Action] = []
-        infra = ctx.infrastructure if ctx.infrastructure else self._infra
+    def evaluate(self, ctx: MissionContext) -> list[Action]:
+        actions: list[Action] = []
+        infra: dict[str, Any] = ctx.infrastructure if ctx.infrastructure else self._infra
         isru = infra.get("isru", {})
         if isru.get("status") == "off" and ctx.power_available_w > 80.0:
             actions.append(Action(

@@ -6,10 +6,8 @@ making the spacecraft/rover must do, and when to fall back to
 fully-scripted mission sequences.
 """
 
-import math
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class TargetBody(Enum):

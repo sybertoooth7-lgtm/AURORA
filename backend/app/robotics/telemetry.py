@@ -7,8 +7,8 @@ hardware (same JSON lines, same fields).
 
 import json
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -16,7 +16,7 @@ class TelemetryEntry:
     timestamp: float
     category: str
     source: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     level: str = "info"
 
     def to_json(self) -> str:
@@ -37,12 +37,12 @@ class TelemetryLogger:
     """
 
     def __init__(self, buffer_size: int = 10000):
-        self._buffer: List[TelemetryEntry] = []
+        self._buffer: list[TelemetryEntry] = []
         self._buffer_size = buffer_size
-        self._counters: Dict[str, int] = {}
+        self._counters: dict[str, int] = {}
 
-    def log(self, category: str, source: str, data: Dict[str, Any],
-            level: str = "info", timestamp: Optional[float] = None) -> TelemetryEntry:
+    def log(self, category: str, source: str, data: dict[str, Any],
+            level: str = "info", timestamp: float | None = None) -> TelemetryEntry:
         entry = TelemetryEntry(
             timestamp=timestamp or time.time(),
             category=category,
@@ -57,24 +57,24 @@ class TelemetryLogger:
         self._counters[key] = self._counters.get(key, 0) + 1
         return entry
 
-    def log_sensor(self, sensor_name: str, reading: Dict[str, Any]) -> TelemetryEntry:
+    def log_sensor(self, sensor_name: str, reading: dict[str, Any]) -> TelemetryEntry:
         return self.log("sensor", sensor_name, reading)
 
-    def log_actuator(self, actuator_name: str, command: Dict[str, Any]) -> TelemetryEntry:
+    def log_actuator(self, actuator_name: str, command: dict[str, Any]) -> TelemetryEntry:
         return self.log("actuator", actuator_name, command)
 
-    def log_navigation(self, event: str, data: Dict[str, Any]) -> TelemetryEntry:
+    def log_navigation(self, event: str, data: dict[str, Any]) -> TelemetryEntry:
         return self.log("navigation", event, data)
 
     def log_fault(self, component: str, message: str) -> TelemetryEntry:
         return self.log("fault", component, {"message": message}, level="error")
 
-    def recent(self, category: Optional[str] = None, n: int = 50) -> List[TelemetryEntry]:
+    def recent(self, category: str | None = None, n: int = 50) -> list[TelemetryEntry]:
         if category is None:
             return list(self._buffer[-n:])
         return [e for e in self._buffer if e.category == category][-n:]
 
-    def counters(self) -> Dict[str, int]:
+    def counters(self) -> dict[str, int]:
         return dict(self._counters)
 
     def clear(self) -> None:

@@ -16,7 +16,7 @@ Hardware model (3U CubeSat)
 import math
 import random
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import cast
 
 
 @dataclass
@@ -32,7 +32,7 @@ class Quaternion:
             return Quaternion()
         return Quaternion(self.w/n, self.x/n, self.y/n, self.z/n)
 
-    def to_euler_deg(self) -> Tuple[float, float, float]:
+    def to_euler_deg(self) -> tuple[float, float, float]:
         sinr = 2*(self.w*self.x + self.y*self.z)
         cosr = 1 - 2*(self.x**2 + self.y**2)
         roll = math.degrees(math.atan2(sinr, cosr))
@@ -59,9 +59,9 @@ class Quaternion:
 @dataclass
 class AttitudeState:
     quaternion: Quaternion = field(default_factory=Quaternion)
-    angular_velocity: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-    wheel_rpm: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-    magnetorquer_dipole: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    angular_velocity: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    wheel_rpm: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    magnetorquer_dipole: tuple[float, float, float] = (0.0, 0.0, 0.0)
 
     def pointing_error_deg(self, target: Quaternion) -> float:
         dot = abs(self.quaternion.dot(target))
@@ -75,9 +75,13 @@ class SunSensor:
         self.is_simulated = is_simulated
         self._rng = random.Random(42)
 
-    def read_sun_vector_eci(self, true_sun: Tuple[float, float, float]) -> Tuple[float, float, float]:
+    def read_sun_vector_eci(self, true_sun: tuple[float, float, float]) -> tuple[float, float, float]:
         if self.is_simulated:
-            return tuple(v + self._rng.gauss(0, 0.01) for v in true_sun)
+            return (
+                true_sun[0] + self._rng.gauss(0, 0.01),
+                true_sun[1] + self._rng.gauss(0, 0.01),
+                true_sun[2] + self._rng.gauss(0, 0.01),
+            )
         return true_sun
 
 
@@ -87,14 +91,18 @@ class Magnetometer:
         self.is_simulated = is_simulated
         self._rng = random.Random(42)
 
-    def read_field_eci(self, true_field: Tuple[float, float, float]) -> Tuple[float, float, float]:
+    def read_field_eci(self, true_field: tuple[float, float, float]) -> tuple[float, float, float]:
         if self.is_simulated:
-            return tuple(v + self._rng.gauss(0, self.noise_ut) for v in true_field)
+            return (
+                true_field[0] + self._rng.gauss(0, self.noise_ut),
+                true_field[1] + self._rng.gauss(0, self.noise_ut),
+                true_field[2] + self._rng.gauss(0, self.noise_ut),
+            )
         return true_field
 
 
 class ReactionWheel:
-    def __init__(self, axis: Tuple[float, float, float], max_rpm: float = 6000.0, max_torque_nm: float = 0.001):
+    def __init__(self, axis: tuple[float, float, float], max_rpm: float = 6000.0, max_torque_nm: float = 0.001):
         self.axis = axis
         self.max_rpm = max_rpm
         self.max_torque_nm = max_torque_nm
@@ -112,7 +120,7 @@ class ReactionWheel:
 
 
 class Magnetorquer:
-    def __init__(self, axis: Tuple[float, float, float], max_dipole_aim: float = 0.5):
+    def __init__(self, axis: tuple[float, float, float], max_dipole_aim: float = 0.5):
         self.axis = axis
         self.max_dipole_aim = max_dipole_aim
         self.dipole = 0.0
@@ -132,10 +140,10 @@ class ADCS:
 
     def __init__(
         self,
-        sun_sensor: Optional[SunSensor] = None,
-        magnetometer: Optional[Magnetometer] = None,
-        wheels: Optional[List[ReactionWheel]] = None,
-        magnetorquers: Optional[List[Magnetorquer]] = None,
+        sun_sensor: SunSensor | None = None,
+        magnetometer: Magnetometer | None = None,
+        wheels: list[ReactionWheel] | None = None,
+        magnetorquers: list[Magnetorquer] | None = None,
         detumble_gain: float = 0.01,
         sun_point_gain: float = 0.05,
     ):
@@ -155,10 +163,10 @@ class ADCS:
     def tick(
         self,
         dt: float,
-        true_sun_eci: Tuple[float, float, float] = (1.0, 0.0, 0.0),
-        true_mag_eci: Tuple[float, float, float] = (0.0, 30000.0, 0.0),
+        true_sun_eci: tuple[float, float, float] = (1.0, 0.0, 0.0),
+        true_mag_eci: tuple[float, float, float] = (0.0, 30000.0, 0.0),
     ) -> AttitudeState:
-        sun = self.sun_sensor.read_sun_vector_eci(true_sun_eci)
+        _sun = self.sun_sensor.read_sun_vector_eci(true_sun_eci)
         mag = self.magnetometer.read_field_eci(true_mag_eci)
         wx, wy, wz = self._state.angular_velocity
 
@@ -177,8 +185,12 @@ class ADCS:
         wz_new = wz + total_torque * dt * 0.001
         decay = 0.999
         self._state.angular_velocity = (wx_new * decay, wy_new * decay, wz_new * decay)
-        self._state.wheel_rpm = tuple(w.speed_rpm for w in self.wheels)
-        self._state.magnetorquer_dipole = tuple(m.dipole for m in self.magnetorquers)
+        self._state.wheel_rpm = cast(
+            tuple[float, float, float], tuple(w.speed_rpm for w in self.wheels)
+        )
+        self._state.magnetorquer_dipole = cast(
+            tuple[float, float, float], tuple(m.dipole for m in self.magnetorquers)
+        )
         return self._state
 
     def set_sun_pointing(self, enabled: bool) -> None:

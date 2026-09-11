@@ -1,7 +1,8 @@
 """Model registry (database-backed metadata about AI models/approaches)."""
 
-from sqlalchemy import Column, String, Integer, DateTime, Text
+from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.sql import func
+
 from app.database import Base
 
 

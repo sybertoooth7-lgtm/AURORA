@@ -1,10 +1,10 @@
 """Database models for AURORA"""
 
-from .user import User
+from .ai_model import AIModel
+from .alert import Alert
 from .analysis import Analysis, AnalysisResult, AnalysisType
 from .satellite_imagery import SatelliteImage
-from .alert import Alert
-from .ai_model import AIModel
+from .user import User
 
 __all__ = [
     "User",

@@ -11,7 +11,6 @@ risk.  The MVP is a priority queue with scoring -- deliberately no
 fictional "autonomous scientists".
 """
 
-from typing import List
 
 from app.multiplanetary.layers.core import Action, ActionType, Layer, MissionContext
 
@@ -19,7 +18,7 @@ from app.multiplanetary.layers.core import Action, ActionType, Layer, MissionCon
 class ScientificIntelligenceLayer(Layer):
     name = "scientific_intelligence"
 
-    def __init__(self, hypotheses: List[dict] | None = None):
+    def __init__(self, hypotheses: list[dict] | None = None):
         super().__init__()
         self._hypotheses = hypotheses or [
             {"id": "water_psr_1", "resource": "water_ice", "priority": 1.0,
@@ -28,8 +27,8 @@ class ScientificIntelligenceLayer(Layer):
              "target": {"x": 40, "y": 5}, "expected_value": 0.6},
         ]
 
-    def evaluate(self, ctx: MissionContext) -> List[Action]:
-        actions: List[Action] = []
+    def evaluate(self, ctx: MissionContext) -> list[Action]:
+        actions: list[Action] = []
         candidates = sorted(
             self._hypotheses,
             key=lambda h: (h["expected_value"], -h["priority"]),

@@ -7,7 +7,7 @@ based on ground station visibility and power budgets.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class PayloadMode(Enum):
@@ -24,11 +24,11 @@ class ImageProduct:
     latitude: float
     longitude: float
     resolution_m: float
-    bands: List[str]
+    bands: list[str]
     data_size_bytes: int
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "image_id": self.image_id,
             "timestamp": self.timestamp,
@@ -51,7 +51,7 @@ class ImagingPayload:
         self,
         resolution_m: float = 3.0,
         fov_deg: float = 20.0,
-        bands: Optional[List[str]] = None,
+        bands: list[str] | None = None,
         power_w: float = 1.5,
         data_per_image_mb: float = 5.0,
         storage_capacity_mb: float = 2000.0,
@@ -65,7 +65,7 @@ class ImagingPayload:
         self.storage_capacity_mb = storage_capacity_mb
         self.is_simulated = is_simulated
         self.mode = PayloadMode.OFF
-        self._images: List[ImageProduct] = []
+        self._images: list[ImageProduct] = []
         self._used_storage_mb = 0.0
         self._image_counter = 0
         self._total_power_on_time_s = 0.0
@@ -88,7 +88,7 @@ class ImagingPayload:
     def power_off(self) -> None:
         self.mode = PayloadMode.OFF
 
-    def capture(self, timestamp: float, latitude: float, longitude: float, duration_s: float = 1.0) -> Optional[ImageProduct]:
+    def capture(self, timestamp: float, latitude: float, longitude: float, duration_s: float = 1.0) -> ImageProduct | None:
         if self.mode == PayloadMode.OFF:
             return None
         if self.storage_free_mb < self.data_per_image_mb:
@@ -110,10 +110,10 @@ class ImagingPayload:
         self.mode = PayloadMode.STANDBY
         return image
 
-    def download_images(self, max_mb: float) -> List[ImageProduct]:
+    def download_images(self, max_mb: float) -> list[ImageProduct]:
         """Simulate downloading images from storage to ground."""
         self.mode = PayloadMode.DOWNLOADING
-        downloaded: List[ImageProduct] = []
+        downloaded: list[ImageProduct] = []
         remaining_mb = max_mb
         while self._images and remaining_mb >= self.data_per_image_mb:
             img = self._images.pop(0)
@@ -132,7 +132,7 @@ class PayloadManager:
     """Top-level payload manager orchestrating multiple instruments."""
 
     def __init__(self):
-        self._payloads: Dict[str, Any] = {}
+        self._payloads: dict[str, Any] = {}
 
     def add_payload(self, name: str, payload: Any) -> None:
         self._payloads[name] = payload
@@ -148,11 +148,13 @@ class PayloadManager:
                     total += p.power_w
         return total
 
-    def status(self) -> Dict[str, Any]:
-        return {
-            name: {
-                "mode": getattr(p, "mode", "unknown").value if hasattr(getattr(p, "mode", None), "value") else str(getattr(p, "mode", "unknown")),
+    def status(self) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for name, p in self._payloads.items():
+            mode = getattr(p, "mode", None)
+            mode_value = getattr(mode, "value", None)
+            result[name] = {
+                "mode": mode_value if mode_value is not None else str(mode),
                 "power_w": getattr(p, "power_w", 0),
             }
-            for name, p in self._payloads.items()
-        }
+        return result

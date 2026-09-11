@@ -7,9 +7,9 @@ model metadata is stamped with the production status from the DB when one
 exists, so a result never claims "production" unless the DB says so.
 """
 
-from datetime import datetime, timezone
 import json
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -22,7 +22,7 @@ class ModelValidationError(ValueError):
     """Raised for malformed model metadata."""
 
 
-def canonical_metrics(metrics: Optional[Dict[str, Any]]) -> Optional[str]:
+def canonical_metrics(metrics: dict[str, Any] | None) -> str | None:
     """Serialize metrics to a sorted JSON string (stable for comparisons)."""
     if not metrics:
         return None
@@ -46,14 +46,14 @@ def serialize_model(row: AIModel) -> dict:
     }
 
 
-def list_models(db: Session, name: Optional[str] = None) -> list:
+def list_models(db: Session, name: str | None = None) -> list:
     query = db.query(AIModel)
     if name:
         query = query.filter(AIModel.name == name)
     return [serialize_model(row) for row in query.order_by(AIModel.name, AIModel.version).all()]
 
 
-def get_model(db: Session, model_id: int) -> Optional[AIModel]:
+def get_model(db: Session, model_id: int) -> AIModel | None:
     return db.query(AIModel).filter(AIModel.id == model_id).first()
 
 
@@ -62,10 +62,10 @@ def create_model(
     name: str,
     version: str,
     framework: str = "band-math",
-    description: Optional[str] = None,
-    parameters: Optional[Dict[str, Any]] = None,
-    metrics: Optional[Dict[str, Any]] = None,
-    artifact_uri: Optional[str] = None,
+    description: str | None = None,
+    parameters: dict[str, Any] | None = None,
+    metrics: dict[str, Any] | None = None,
+    artifact_uri: str | None = None,
     status: str = "prototype",
 ) -> dict:
     """Register a new model version. New versions always start as prototype."""
@@ -87,7 +87,7 @@ def create_model(
     return serialize_model(row)
 
 
-def set_status(db: Session, model_id: int, status: str) -> Optional[dict]:
+def set_status(db: Session, model_id: int, status: str) -> dict | None:
     """Promote/archive a model. Returns None when the model doesn't exist."""
     if status not in VALID_STATUSES:
         raise ModelValidationError(f"Invalid status '{status}'; must be one of {sorted(VALID_STATUSES)}")
@@ -95,13 +95,13 @@ def set_status(db: Session, model_id: int, status: str) -> Optional[dict]:
     if row is None:
         return None
     row.status = status
-    row.updated_at = datetime.now(timezone.utc)
+    row.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(row)
     return serialize_model(row)
 
 
-def production_version_of(db: Session, name: str) -> Optional[AIModel]:
+def production_version_of(db: Session, name: str) -> AIModel | None:
     """Active production status for a model name (for registry reconciliation)."""
     return (
         db.query(AIModel)

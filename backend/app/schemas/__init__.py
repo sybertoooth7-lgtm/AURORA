@@ -1,8 +1,5 @@
 """Pydantic schemas for API validation"""
 
-from .user import UserCreate, UserResponse, TokenRequest, TokenResponse
-from .analysis import AnalysisCreate, AnalysisResponse
-from .satellite import SatelliteImageResponse
 from .ai import (
     InferRequest,
     InferResponse,
@@ -13,6 +10,9 @@ from .ai import (
     PipelineDescription,
     PipelineResultResponse,
 )
+from .analysis import AnalysisCreate, AnalysisResponse
+from .satellite import SatelliteImageResponse
+from .user import TokenRequest, TokenResponse, UserCreate, UserResponse
 
 __all__ = [
     "UserCreate",

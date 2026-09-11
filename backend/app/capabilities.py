@@ -12,14 +12,13 @@ sources) is fetched lazily inside ``build_capabilities()`` and failures
 degrade gracefully instead of taking the whole endpoint down.
 """
 
-from typing import Any, List
 
 APP_VERSION = "0.2.0"
 
 # Static index of platform subsystems.  `modules` lists the import path(s)
 # that implement the capability; `status` reflects that the code is present
 # and wired into the platform (not that hardware is operational).
-SUBSYSTEMS: List[dict] = [
+SUBSYSTEMS: list[dict] = [
     {
         "id": "satellite",
         "name": "Satellite Data Providers",
@@ -36,10 +35,43 @@ SUBSYSTEMS: List[dict] = [
         "name": "AI Analysis Pipelines",
         "description": (
             "Modular band-math pipelines (vegetation, land change, "
-            "infrastructure, environmental, anomaly, wildfire, flood) with "
-            "provenance-aware results and a governed model registry."
+            "infrastructure, environmental, anomaly, wildfire, flood, "
+            "insurance index, robotics inspection) with provenance-aware "
+            "results and a governed model registry."
         ),
         "modules": ["app.ai"],
+        "status": "active",
+    },
+    {
+        "id": "insurance",
+        "name": "Parametric Agriculture Insurance",
+        "description": (
+            "Earth-revenue trigger checks for area-yield index policies: "
+            "crop-condition damage proxy, payout estimates and honest "
+            "simulated-data disclosure. Prototype -- not a settlement engine."
+        ),
+        "modules": ["app.routes.insurance", "app.ai.insurance_index"],
+        "status": "active",
+    },
+    {
+        "id": "robotics_field_services",
+        "name": "Robotics Field Services",
+        "description": (
+            "Drone/ground-robot telemetry bridge (post-flight health "
+            "summaries) fused with satellite NDVI reports for field "
+            "inspection."
+        ),
+        "modules": ["app.routes.robotics", "app.robotics.flight", "app.ai.robotics_inspection"],
+        "status": "active",
+    },
+    {
+        "id": "onboarding",
+        "name": "Onboarding Flow",
+        "description": (
+            "Guided new-account setup: live-data connection guidance, first "
+            "analysis execution and a dynamic progress checklist."
+        ),
+        "modules": ["app.routes.onboarding"],
         "status": "active",
     },
     {
@@ -90,7 +122,7 @@ SUBSYSTEMS: List[dict] = [
 ]
 
 
-def _list_ai_pipelines() -> List[dict]:
+def _list_ai_pipelines() -> list[dict]:
     try:
         from app.ai.registry import list_pipeline_descriptions
 
@@ -99,7 +131,7 @@ def _list_ai_pipelines() -> List[dict]:
         return []
 
 
-def _list_satellite_sources() -> List[dict]:
+def _list_satellite_sources() -> list[dict]:
     try:
         from app.config import get_settings
         from app.satellite.providers import REAL_SOURCE_IDS, get_satellite_provider

@@ -20,8 +20,8 @@ from __future__ import annotations
 import math
 import statistics
 import time
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import httpx
 
@@ -83,7 +83,7 @@ class SentinelHubProvider(SatelliteProvider):
         token_url: str = DEFAULT_TOKEN_URL,
         stats_url: str = DEFAULT_STATS_URL,
         lookback_days: int = 30,
-        http_client: Optional[httpx.Client] = None,
+        http_client: httpx.Client | None = None,
     ) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
@@ -91,7 +91,7 @@ class SentinelHubProvider(SatelliteProvider):
         self._stats_url = stats_url
         self._lookback_days = lookback_days
         self._http = http_client or httpx.Client(timeout=30.0)
-        self._token: Optional[str] = None
+        self._token: str | None = None
         self._token_expires_at: float = 0.0
 
     def _get_token(self) -> str:
@@ -118,7 +118,7 @@ class SentinelHubProvider(SatelliteProvider):
         return self._token
 
     @staticmethod
-    def _bbox(latitude: float, longitude: float, radius_km: float) -> List[float]:
+    def _bbox(latitude: float, longitude: float, radius_km: float) -> list[float]:
         """Approximate degree-space bounding box, matching the polygon math
         already used elsewhere in the backend for the stored analysis area."""
         lat_delta = radius_km / 111.32
@@ -130,8 +130,8 @@ class SentinelHubProvider(SatelliteProvider):
             latitude + lat_delta,
         ]
 
-    def _stats_request_body(self, latitude: float, longitude: float, radius_km: float) -> Dict[str, Any]:
-        now = datetime.now(timezone.utc)
+    def _stats_request_body(self, latitude: float, longitude: float, radius_km: float) -> dict[str, Any]:
+        now = datetime.now(UTC)
         start = now - timedelta(days=self._lookback_days)
         return {
             "input": {
@@ -159,7 +159,7 @@ class SentinelHubProvider(SatelliteProvider):
         }
 
     @staticmethod
-    def _interval_stats(entry: Dict[str, Any], output: str = "ndvi") -> Optional[Dict[str, Any]]:
+    def _interval_stats(entry: dict[str, Any], output: str = "ndvi") -> dict[str, Any] | None:
         """Pull the area statistics for one evalscript output of one day.
 
         Older/other deployments may not emit every requested output (or the
@@ -179,7 +179,7 @@ class SentinelHubProvider(SatelliteProvider):
 
     def _fetch_intervals(
         self, latitude: float, longitude: float, radius_km: float
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Fetch and parse usable daily intervals for an area of interest.
 
         Raises SentinelHubRequestError when the API call itself fails or no
@@ -199,7 +199,7 @@ class SentinelHubProvider(SatelliteProvider):
             )
         payload = response.json()
 
-        usable: List[Dict[str, Any]] = []
+        usable: list[dict[str, Any]] = []
         for entry in payload.get("data", []):
             stats = self._interval_stats(entry)
             if stats is not None:
@@ -212,7 +212,7 @@ class SentinelHubProvider(SatelliteProvider):
             )
         return usable
 
-    def _observation_from_interval(self, entry: Dict[str, Any]) -> SatelliteObservation:
+    def _observation_from_interval(self, entry: dict[str, Any]) -> SatelliteObservation:
         """Build a SatelliteObservation for one Statistical API interval."""
         ndvi_stats = self._interval_stats(entry)
         acquired_at = datetime.fromisoformat(entry["interval"]["to"].replace("Z", "+00:00"))
@@ -260,7 +260,7 @@ class SentinelHubProvider(SatelliteProvider):
 
     def fetch_history(
         self, latitude: float, longitude: float, radius_km: float, limit: int = 10
-    ) -> List[SatelliteObservation]:
+    ) -> list[SatelliteObservation]:
         intervals = self._fetch_intervals(latitude, longitude, radius_km)
         observations = [self._observation_from_interval(item["entry"]) for item in intervals]
 

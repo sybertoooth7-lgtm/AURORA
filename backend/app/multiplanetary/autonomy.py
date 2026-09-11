@@ -6,9 +6,10 @@ offline for testing.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 
 class AutonomyLevel(Enum):
@@ -30,7 +31,7 @@ class BehaviorNode(ABC):
     name: str = "node"
 
     @abstractmethod
-    def tick(self, context: Dict[str, Any]) -> NodeStatus:
+    def tick(self, context: dict[str, Any]) -> NodeStatus:
         pass
 
     def reset(self) -> None:
@@ -38,30 +39,30 @@ class BehaviorNode(ABC):
 
 
 class ConditionNode(BehaviorNode):
-    def __init__(self, name: str, check: Callable[[Dict[str, Any]], bool]):
+    def __init__(self, name: str, check: Callable[[dict[str, Any]], bool]):
         super().__init__(name=name)
         self._check = check
 
-    def tick(self, context: Dict[str, Any]) -> NodeStatus:
+    def tick(self, context: dict[str, Any]) -> NodeStatus:
         return NodeStatus.SUCCESS if self._check(context) else NodeStatus.FAILURE
 
 
 class ActionNode(BehaviorNode):
-    def __init__(self, name: str, action: Callable[[Dict[str, Any]], NodeStatus]):
+    def __init__(self, name: str, action: Callable[[dict[str, Any]], NodeStatus]):
         super().__init__(name=name)
         self._action = action
 
-    def tick(self, context: Dict[str, Any]) -> NodeStatus:
+    def tick(self, context: dict[str, Any]) -> NodeStatus:
         return self._action(context)
 
 
 class SequenceNode(BehaviorNode):
-    def __init__(self, name: str, children: List[BehaviorNode]):
+    def __init__(self, name: str, children: list[BehaviorNode]):
         super().__init__(name=name)
         self._children = children
         self._current = 0
 
-    def tick(self, context: Dict[str, Any]) -> NodeStatus:
+    def tick(self, context: dict[str, Any]) -> NodeStatus:
         while self._current < len(self._children):
             status = self._children[self._current].tick(context)
             if status == NodeStatus.RUNNING:
@@ -80,12 +81,12 @@ class SequenceNode(BehaviorNode):
 
 
 class SelectorNode(BehaviorNode):
-    def __init__(self, name: str, children: List[BehaviorNode]):
+    def __init__(self, name: str, children: list[BehaviorNode]):
         super().__init__(name=name)
         self._children = children
         self._current = 0
 
-    def tick(self, context: Dict[str, Any]) -> NodeStatus:
+    def tick(self, context: dict[str, Any]) -> NodeStatus:
         while self._current < len(self._children):
             status = self._children[self._current].tick(context)
             if status == NodeStatus.RUNNING:
@@ -109,7 +110,7 @@ class BehaviorTree:
     name: str = "main_tree"
     tick_count: int = 0
 
-    def tick(self, context: Dict[str, Any]) -> NodeStatus:
+    def tick(self, context: dict[str, Any]) -> NodeStatus:
         self.tick_count += 1
         return self.root.tick(context)
 
@@ -128,9 +129,9 @@ class AutonomousController:
 
     def __init__(self, autonomy_level: AutonomyLevel = AutonomyLevel.LEVEL_3_SEMI_AUTONOMOUS):
         self.autonomy_level = autonomy_level
-        self._trees: Dict[str, BehaviorTree] = {}
-        self._active_tree: Optional[BehaviorTree] = None
-        self._command_log: List[Dict[str, Any]] = []
+        self._trees: dict[str, BehaviorTree] = {}
+        self._active_tree: BehaviorTree | None = None
+        self._command_log: list[dict[str, Any]] = []
 
     def register_tree(self, name: str, tree: BehaviorTree) -> None:
         self._trees[name] = tree
@@ -138,7 +139,7 @@ class AutonomousController:
     def select_tree(self, name: str) -> None:
         self._active_tree = self._trees.get(name)
 
-    def tick(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def tick(self, context: dict[str, Any]) -> dict[str, Any]:
         if self._active_tree is None:
             return {"status": "no_tree", "command": {"linear": 0, "angular": 0}}
         context["autonomy_level"] = self.autonomy_level.value
@@ -154,7 +155,7 @@ class AutonomousController:
         self.autonomy_level = level
 
     @property
-    def command_log(self) -> List[Dict[str, Any]]:
+    def command_log(self) -> list[dict[str, Any]]:
         return list(self._command_log)
 
     def build_default_rover_tree(self) -> BehaviorTree:

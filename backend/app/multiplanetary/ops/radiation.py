@@ -9,9 +9,9 @@ cumulative dose on avionics.  Implements mitigation strategies:
 - Activity suspension during solar particle events.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Any
 
 
 class RadiationEventLevel(Enum):
@@ -84,7 +84,7 @@ class RadiationEnvironment:
         }
         return envs.get(target, RadiationEnvironment())
 
-    def status(self) -> Dict:
+    def status(self) -> dict:
         return {
             "target_body": self.target_body,
             "dose_per_day_gy": round(self.dose_gy_per_day(), 6),
@@ -94,17 +94,17 @@ class RadiationEnvironment:
 
 
 class RadHardStrategy:
-    def __init__(self, components: List[ComponentDoseTracker] | None = None):
-        self._components: List[ComponentDoseTracker] = components or []
-        self._mitigations_active: List[str] = []
+    def __init__(self, components: list[ComponentDoseTracker] | None = None):
+        self._components: list[ComponentDoseTracker] = components or []
+        self._mitigations_active: list[str] = []
 
     def register_component(self, component: ComponentDoseTracker) -> None:
         self._components.append(component)
 
-    def tick(self, environment: RadiationEnvironment, dt_days: float = 1.0) -> Dict[str, any]:
+    def tick(self, environment: RadiationEnvironment, dt_days: float = 1.0) -> dict[str, Any]:
         dose = environment.dose_gy_per_day() * dt_days
-        actions: List[str] = []
-        end_of_life_components: List[str] = []
+        actions: list[str] = []
+        end_of_life_components: list[str] = []
         for comp in self._components:
             comp.total_dose_gy += dose
             if comp.is_end_of_life:

@@ -12,7 +12,7 @@ from app.models.analysis import Analysis, AnalysisResult
 from app.models.user import User
 from app.security import get_current_user
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter(prefix="/reports", tags=["Reports"])
 
 
 def _get_analysis(analysis_id: int, user_id: int, db: Session) -> Analysis:

@@ -6,10 +6,8 @@ proposes allocation and rationing actions when levels fall below
 operational thresholds.
 """
 
-from typing import List
 
 from app.multiplanetary.layers.core import Action, ActionType, Layer, MissionContext
-
 
 DEFAULT_INVENTORY = {
     "water_kg": 0.0,
@@ -35,8 +33,8 @@ class ResourceManagementLayer(Layer):
             "battery_wh": 20.0,
         }
 
-    def evaluate(self, ctx: MissionContext) -> List[Action]:
-        actions: List[Action] = []
+    def evaluate(self, ctx: MissionContext) -> list[Action]:
+        actions: list[Action] = []
         inv = dict(DEFAULT_INVENTORY)
         inv.update(ctx.inventory)
         for key, min_val in self._thresholds.items():

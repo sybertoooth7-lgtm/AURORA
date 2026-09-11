@@ -5,8 +5,7 @@ models infrastructure amortization, and calculates break-even
 analysis for each technology.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -34,7 +33,7 @@ class DeliveryCostProfile:
             return mass_kg * self.mars_delivery_cost_per_kg
         return mass_kg * self.earth_launch_cost_per_kg
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "resource_type": self.resource_type,
             "earth_launch_kg": self.earth_launch_cost_per_kg,
@@ -82,7 +81,7 @@ class InfrastructureAsset:
             base = profile.earth_launch_cost_per_kg
         return base - self.cost_per_kg_produced
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "capital_cost": self.capital_cost,
@@ -95,7 +94,7 @@ class InfrastructureAsset:
 
 class EconomicsModel:
     def __init__(self):
-        self._delivery_profiles: Dict[str, DeliveryCostProfile] = {
+        self._delivery_profiles: dict[str, DeliveryCostProfile] = {
             "water": DeliveryCostProfile(resource_type="water"),
             "oxygen": DeliveryCostProfile(resource_type="oxygen", earth_launch_cost_per_kg=80000),
             "metals": DeliveryCostProfile(resource_type="metals", earth_launch_cost_per_kg=120000),
@@ -104,17 +103,17 @@ class EconomicsModel:
                 resource_type="construction_material", earth_launch_cost_per_kg=60000
             ),
         }
-        self._assets: List[InfrastructureAsset] = []
+        self._assets: list[InfrastructureAsset] = []
 
     def add_asset(self, asset: InfrastructureAsset) -> None:
         self._assets.append(asset)
 
-    def get_profile(self, resource_type: str) -> Optional[DeliveryCostProfile]:
+    def get_profile(self, resource_type: str) -> DeliveryCostProfile | None:
         return self._delivery_profiles.get(resource_type)
 
     def cost_analysis(
         self, resource_type: str, mass_kg: float, destination: str = "lunar"
-    ) -> Dict:
+    ) -> dict:
         profile = self._delivery_profiles.get(resource_type)
         if profile is None:
             return {"error": f"No cost profile for {resource_type}"}
@@ -131,7 +130,7 @@ class EconomicsModel:
             "savings_percent": (savings / earth_cost * 100) if earth_cost > 0 else 0.0,
         }
 
-    def portfolio_analysis(self, destination: str = "lunar") -> Dict:
+    def portfolio_analysis(self, destination: str = "lunar") -> dict:
         total_capital = sum(a.capital_cost for a in self._assets)
         total_daily_production = sum(a.production_capacity_kg_per_day for a in self._assets)
         return {
@@ -142,7 +141,7 @@ class EconomicsModel:
             "assets": [a.to_dict() for a in self._assets],
         }
 
-    def break_even_analysis(self, resource_type: str, destination: str = "lunar") -> Dict:
+    def break_even_analysis(self, resource_type: str, destination: str = "lunar") -> dict:
         assets = [a for a in self._assets if a.technology_id.startswith(resource_type)]
         if not assets:
             return {"resource_type": resource_type, "assets": []}

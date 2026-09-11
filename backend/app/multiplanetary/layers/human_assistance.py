@@ -6,7 +6,6 @@ before irreversible actions, and presents decision prompts when the
 mission control layer has elevated a ``request_authorization`` action.
 """
 
-from typing import List
 
 from app.multiplanetary.layers.core import Action, ActionType, Layer, MissionContext
 
@@ -16,8 +15,8 @@ class HumanAssistanceLayer(Layer):
 
     def __init__(self) -> None:
         super().__init__()
-        self._pending_verifications: List[str] = []
-        self._advisories: List[str] = []
+        self._pending_verifications: list[str] = []
+        self._advisories: list[str] = []
 
     def generate_advisory(self, ctx: MissionContext) -> str:
         parts = [
@@ -35,8 +34,8 @@ class HumanAssistanceLayer(Layer):
         ]
         return " ".join(parts)
 
-    def evaluate(self, ctx: MissionContext) -> List[Action]:
-        actions: List[Action] = []
+    def evaluate(self, ctx: MissionContext) -> list[Action]:
+        actions: list[Action] = []
         advisory = self.generate_advisory(ctx)
         actions.append(Action(
             layer=self.name,
@@ -70,7 +69,7 @@ class HumanAssistanceLayer(Layer):
             ))
         return actions
 
-    def verification_checklist(self, action: Action) -> List[str]:
+    def verification_checklist(self, action: Action) -> list[str]:
         return [
             f"Action: {action.description} ({action.layer} → {action.target})",
             f"Severity: {action.severity}",

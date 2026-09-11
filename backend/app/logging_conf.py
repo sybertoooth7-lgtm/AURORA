@@ -21,7 +21,7 @@ translates it into the standard ``extra`` you would pass to Python logging.
 import json
 import logging
 import sys
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.config import get_settings
 
@@ -91,7 +91,7 @@ class AuroraLogger:
     standard-library logging exactly what it expects.
     """
 
-    def __init__(self, name: str, base_extra: Optional[Dict[str, Any]] = None):
+    def __init__(self, name: str, base_extra: dict[str, Any] | None = None):
         self._logger = logging.getLogger(name)
         self._base_extra = base_extra or {}
 
@@ -130,5 +130,5 @@ class AuroraLogger:
         self._log(level, msg, args, **kwargs)
 
 
-def get_logger(name: str, extra_keys: Optional[dict] = None):
+def get_logger(name: str, extra_keys: dict | None = None):
     return AuroraLogger(name, extra_keys)

@@ -13,7 +13,7 @@ classification).  The interface is intentionally identical.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class DetectionClass(Enum):
@@ -68,10 +68,10 @@ class Detection:
     bbox: BBox2D
     detection_class: DetectionClass
     confidence: float
-    depth_m: Optional[float] = None
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    depth_m: float | None = None
+    attributes: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "bbox": {"x_min": self.bbox.x_min, "y_min": self.bbox.y_min,
                      "x_max": self.bbox.x_max, "y_max": self.bbox.y_max},
@@ -87,24 +87,24 @@ class SegmentationMask:
     """Per-pixel class map from semantic segmentation."""
     width: int
     height: int
-    class_map: List[List[int]]  # [y][x] -> class_id
-    class_names: Dict[int, str] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    class_map: list[list[int]]  # [y][x] -> class_id
+    class_names: dict[int, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class PerceptionResult:
     """Output of one perception pass over one frame / point cloud."""
     timestamp: float
-    detections: List[Detection]
-    segmentation: Optional[SegmentationMask] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    detections: list[Detection]
+    segmentation: SegmentationMask | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def obstacle_count(self) -> int:
         return sum(1 for d in self.detections
                    if d.detection_class in (DetectionClass.OBSTACLE, DetectionClass.HAZARD, DetectionClass.ROCK, DetectionClass.CRATER))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "detections": [d.to_dict() for d in self.detections],
@@ -131,7 +131,7 @@ class PerceptionEngine(ABC):
         self,
         frame: Any,
         timestamp: float,
-        camera_intrinsic: Optional[Dict[str, float]] = None,
+        camera_intrinsic: dict[str, float] | None = None,
     ) -> PerceptionResult:
         """Run detection + optional segmentation on one frame."""
 
@@ -153,16 +153,16 @@ class SyntheticPerceptionEngine(PerceptionEngine):
     model_name = "synthetic"
     is_simulated = True
 
-    def __init__(self, obstacles: Optional[List[Dict[str, Any]]] = None):
+    def __init__(self, obstacles: list[dict[str, Any]] | None = None):
         self._obstacles = obstacles or []
 
     def process_frame(
         self,
         frame: Any,
         timestamp: float,
-        camera_intrinsic: Optional[Dict[str, float]] = None,
+        camera_intrinsic: dict[str, float] | None = None,
     ) -> PerceptionResult:
-        detections: List[Detection] = []
+        detections: list[Detection] = []
         for obs in self._obstacles:
             detections.append(Detection(
                 bbox=BBox2D(obs.get("x_min", 0), obs.get("y_min", 0),

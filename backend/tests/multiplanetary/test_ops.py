@@ -1,19 +1,17 @@
 """Tests for multi-planetary ops (comms delay, radiation, disconnected, fail-safe, security)."""
 
 from app.multiplanetary.ops.comms_delay import CommsDelayModel, TargetBody
-from app.multiplanetary.ops.radiation import (
-    ComponentDoseTracker,
-    RadiationEnvironment,
-    RadHardStrategy,
-    RadiationEventLevel,
-)
 from app.multiplanetary.ops.disconnected import (
     DisconnectedOpsManager,
     MissionPlaybook,
 )
 from app.multiplanetary.ops.fail_safe import FailSafeController, HealthSignal, SafeModeLevel
+from app.multiplanetary.ops.radiation import (
+    ComponentDoseTracker,
+    RadHardStrategy,
+    RadiationEnvironment,
+)
 from app.multiplanetary.ops.security import CyberSecurityLayer, ThreatType
-
 
 # ─── Comms Delay ───
 
@@ -88,7 +86,7 @@ def test_radhard_strategy_tick():
     assert "dose_applied_gy" in result
 
 def test_radhard_strategy_watchdog():
-    env = RadiationEnvironment.for_target("mars")
+    _env = RadiationEnvironment.for_target("mars")
     comp = ComponentDoseTracker("cpu")
     strategy = RadHardStrategy()
     strategy.register_component(comp)
