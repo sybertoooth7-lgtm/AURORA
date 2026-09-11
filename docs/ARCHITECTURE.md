@@ -28,8 +28,9 @@
 │    └──────────┘  └────────────────┘  └──────────┘         │
 │                                                               │
 │  ┌─────────────── CAPABILITY REGISTRY ───────────────────┐  │
-│  │ satellite │ ai │ robotics │ spacecraft │               │  │
-│  │ multiplanetary │ space_resources                       │  │
+│  │ satellite │ ai │ insurance │ robotics_field_services │  │
+│  │ onboarding │ robotics │ spacecraft │ multiplanetary  │  │
+│  │ space_resources                                         │  │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                               │
 │      GET /system/capabilities  →  every subsystem + pipeline │
@@ -47,12 +48,15 @@ AURORA evolves as modular, independently-testable subsystems.  The
   "platform": "AURORA",
   "version": "0.2.0",
   "subsystems": [
-    {"id": "satellite",         "modules": ["app.satellite"],         "status": "active"},
-    {"id": "ai",                "modules": ["app.ai"],                "status": "active"},
-    {"id": "robotics",          "modules": ["app.robotics"],          "status": "active"},
-    {"id": "spacecraft",        "modules": ["app.spacecraft"],        "status": "active"},
-    {"id": "multiplanetary",    "modules": ["app.multiplanetary"],    "status": "active"},
-    {"id": "space_resources",   "modules": ["app.space_resources"],   "status": "active"}
+    {"id": "satellite",              "modules": ["app.satellite"],              "status": "active"},
+    {"id": "ai",                     "modules": ["app.ai"],                     "status": "active"},
+    {"id": "insurance",              "modules": ["app.routes.insurance", "app.ai.insurance_index", "app.services.insurance"], "status": "active"},
+    {"id": "robotics_field_services","modules": ["app.routes.robotics", "app.robotics.flight", "app.ai.robotics_inspection"], "status": "active"},
+    {"id": "onboarding",             "modules": ["app.routes.onboarding"],      "status": "active"},
+    {"id": "robotics",               "modules": ["app.robotics"],               "status": "active"},
+    {"id": "spacecraft",             "modules": ["app.spacecraft"],             "status": "active"},
+    {"id": "multiplanetary",         "modules": ["app.multiplanetary"],         "status": "active"},
+    {"id": "space_resources",        "modules": ["app.space_resources"],        "status": "active"}
   ],
   "ai_pipelines": [...],       // live: mirrored from the AI registry
   "satellite_sources": [...]   // live: real vs simulated boundary
@@ -61,7 +65,10 @@ AURORA evolves as modular, independently-testable subsystems.  The
 
 Adding a future capability (constellation command, ISRU plant control,
 orbital robotics) means adding one subsystem entry — the core system,
-database, and API contract do not change.
+database, and API contract do not change. The Earth-revenue subsystems
+(`insurance`, `robotics_field_services`, `onboarding`) are the current
+revenue integrations and are implemented on top of the same AI pipeline
+contract as the rest of the platform.
 
 ## Backend Architecture
 
@@ -88,11 +95,11 @@ database, and API contract do not change.
 | `capabilities.py` | Platform-wide capability registry |
 | `models/` | SQLAlchemy ORM: User, Analysis(+Result), SatelliteImage, Alert, AIModel |
 | `schemas/` | Pydantic request/response models |
-| `routes/` | FastAPI routers: health, system, auth, analysis, satellite, alerts, reports, ai |
-| `services/` | Business logic boundary (`analysis_runner`) |
+| `routes/` | FastAPI routers: health, system, auth, analysis, satellite, alerts, reports, ai, insurance, robotics, onboarding |
+| `services/` | Business logic boundary (`analysis_runner`, insurance `evaluate_trigger`) |
 | `satellite/` | Provider interface (`SatelliteObservation`), demo + Sentinel Hub providers |
-| `ai/` | Pipeline framework: registry, 7 pipelines, preprocessing, model repository, inference |
-| `robotics/` | Terrestrial robot: core, navigation, perception, control, simulation, telemetry |
+| `ai/` | Pipeline framework: registry, 9 pipelines (7 statistical + `insurance_index` + `robotics_inspection`), preprocessing, model repository, inference |
+| `robotics/` | Terrestrial robot: core, navigation, perception, control, simulation, telemetry; `flight.py` = telemetry store + health summariser |
 | `spacecraft/` | AURORA-1 3U CubeSat: ADCS, power, thermal, comms, payload, FSW, mission |
 | `multiplanetary/` | 7-layer AI stack + ops (comms delay, radiation, disconnected, fail-safe, security) |
 | `space_resources/` | ISRU: TRL registry, extraction, plant sim, economics, prospecting, roadmap |
@@ -133,6 +140,20 @@ database, and API contract do not change.
 
 /reports
   GET  /{analysis_id}          # report export (auth)
+
+/insurance                      # parametric agriculture insurance (AURORA-2)
+  GET  /defaults                # trigger threshold + max sum insured (public)
+  POST /trigger-check           # trigger + payout estimate for one area (auth)
+
+/robotics                       # robotics field services (AURORA-2)
+  POST /flights/{id}/telemetry  # ingest MQTT-style frame → flight health
+  GET  /flights/{id}            # flight summary + health
+  POST /inspect                 # satellite NDVI damage proxy, fused w/ robot health
+
+/onboarding                     # user onboarding flow (AURORA-2)
+  GET  /status                  # checklist + next action for current user
+  POST /complete                # mark onboarding complete
+  POST /first-analysis          # run a guided first analysis
 ```
 
 ### Data models (SQLAlchemy + PostGIS)
@@ -140,6 +161,7 @@ database, and API contract do not change.
 ```
 User ─┬─< Analysis ──< AnalysisResult
       └─< Alert ──< AnalysisResult
+      └─ (onboarding_completed_at)
 SatelliteImage
 AIModel                     # ai_models registry (prototype/production/archived)
 ```
@@ -147,7 +169,9 @@ AIModel                     # ai_models registry (prototype/production/archived)
 Schema is owned by **Alembic** (`alembic upgrade head`; Dockerfile runs it
 automatically).  Migrations:
 `db5c3b1b933e` (initial), `a1b2c3d4e5f6` (+AI models + 3 analysis types),
-`b5c6d7e8f9a0` (+wildfire/flood types).
+`b5c6d7e8f9a0` (+wildfire/flood types), `c0d1e2f3a4b5`
+(+`insurance_index`, `robotics_inspection` analysis types),
+`d1e2f3a4b5c6` (+`users.onboarding_completed_at`).
 
 ### AI pipeline flow
 
@@ -167,6 +191,12 @@ Persist Analysis + AnalysisResult + (Alert if severity ≥ 0.35)
 Dashboard / alerts / report
 ```
 
+The Earth-revenue pipelines reuse the same contract:
+`insurance_index` runs over the crop-condition index + moisture + baseline
+deviation and feeds `POST /insurance/trigger-check`; `robotics_inspection`
+maps the area-mean NDVI dip into a field damage proxy that
+`POST /robotics/inspect` fuses with live robot flight-health telemetry.
+
 ## Security Architecture
 
 - JWT access tokens (HS256), 30 min expiry, per-account login lockout
@@ -183,6 +213,12 @@ Dashboard / alerts / report
 
 - **Dev**: local venv + Postgres + Redis + `uvicorn` (reload) + `python worker.py`.
 - **Prod (docker-compose.yml)**: `api`, `worker`, `postgres`, `redis` services.
+- **CI (GitHub Actions, `.github/workflows/ci.yml`)**: on push/PR the
+  backend gate runs against PostGIS 16 + Redis 7 service containers and
+  enforces `ruff check .`, `mypy app`, `alembic upgrade head`, then the full
+  `pytest` suite (including the Redis-dependent auth-hardening tests); the
+  frontend gate runs `npm ci` + `npm run build`. Lint/type config lives in
+  `backend/pyproject.toml` (`requirements-dev.txt` pins the tooling).
 - **Target (future)**: Kubernetes with FastAPI replicas, DB/Redis HA.
 
 ## Monitoring & Logging

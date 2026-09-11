@@ -1,4 +1,3 @@
-````markdown
 # 🌌 AURORA
 
 **Build the technologies and economic infrastructure that allow humanity to explore, inhabit and responsibly utilize the Solar System.**
@@ -41,56 +40,51 @@ AURORA (Headquarters: Nairobi, Kenya)
 
 ## 📊 Current Focus (2026)
 
-### Phase 1: Space Intelligence Platform
+### Phase 1: Earth Revenue (Q3–Q4 2026)
 
-**First MVP:** AURORA Space Intelligence Platform
+Combined satellite imagery + AI + geospatial analytics into producible revenue lines:
 
-Combines satellite imagery + AI + geospatial analytics into actionable information.
+- **Parametric agriculture insurance** — `InsuranceIndexPipeline` computes a crop-condition index and damage proxy; `POST /insurance/trigger-check` evaluates a parametric payout trigger for a field, with estimates clearly separated from settlements.
+- **Robotics field services** — drones / ground robots publish MQTT-style telemetry into a bounded in-memory flight store; `POST /robotics/inspect` fuses the satellite-derived NDVI damage proxy with the robot's own flight health into a combined field report.
+- **User onboarding flow** — guided checklist + first analysis, with honest next-step guidance that distinguishes simulated results from real satellite data.
+
+Underpinning pipeline:
 
 ```
 Satellite Imagery → AI Analysis → Geospatial Engine → Customer Dashboard → Revenue
 ```
 
-**Example Use Cases:**
-- Agriculture: Vegetation stress detection
-- Insurance: Land and infrastructure monitoring
-- Mining: Resource site monitoring
-- Environmental: Climate intelligence
-- Logistics: Infrastructure change detection
-
 ## 📁 Repository Structure
 
 ```
 AURORA/
-├── backend/                   # FastAPI backend
+├── .github/workflows/ci.yml    # CI: backend (PostGIS+Redis) + frontend build
+├── aurora-frontend/            # React/Vite web app
+├── backend/                    # FastAPI backend
 │   ├── app/
-│   │   ├── models/           # Database models
-│   │   ├── schemas/          # API schemas
-│   │   ├── routes/           # API endpoints
-│   │   ├── ai/               # ML/AI modules
+│   │   ├── models/             # SQLAlchemy models
+│   │   ├── schemas/            # Pydantic schemas
+│   │   ├── routes/             # API endpoints
+│   │   ├── ai/                 # Pipeline registry + 9 pipelines
+│   │   ├── robotics/           # Robot core + flight telemetry store
+│   │   ├── multiplanetary/     # 7-layer AI stack + mission ops
+│   │   ├── space_resources/    # ISRU / resources program
+│   │   ├── spacecraft/         # 3U CubeSat simulation
 │   │   ├── config.py
 │   │   └── database.py
+│   ├── alembic/                # schema migrations
 │   ├── main.py
 │   ├── requirements.txt
+│   ├── requirements-dev.txt    # ruff + mypy pinned for the CI gates
 │   ├── Dockerfile
-│   ├── docker-compose.yml
-│   └── README.md
+│   └── docker-compose.yml
 │
-├── frontend/                  # React/Next.js frontend (Coming soon)
-│   └── README.md
-│
-├── ml/                        # Machine Learning pipelines (Coming soon)
-│   └── README.md
-│
-├── robotics/                  # Robotics integration (Coming soon)
-│   └── README.md
-│
-├── docs/                      # Documentation
-│   ├── ROADMAP.md
-│   ├── ARCHITECTURE.md
-│   └── CONTRIBUTING.md
-│
-└── README.md
+└── docs/                       # Architecture, API, strategy, roadmap
+    ├── API.md
+    ├── ARCHITECTURE.md
+    ├── business_strategy.md
+    ├── multiplanetary_ai_architecture.md
+    └── space_resources_program.md
 ```
 
 ## 🚀 Quick Start
@@ -121,13 +115,32 @@ curl http://localhost:8000/health/
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
+### Frontend Development
+
+```bash
+cd aurora-frontend
+npm install
+npm run dev          # Vite dev server on http://localhost:5173
+npm run build        # type-check (tsc) + production build
+```
+
+### Lint & type gates (enforced in CI)
+
+```bash
+cd backend
+python -m ruff check .
+python -m mypy app
+python -m pytest tests/ -p no:warnings   # needs Postgres + Redis for the full suite
+```
+
 ## 🎯 Product Strategy
 
 ### Year 1 (2026): Foundation
 - [x] Company registration (Nairobi)
 - [x] Backend architecture
+- [x] Modular AI pipeline platform + capability registry
 - [ ] MVP: Space Intelligence Platform
-- [ ] First 5-20 paying customers
+- [ ] First paying customers (agriculture insurance, field inspection)
 - [ ] 5-12 person team
 
 ### Year 2 (2027): Commercial Traction
@@ -160,18 +173,22 @@ curl http://localhost:8000/health/
 
 - **Backend**: FastAPI, Python 3.11+
 - **Database**: PostgreSQL + PostGIS
-- **Cache**: Redis
-- **Satellite Data**: Copernicus Data Space Ecosystem (Sentinel Hub Statistical API), real Sentinel-2 NDVI
-- **Frontend**: React/Next.js (Coming soon)
-- **Robotics**: ROS 2 (Coming soon)
-- **Containerization**: Docker, Kubernetes
+- **Cache**: Redis (RQ worker, login lockout, token blocklist)
+- **Satellite Data**: Copernicus Data Space Ecosystem (Sentinel Hub Statistical API), real Sentinel-2 NDVI; deterministic demo provider by default
+- **API**: REST + OpenAPI (Swagger/ReDoc), JWT auth
+- **Frontend**: React + Vite + TypeScript
+- **Robotics**: telemetry ingestion + field inspection (prototype stage)
+- **Quality**: ruff, mypy, pytest; GitHub Actions CI with PostGIS + Redis services
+- **Containerization**: Docker + docker-compose
 - **Cloud**: AWS/GCP (Production)
 
 ## 📚 Documentation
 
 - [Backend README](./backend/README.md)
-- [Roadmap](./docs/ROADMAP.md)
+- [API Reference](./docs/API.md)
 - [Architecture Guide](./docs/ARCHITECTURE.md)
+- [Business Strategy](./docs/business_strategy.md)
+- [Roadmap](./docs/ROADMAP.md)
 - [Contributing Guide](./docs/CONTRIBUTING.md)
 
 ## 🤝 Contributing
@@ -214,4 +231,3 @@ Building the space economy for Africa and the world.
 That's how we turn an enormous vision into something that can actually start **this year**.
 
 🚀 **Let's build the future of space.**
-````
