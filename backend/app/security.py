@@ -109,6 +109,7 @@ def create_access_token(user: User) -> str:
             "username": user.username,
             "exp": expires,
             "jti": secrets.token_hex(16),
+            "tv": user.token_version,
         },
         settings.SECRET_KEY,
         algorithm=settings.ALGORITHM,
@@ -168,6 +169,15 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
     if not user:
         raise credentials_error
+
+    # A token minted before the user's last password reset/change carries
+    # a stale "tv" -- reject it even though it hasn't expired yet and
+    # isn't individually revoked. This is what actually invalidates every
+    # outstanding session on password reset, not just the one token that
+    # happened to be used to request the reset.
+    if payload.get("tv") != user.token_version:
+        raise credentials_error
+
     return user
 
 
@@ -179,3 +189,36 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
             detail="Administrator privileges required",
         )
     return current_user
+
+
+# --- Password reset (Redis-backed, single-use) ------------------------
+
+def _reset_token_key(token: str) -> str:
+    return f"auth:password-reset:{token}"
+
+
+def create_password_reset_token(user: User) -> str:
+    """Issue a random, single-use reset token good for
+    settings.PASSWORD_RESET_TOKEN_TTL_SECONDS. Stored in Redis rather than
+    a DB table -- it's short-lived and one-shot, so a TTL key is a better
+    fit than a table that would need its own cleanup job."""
+    settings = get_settings()
+    token = secrets.token_urlsafe(32)
+    get_redis().set(
+        _reset_token_key(token), str(user.id), ex=settings.PASSWORD_RESET_TOKEN_TTL_SECONDS
+    )
+    return token
+
+
+def consume_password_reset_token(token: str) -> int | None:
+    """Validate and immediately invalidate a reset token, returning the
+    user id it was issued for (or None if it's missing/expired/already
+    used). Consuming via GETDEL makes reuse impossible even if two
+    requests race on the same token."""
+    raw = get_redis().getdel(_reset_token_key(token))
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
