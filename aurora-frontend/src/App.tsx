@@ -3,10 +3,12 @@ import { Layout } from './components/Layout'
 import { AuthProvider, useAuth } from './lib/auth'
 import { AreaDetailPage } from './pages/AreaDetailPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { NewAreaPage } from './pages/NewAreaPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
@@ -20,6 +22,8 @@ function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/app"
         element={
