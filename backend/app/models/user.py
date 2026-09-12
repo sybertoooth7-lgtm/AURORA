@@ -18,6 +18,12 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
+    # Bumped on password reset/change; embedded in every JWT this user is
+    # issued and checked on every request, so changing your password
+    # immediately invalidates any tokens issued before the change --
+    # without this, a stolen token stays valid even after the owner resets
+    # their password because the token itself carries no memory of that.
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
