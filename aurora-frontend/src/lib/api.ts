@@ -96,4 +96,22 @@ export const api = {
     use_history?: boolean
     description?: string
   }) => request<InferResponse>('/ai/infer', { method: 'POST', body: JSON.stringify(input) }),
+
+  requestPasswordReset: (email: string) =>
+    request<{ detail: string }>('/auth/password-reset/request', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  confirmPasswordReset: (token: string, new_password: string) =>
+    request<void>('/auth/password-reset/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ token, new_password }),
+    }),
+
+  changePassword: (current_password: string, new_password: string) =>
+    request<void>('/auth/password/change', {
+      method: 'POST',
+      body: JSON.stringify({ current_password, new_password }),
+    }),
 }
