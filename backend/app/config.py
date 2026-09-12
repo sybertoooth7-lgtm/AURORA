@@ -48,6 +48,27 @@ class Settings(BaseSettings):
     LOGIN_MAX_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_SECONDS: int = 900  # 15 minutes
 
+    # Password reset. Tokens live in Redis (see app.security), not the DB --
+    # they're short-lived and single-use, so a TTL key is a better fit than
+    # a table that needs its own cleanup job.
+    PASSWORD_RESET_TOKEN_TTL_SECONDS: int = 3600  # 1 hour
+    # Used to build the reset link emailed to the user, e.g.
+    # {FRONTEND_URL}/reset-password?token=...
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Outbound email (password reset, and future transactional mail).
+    # Leave SMTP_HOST unset for local dev / before you've picked a provider --
+    # app.email then logs the message instead of sending it, so the reset
+    # flow is still fully testable without real SMTP credentials. Any
+    # standard SMTP provider works (Gmail, SendGrid, Mailgun, Postmark, AWS
+    # SES's SMTP interface, etc.) -- there's no vendor-specific code here.
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_USE_TLS: bool = True
+    EMAIL_FROM: str = "AURORA <no-reply@aurora.example>"
+
     # Satellite Data — Copernicus Data Space Ecosystem (Sentinel Hub)
     # Free OAuth client credentials from https://shapps.dataspace.copernicus.eu/dashboard/
     # (User Settings -> OAuth clients). Leave unset to fall back to the
