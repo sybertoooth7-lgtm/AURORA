@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ApiError } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const justReset = Boolean((location.state as { passwordReset?: boolean } | null)?.passwordReset)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -31,6 +33,12 @@ export function LoginPage() {
         <h1 className="font-[var(--font-display)] text-2xl font-semibold">AURORA</h1>
         <p className="mt-1 text-sm text-[var(--color-ink-soft)]">Sign in to your account.</p>
 
+        {justReset && (
+          <p className="mt-4 rounded-sm border border-[var(--color-healthy)] bg-[var(--color-healthy-soft)] px-3 py-2 text-sm text-[var(--color-healthy)]">
+            Password reset. Sign in with your new password.
+          </p>
+        )}
+
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
             <label htmlFor="username" className="block text-sm font-medium">
@@ -46,9 +54,17 @@ export function LoginPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium">
-              Password
-            </label>
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="password" className="block text-sm font-medium">
+                Password
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-xs text-[var(--color-ink-soft)] underline underline-offset-2 hover:text-[var(--color-ink)]"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"
