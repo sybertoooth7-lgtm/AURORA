@@ -99,6 +99,14 @@ def token(credentials: TokenRequest, db: Session = Depends(get_db)):
         record_failed_login(credentials.username)
         raise HTTPException(status_code=401, detail="Incorrect username or password")
 
+    if not user.is_active:
+        # Without this, a disabled account could still log in and receive
+        # a token -- get_current_user would reject it on the very next
+        # request (it also checks is_active), but that's a confusing
+        # 200-then-401 instead of a clear answer at the point that
+        # actually matters to the person trying to sign in.
+        raise HTTPException(status_code=401, detail="This account has been disabled")
+
     clear_failed_logins(credentials.username)
     return TokenResponse(access_token=create_access_token(user))
 
