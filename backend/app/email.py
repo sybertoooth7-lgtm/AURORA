@@ -57,3 +57,18 @@ def send_password_reset_email(to: str, reset_url: str) -> None:
             "password won't change."
         ),
     )
+
+
+def send_verification_email(to: str, verify_url: str) -> None:
+    settings = get_settings()
+    ttl_days = settings.EMAIL_VERIFICATION_TOKEN_TTL_SECONDS // 86400
+    send_email(
+        to=to,
+        subject="Verify your AURORA email address",
+        body=(
+            "Confirm this email address to finish setting up your AURORA account.\n\n"
+            f"Verify it here: {verify_url}\n\n"
+            f"This link expires in {ttl_days} days. Your account works fine in the "
+            "meantime -- verifying just confirms we can reach you."
+        ),
+    )
