@@ -35,14 +35,20 @@ def _clean_redis():
 def _reset_rate_limiter():
     # This file makes several /auth/register + /auth/token calls in quick
     # succession across its tests, which is exactly what the auth-endpoint
-    # rate limit (10/min, see main.py) exists to catch -- clear it between
-    # tests so the tests are isolated from each other rather than from the
-    # feature actually being tested.
-    import main
+    # rate limit (10/min, see app.rate_limiter) exists to catch -- clear
+    # it between tests so the tests are isolated from each other rather
+    # than from the feature actually being tested.
+    from app.queue import get_redis
 
-    main.rate_limit_state.clear()
+    def _clear():
+        redis = get_redis()
+        keys = redis.keys("ratelimit:*")
+        if keys:
+            redis.delete(*keys)
+
+    _clear()
     yield
-    main.rate_limit_state.clear()
+    _clear()
 
 
 def _register_and_login(client, username, password="correcthorsebatterystaple"):
