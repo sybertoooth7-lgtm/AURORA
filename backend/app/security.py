@@ -222,3 +222,30 @@ def consume_password_reset_token(token: str) -> int | None:
         return int(raw)
     except (TypeError, ValueError):
         return None
+
+
+# --- Email verification (same Redis-backed, single-use pattern) -------
+
+def _verification_token_key(token: str) -> str:
+    return f"auth:email-verify:{token}"
+
+
+def create_email_verification_token(user: User) -> str:
+    settings = get_settings()
+    token = secrets.token_urlsafe(32)
+    get_redis().set(
+        _verification_token_key(token),
+        str(user.id),
+        ex=settings.EMAIL_VERIFICATION_TOKEN_TTL_SECONDS,
+    )
+    return token
+
+
+def consume_email_verification_token(token: str) -> int | None:
+    raw = get_redis().getdel(_verification_token_key(token))
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
