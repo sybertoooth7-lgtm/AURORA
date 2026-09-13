@@ -4,6 +4,7 @@ Multi-planetary space technology company
 AI + Robotics + Space infrastructure
 """
 
+import logging
 import time
 import traceback
 from collections import OrderedDict, deque
@@ -18,9 +19,11 @@ from app import routes
 from app.config import get_settings
 from app.exceptions import AuroraError
 from app.logging_conf import get_logger, setup_logging
+from app.observability import capture_exception, init_error_tracking
 
 settings = get_settings()
 setup_logging()
+init_error_tracking()
 logger = get_logger(__name__)
 
 
@@ -71,7 +74,13 @@ app = FastAPI(
     description="Space Intelligence Platform - AI + Satellite Data + Geospatial Analytics",
     version=settings.APP_VERSION,
     openapi_tags=tags_metadata,
-    lifespan=lifespan
+    lifespan=lifespan,
+    # Swagger/ReDoc/openapi.json hand out the entire API surface (including
+    # the auth flow) to anyone who finds the URL. Fine in development;
+    # off by default everywhere else unless explicitly re-enabled.
+    docs_url="/docs" if settings.api_docs_enabled else None,
+    redoc_url="/redoc" if settings.api_docs_enabled else None,
+    openapi_url="/openapi.json" if settings.api_docs_enabled else None,
 )
 
 rate_limit_state: "OrderedDict[tuple, deque]" = OrderedDict()
@@ -167,8 +176,9 @@ app.add_middleware(
 
 @app.exception_handler(AuroraError)
 async def aurora_error_handler(request: Request, exc: AuroraError):
+    level_name = getattr(exc, "log_level", "warning").upper()
     logger.log(
-        getattr(exc, "log_level", "warning").upper(),
+        logging.getLevelName(level_name),
         "aurora_error",
         extra_keys={"code": exc.code, "path": request.url.path},
         exc_info=exc if isinstance(exc, KeyError) or settings.DEBUG else None,
@@ -196,6 +206,7 @@ async def unhandled_error_handler(request: Request, exc: Exception):
         exc_info=(type(exc), exc, exc.__traceback__),
         extra_keys={"path": request.url.path},
     )
+    capture_exception(exc)
     if settings.DEBUG:
         detail = "".join(traceback.format_exception_only(type(exc), exc)).strip()
     else:
@@ -225,7 +236,7 @@ async def root():
         "description": "Space Intelligence Platform",
         "status": "operational",
         "version": settings.APP_VERSION,
-        "docs": "/docs",
+        "docs": "/docs" if settings.api_docs_enabled else None,
         "ai": "/ai/pipelines",
         "capabilities": "/system/capabilities",
         "insurance": "/insurance/defaults",
