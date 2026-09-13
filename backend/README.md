@@ -271,16 +271,19 @@ Implemented:
 - Password/username length limits enforced server-side (not just in the frontend)
 - Login is timing-safe against username enumeration -- a nonexistent username does the same PBKDF2 work as a wrong password against a real one
 - Per-account login lockout (5 failed attempts -> 15 min lock, Redis-backed, keyed by username so it can't be bypassed by spraying attempts from many IPs)
-- JWT access tokens carry a `jti`; `/auth/logout` revokes the current token immediately via a Redis blocklist rather than waiting for natural expiry
-- Two-tier rate limiting: a stricter per-IP budget on `/auth/token` and `/auth/register` than on general API traffic
+- JWT access tokens carry a `jti` and a `tv` (token_version); `/auth/logout` revokes the current token immediately via a Redis blocklist, and a password reset/change bumps `token_version` to invalidate every other outstanding session at once
+- Password reset (`/auth/password-reset/request` + `/confirm`) and email verification (`/auth/verify-email/resend` + `/confirm`), both Redis-backed single-use tokens; email verification is soft (doesn't block using the account)
+- Two-tier rate limiting, Redis-backed (correct across multiple API replicas, not just one process): a stricter per-IP budget on `/auth/token` and `/auth/register` than on general API traffic
+- Per-user daily quota on analyses (protects the Sentinel Hub free-tier processing-unit budget from one user or a retry-loop bug)
 - The app refuses to start with `ENVIRONMENT` set to anything other than `development` unless `SECRET_KEY` has been changed from the placeholder and is at least 32 characters
-- Role-gated actions: promoting an AI model to `production` requires `is_admin` (`require_admin` in app/security.py)
-- Structured request/error logging with severity-aware JSON output; expected application errors return stable `code` + `detail` bodies
+- `/docs`/`/redoc`/`/openapi.json` follow `ENVIRONMENT` by default -- on in development, off everywhere else
+- Role-gated actions via `require_admin`: promoting an AI model to `production`, and the `/admin/users` API (list/disable/enable accounts) -- disabling a user also invalidates their outstanding sessions immediately and blocks them from logging back in
+- Structured request/error logging with severity-aware JSON output; expected application errors return stable `code` + `detail` bodies; optional Sentry integration (`SENTRY_DSN`)
 
 Still remaining:
 - API key management (for machine-to-machine / integration use, not just user login)
-- Rate limiting is still per-process/in-memory -- fine for one instance, needs to move to Redis before running multiple API replicas
-- No password reset / email verification flow
+- No email verification *requirement* -- currently informational only, nothing is gated on it
+- No self-serve way to become the first admin (by design -- see `app/routes/admin.py`'s docstring; set `is_admin` directly in the database)
 
 ## 📊 Development
 
