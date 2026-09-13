@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
-import { api, clearToken, getToken, setToken } from './api'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { api, clearToken, getToken, setSessionExpiredHandler, setToken } from './api'
 
 interface SessionUser {
   id: number
@@ -52,6 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearToken()
     setUser(null)
   }, [])
+
+  // When api.ts sees a 401 on a request that carried a token, the token
+  // is dead (revoked, expired, or the account's token_version moved on --
+  // e.g. a password reset from another device). Log out cleanly here so
+  // RequireAuth's next render redirects to /login, instead of the page
+  // just silently failing every request.
+  useEffect(() => {
+    setSessionExpiredHandler(logout)
+    return () => setSessionExpiredHandler(null)
+  }, [logout])
 
   const value = useMemo(() => ({ user, login, register, logout }), [user, login, register, logout])
 
