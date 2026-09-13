@@ -34,11 +34,17 @@ def _clean_redis():
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limiter():
-    import main
+    from app.queue import get_redis
 
-    main.rate_limit_state.clear()
+    def _clear():
+        redis = get_redis()
+        keys = redis.keys("ratelimit:*")
+        if keys:
+            redis.delete(*keys)
+
+    _clear()
     yield
-    main.rate_limit_state.clear()
+    _clear()
 
 
 def _register_and_login(client, username, password="correcthorsebatterystaple"):
