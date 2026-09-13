@@ -1,15 +1,18 @@
 """Registration, login, logout, and password reset endpoints."""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
-from app.email import send_password_reset_email
+from app.email import send_password_reset_email, send_verification_email
 from app.logging_conf import get_logger
 from app.models.user import User
 from app.schemas.user import (
+    EmailVerificationConfirm,
     PasswordChangeRequest,
     PasswordResetConfirm,
     PasswordResetRequest,
@@ -20,8 +23,10 @@ from app.schemas.user import (
 )
 from app.security import (
     clear_failed_logins,
+    consume_email_verification_token,
     consume_password_reset_token,
     create_access_token,
+    create_email_verification_token,
     create_password_reset_token,
     get_current_user,
     hash_password,
@@ -55,6 +60,18 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+
+    settings = get_settings()
+    verify_token = create_email_verification_token(db_user)
+    verify_url = f"{settings.FRONTEND_URL}/verify-email?token={verify_token}"
+    try:
+        send_verification_email(db_user.email, verify_url)
+    except OSError:
+        # Registration still succeeds even if the verification email
+        # fails to send -- verification is soft (doesn't block using the
+        # account), and the user can request another one later.
+        logger.exception("Failed to send verification email", extra_keys={"user_id": db_user.id})
+
     return db_user
 
 
@@ -142,3 +159,38 @@ def change_password(
     current_user.hashed_password = hash_password(body.new_password)
     current_user.token_version += 1  # invalidates every other outstanding session
     db.commit()
+
+
+@router.post("/verify-email/confirm", status_code=status.HTTP_204_NO_CONTENT)
+def confirm_email_verification(body: EmailVerificationConfirm, db: Session = Depends(get_db)):
+    user_id = consume_email_verification_token(body.token)
+    if user_id is None:
+        raise HTTPException(
+            status_code=400, detail="This verification link is invalid or has expired."
+        )
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=400, detail="This verification link is invalid or has expired."
+        )
+
+    user.email_verified_at = datetime.now(UTC)
+    db.commit()
+
+
+@router.post("/verify-email/resend", status_code=status.HTTP_202_ACCEPTED)
+def resend_email_verification(current_user: User = Depends(get_current_user)):
+    if current_user.email_verified_at is not None:
+        return {"detail": "This email is already verified."}
+
+    settings = get_settings()
+    verify_token = create_email_verification_token(current_user)
+    verify_url = f"{settings.FRONTEND_URL}/verify-email?token={verify_token}"
+    try:
+        send_verification_email(current_user.email, verify_url)
+    except OSError:
+        logger.exception(
+            "Failed to resend verification email", extra_keys={"user_id": current_user.id}
+        )
+    return {"detail": "Verification email sent."}
