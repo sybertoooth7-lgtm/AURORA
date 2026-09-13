@@ -57,9 +57,12 @@ def _register_and_login(client, username, password="correcthorsebatterystaple"):
 
 def _extract_reset_token(caplog) -> str:
     # SMTP isn't configured in tests, so app.email logs the message body
-    # (which contains the reset URL) instead of sending it.
+    # (which contains the reset URL) instead of sending it. Matched
+    # specifically against "reset-password" -- registration also logs a
+    # verify-email link with its own "token=", and a generic match could
+    # pick that one up instead since it's logged first.
     for record in caplog.records:
-        match = re.search(r"[?&]token=([\w-]+)", record.getMessage())
+        match = re.search(r"reset-password\?token=([\w-]+)", record.getMessage())
         if match:
             return match.group(1)
     raise AssertionError("No password reset link found in logs")
