@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ApiError } from '../lib/api'
+import { ApiError, consumeSessionExpiredFlag } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
 export function LoginPage() {
@@ -8,6 +8,10 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const justReset = Boolean((location.state as { passwordReset?: boolean } | null)?.passwordReset)
+  // Read once on first render, not on every render -- this also clears
+  // the flag, so refreshing the login page afterward doesn't keep
+  // reshowing the banner.
+  const [sessionExpired] = useState(() => consumeSessionExpiredFlag())
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -36,6 +40,12 @@ export function LoginPage() {
         {justReset && (
           <p className="mt-4 rounded-sm border border-[var(--color-healthy)] bg-[var(--color-healthy-soft)] px-3 py-2 text-sm text-[var(--color-healthy)]">
             Password reset. Sign in with your new password.
+          </p>
+        )}
+
+        {sessionExpired && (
+          <p className="mt-4 rounded-sm border border-[var(--color-stress)] bg-[var(--color-stress-soft)] px-3 py-2 text-sm text-[var(--color-stress)]">
+            Your session ended. Sign in again to continue.
           </p>
         )}
 
