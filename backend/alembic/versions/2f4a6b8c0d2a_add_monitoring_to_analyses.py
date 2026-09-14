@@ -1,7 +1,7 @@
 """add continuous monitoring columns to analyses
 
 Revision ID: 2f4a6b8c0d2a
-Revises: d1e2f3a4b5c6
+Revises: 88c46d82cbe3
 Create Date: 2026-09-14 12:00:00.000000
 
 Continuous monitoring (scheduled re-checks of areas): a cadence in minutes
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '2f4a6b8c0d2a'
-down_revision: Union[str, Sequence[str], None] = 'd1e2f3a4b5c6'
+down_revision: Union[str, Sequence[str], None] = '88c46d82cbe3'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
