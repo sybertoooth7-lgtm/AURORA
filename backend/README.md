@@ -195,6 +195,10 @@ alembic upgrade head
 ### Authentication and operations
 - `POST /auth/register` - Create an account
 - `POST /auth/token` - Exchange credentials for a JWT
+- `GET /auth/me` - Current user profile (incl. `email_verified`)
+- `POST /auth/api-keys` - Mint an API key (secret shown once); optional `expires_days` (auth)
+- `GET /auth/api-keys` - List your API keys (secrets never repeated) (auth)
+- `POST /auth/api-keys/{key_id}/revoke` - Revoke an API key (idempotent) (auth)
 - `GET /alerts` - List the current user's alerts
 - `POST /alerts/{alert_id}/acknowledge` - Acknowledge an alert
 - `GET /reports/{analysis_id}?format=json|csv` - Export an analysis report
@@ -219,8 +223,11 @@ alembic upgrade head
 
 ### Robotics field services (AURORA-2)
 - `POST /robotics/flights/{flight_id}/telemetry` - Ingest MQTT-style frame; returns flight health
-- `GET /robotics/flights/{flight_id}` - Flight summary + health
-- `POST /robotics/inspect` - Satellite NDVI damage proxy fused with robot flight health (auth)
+- `GET /robotics/flights` - List every flight this process has seen, newest first, with health summary (auth)
+- `GET /robotics/flights/{flight_id}` - Flight summary + health (auth)
+- `GET /robotics/flights/{flight_id}/telemetry?limit=100` - Most recent telemetry frames (newest kept last) (auth)
+- `POST /robotics/simulate` - Spawn a deterministic simulated flight over an area; every frame is labelled `is_simulated` (auth, verified)
+- `POST /robotics/inspect` - Satellite NDVI damage proxy fused with robot flight health (auth, verified)
 
 ### Onboarding (AURORA-2)
 - `GET /onboarding/status` - Checklist + next action for the current user
@@ -298,7 +305,9 @@ Implemented:
 - Login is timing-safe against username enumeration -- a nonexistent username does the same PBKDF2 work as a wrong password against a real one
 - Per-account login lockout (5 failed attempts -> 15 min lock, Redis-backed, keyed by username so it can't be bypassed by spraying attempts from many IPs)
 - JWT access tokens carry a `jti` and a `tv` (token_version); `/auth/logout` revokes the current token immediately via a Redis blocklist, and a password reset/change bumps `token_version` to invalidate every other outstanding session at once
-- Password reset (`/auth/password-reset/request` + `/confirm`) and email verification (`/auth/verify-email/resend` + `/confirm`), both Redis-backed single-use tokens; email verification is soft (doesn't block using the account)
+- Password reset (`/auth/password-reset/request` + `/confirm`) and email verification (`/auth/verify-email/resend` + `/confirm`), both Redis-backed single-use tokens. Email verification is **enforced**: capability-gated endpoints (new analyses, AI inference, insurance checks, robotics inspect/simulate, onboarding first-analysis) return `403 email_unverified` until the address is confirmed; reads and the verification flow itself stay open
+- **API keys** (`/auth/api-keys`) — machine credentials with the same `Authorization: Bearer` header as JWTs. Secrets are `aur_`-prefixed, stored as a SHA-256 hash (shown once at creation), revocable, optionally expiring, and capped per account (`MAX_API_KEYS_PER_USER`)
+- **Operator CLI** (`cli.py`) — first-admin bootstrap and account administration: `create-admin`, `set-admin`, `revoke-admin`, `list-users`, `set-verified`. Password read from `AURORA_CLI_PASSWORD` env var or an interactive prompt; admin-email domains gated by `CLI_ADMIN_EMAIL_DOMAIN`
 - Two-tier rate limiting, Redis-backed (correct across multiple API replicas, not just one process): a stricter per-IP budget on `/auth/token` and `/auth/register` than on general API traffic
 - Per-user daily quota on analyses (protects the Sentinel Hub free-tier processing-unit budget from one user or a retry-loop bug)
 - The app refuses to start with `ENVIRONMENT` set to anything other than `development` unless `SECRET_KEY` has been changed from the placeholder and is at least 32 characters
@@ -307,9 +316,7 @@ Implemented:
 - Structured request/error logging with severity-aware JSON output; expected application errors return stable `code` + `detail` bodies; optional Sentry integration (`SENTRY_DSN`)
 
 Still remaining:
-- API key management (for machine-to-machine / integration use, not just user login)
-- No email verification *requirement* -- currently informational only, nothing is gated on it
-- No self-serve way to become the first admin (by design -- see `app/routes/admin.py`'s docstring; set `is_admin` directly in the database)
+- (Previously tracked API-key management and first-admin bootstrap are now shipped — see the CLI and APIs above.)
 
 ## 📊 Development
 

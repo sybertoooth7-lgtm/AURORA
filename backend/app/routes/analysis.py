@@ -18,7 +18,7 @@ from app.schemas.analysis import (
     AnalysisResponse,
     AnalysisResultListResponse,
 )
-from app.security import get_current_user
+from app.security import get_current_user, require_verified
 from app.services.analysis_runner import run_analysis
 
 router = APIRouter(prefix="/analysis", tags=["Analysis"])
@@ -52,7 +52,7 @@ def build_area_polygon_wkt(latitude: float, longitude: float, radius_km: float) 
 async def create_analysis(
     analysis: AnalysisCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_verified),
 ):
     """Create a new analysis"""
     check_and_increment_daily_quota(
@@ -125,7 +125,7 @@ async def set_monitoring(
     analysis_id: int,
     update: AnalysisMonitorUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_verified),
 ):
     """Enable/disable continuous monitoring for an area.
 
@@ -150,7 +150,7 @@ async def set_monitoring(
 async def rerun_analysis(
     analysis_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_verified),
 ):
     """Re-run an area now, bypassing any monitoring cadence.
 

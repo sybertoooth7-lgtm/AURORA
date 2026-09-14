@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
 from app.models.analysis import Analysis, AnalysisResult
+from app.models.user import User
 from app.monitoring import MonitoringScheduler
 from app.queue import get_redis
 from main import app
@@ -30,6 +31,16 @@ def _register_and_login(client, password="correcthorsebatterystaple"):
         "/auth/register",
         json={"email": email, "username": username, "password": password},
     )
+    # These tests exercise gated endpoints end-to-end; mark the account
+    # verified the way confirming a real verification link would.
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username).first()
+        assert user is not None
+        user.email_verified_at = datetime.now(UTC)
+        db.commit()
+    finally:
+        db.close()
     token = client.post(
         "/auth/token", json={"username": username, "password": password}
     ).json()["access_token"]

@@ -82,7 +82,8 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 tags_metadata = [
     {"name": "Health", "description": "Liveness and version probes."},
-    {"name": "Auth", "description": "Registration, login, logout."},
+    {"name": "Auth", "description": "Registration, login, logout, API keys, and email verification."},
+    {"name": "API Keys", "description": "Long-lived machine credentials (scoped to the calling account)."},
     {"name": "Analysis", "description": "Queued analysis jobs and their results."},
     {"name": "AI Pipelines", "description": "Registered analysis pipelines, synchronous inference, model registry."},
     {"name": "Satellite Data", "description": "Satellite imagery sources and stored images."},
@@ -234,6 +235,7 @@ app.include_router(routes.health_router)
 app.include_router(routes.analysis_router)
 app.include_router(routes.satellite_router)
 app.include_router(routes.auth_router)
+app.include_router(routes.api_keys_router)
 app.include_router(routes.alerts_router)
 app.include_router(routes.reports_router)
 app.include_router(routes.ai_router)
@@ -259,6 +261,7 @@ async def root():
         "robotics": "/robotics/flights/{flight_id}",
         "onboarding": "/onboarding/status",
         "monitoring": "PATCH /analysis/{id}/monitor",
+        "apiKeys": "/auth/api-keys",
     }
 
 

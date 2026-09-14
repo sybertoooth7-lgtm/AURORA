@@ -20,7 +20,7 @@ from app.routes.ai import _fetch_observation, _persist_analysis_result
 from app.routes.analysis import build_area_polygon_wkt
 from app.schemas.ai import PipelineResultResponse
 from app.schemas.insurance import TriggerCheckRequest, TriggerCheckResponse
-from app.security import get_current_user
+from app.security import require_verified
 from app.services.insurance import evaluate_trigger
 
 logger = get_logger(__name__)
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/insurance", tags=["Insurance (Parametric)"])
 def trigger_check(
     request: TriggerCheckRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_verified),
 ):
     """Check whether a parametric policy trigger has been breached.
 

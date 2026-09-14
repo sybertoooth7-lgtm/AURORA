@@ -1,6 +1,10 @@
-"""Tests for the (soft) email verification flow: a new account works
-immediately without verifying, but the verification link/resend/confirm
-mechanism itself needs to actually work end to end.
+"""Tests for email-verification enforcement.
+
+A new account is created unverified, and until it confirms its email it may
+browse read-only surfaces and finish the verification flow, but every
+capability-gated endpoint (analyses, AI inference, insurance trigger checks,
+robotics inspections, guided first analysis) returns 403 ``email_unverified``.
+The verification link/resend/confirm mechanism is exercised end to end.
 """
 
 import re
@@ -8,8 +12,12 @@ import re
 import pytest
 from fastapi.testclient import TestClient
 
+from app.database import SessionLocal
+from app.models.user import User
 from app.queue import get_redis
 from main import app
+
+_AREA = {"latitude": -1.2921, "longitude": 36.8219, "radius_km": 5.0}
 
 
 @pytest.fixture
@@ -20,10 +28,10 @@ def client():
 @pytest.fixture(autouse=True)
 def _clean_redis():
     redis = get_redis()
-    for key in redis.keys("auth:*"):
+    for key in redis.keys("auth:*") + redis.keys("quota:*"):
         redis.delete(key)
     yield
-    for key in redis.keys("auth:*"):
+    for key in redis.keys("auth:*") + redis.keys("quota:*"):
         redis.delete(key)
 
 
@@ -42,6 +50,21 @@ def _reset_rate_limiter():
     _clear()
 
 
+def _register_and_login(client, username, email=None, password="testpassword123"):
+    email = email or f"{username}@test.com"
+    # Fresh caplog-based registrations can't capture the token, so tests that
+    # need the token call this helper; verification state is set by the
+    # create_all grants helper where required.
+    client.post(
+        "/auth/register",
+        json={"email": email, "username": username, "password": password},
+    )
+    token = client.post(
+        "/auth/token", json={"username": username, "password": password}
+    ).json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
 def _extract_verification_token(caplog) -> str:
     for record in caplog.records:
         match = re.search(r"verify-email\?token=([\w-]+)", record.getMessage())
@@ -50,7 +73,29 @@ def _extract_verification_token(caplog) -> str:
     raise AssertionError("No verification link found in logs")
 
 
-def test_new_account_is_unverified_but_fully_usable(client, caplog):
+def _mark_verified(username: str) -> None:
+    from datetime import UTC, datetime
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username).first()
+        assert user is not None
+        user.email_verified_at = datetime.now(UTC)
+        db.commit()
+    finally:
+        db.close()
+
+
+_GATED_ENDPOINTS = [
+    ("/analysis/", {"analysis_type": "vegetation_stress", "description": "x", **_AREA}),
+    ("/ai/infer", {"analysis_type": "vegetation_stress", "use_history": False, **_AREA}),
+    ("/insurance/trigger-check", {"sum_insured_usd": 100000, "use_history": False, **_AREA}),
+    ("/robotics/inspect", {"use_history": False, **_AREA}),
+    ("/onboarding/first-analysis", {"analysis_type": "vegetation_stress", "use_history": False, **_AREA}),
+]
+
+
+def test_new_account_is_unverified_but_can_browse(client, caplog):
     with caplog.at_level("INFO"):
         register_resp = client.post(
             "/auth/register",
@@ -61,16 +106,22 @@ def test_new_account_is_unverified_but_fully_usable(client, caplog):
     # A verification email was sent automatically on registration.
     _extract_verification_token(caplog)
 
-    # And the account works fully without verifying -- this is soft.
-    login = client.post(
-        "/auth/token", json={"username": "unverifieduser", "password": "testpassword123"}
-    )
-    assert login.status_code == 200
-    token = login.json()["access_token"]
-    assert client.get("/analysis/", headers={"Authorization": f"Bearer {token}"}).status_code == 200
+    auth = _register_and_login(client, "unverifieduser", email="unverified@test.com")
+
+    # Verification is enforced: identity is confirmed, reads stay open...
+    me = client.get("/auth/me", headers=auth)
+    assert me.status_code == 200
+    assert me.json()["email_verified"] is False
+    assert client.get("/analysis/", headers=auth).status_code == 200
+
+    # ...but every capability-gated endpoint refuses with the documented code.
+    for path, payload in _GATED_ENDPOINTS:
+        response = client.post(path, headers=auth, json=payload)
+        assert response.status_code == 403, path
+        assert response.json()["code"] == "email_unverified", path
 
 
-def test_confirm_marks_the_account_verified(client, caplog):
+def test_confirm_unlocks_gated_endpoints(client, caplog):
     with caplog.at_level("INFO"):
         client.post(
             "/auth/register",
@@ -81,11 +132,24 @@ def test_confirm_marks_the_account_verified(client, caplog):
     confirm = client.post("/auth/verify-email/confirm", json={"token": verify_token})
     assert confirm.status_code == 204
 
-    # No /auth/me endpoint exists yet to check this through the API, so
-    # check the actual side effect directly.
-    from app.database import SessionLocal
-    from app.models.user import User
+    auth = client.post(
+        "/auth/token", json={"username": "verifyuser", "password": "testpassword123"}
+    )
+    token = auth.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
 
+    # /auth/me now reports verified.
+    assert client.get("/auth/me", headers=headers).json()["email_verified"] is True
+
+    # A gated write goes through.
+    response = client.post(
+        "/analysis/",
+        headers=headers,
+        json={"analysis_type": "vegetation_stress", "description": "now allowed", **_AREA},
+    )
+    assert response.status_code == 200, response.text
+
+    # And the direct side effect is present too.
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.username == "verifyuser").first()
@@ -126,15 +190,11 @@ def test_resend_sends_a_new_working_token(client, caplog):
             "/auth/register",
             json={"email": email, "username": "resenduser", "password": "testpassword123"},
         )
-    token = client.post(
-        "/auth/token", json={"username": "resenduser", "password": "testpassword123"}
-    ).json()["access_token"]
+    auth = _register_and_login(client, "resenduser", email=email)
 
     caplog.clear()
     with caplog.at_level("INFO"):
-        resend = client.post(
-            "/auth/verify-email/resend", headers={"Authorization": f"Bearer {token}"}
-        )
+        resend = client.post("/auth/verify-email/resend", headers=auth)
     assert resend.status_code == 202
     new_verify_token = _extract_verification_token(caplog)
 
@@ -142,19 +202,20 @@ def test_resend_sends_a_new_working_token(client, caplog):
     assert confirm.status_code == 204
 
 
-def test_resend_is_a_no_op_once_already_verified(client, caplog):
+def test_verified_account_resend_is_a_no_op(client, caplog):
     with caplog.at_level("INFO"):
         client.post(
             "/auth/register",
             json={"email": "already@test.com", "username": "alreadyuser", "password": "testpassword123"},
         )
-    verify_token = _extract_verification_token(caplog)
-    client.post("/auth/verify-email/confirm", json={"token": verify_token})
-
-    token = client.post(
+    auth = client.post(
         "/auth/token", json={"username": "alreadyuser", "password": "testpassword123"}
-    ).json()["access_token"]
+    )
+    token = auth.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
 
-    resend = client.post("/auth/verify-email/resend", headers={"Authorization": f"Bearer {token}"})
+    _mark_verified("alreadyuser")
+
+    resend = client.post("/auth/verify-email/resend", headers=headers)
     assert resend.status_code == 202
     assert "already verified" in resend.json()["detail"]

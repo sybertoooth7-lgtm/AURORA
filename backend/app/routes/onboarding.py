@@ -29,7 +29,7 @@ from app.schemas.onboarding import (
     OnboardingChecklistItem,
     OnboardingStatus,
 )
-from app.security import get_current_user
+from app.security import get_current_user, require_verified
 
 logger = get_logger(__name__)
 
@@ -53,6 +53,7 @@ def build_onboarding_status(
     live_satellite: bool,
     pipeline_count: int,
     onboarding_complete: bool,
+    email_verified: bool,
 ) -> OnboardingStatus:
     """Pure builder so the flow is unit-testable without a DB session."""
     settings = get_settings()
@@ -76,6 +77,11 @@ def build_onboarding_status(
         checklist.append(
             OnboardingChecklistItem(
                 id="pipeline_review", label="Review available AI pipelines", done=True
+            )
+        )
+        checklist.append(
+            OnboardingChecklistItem(
+                id="email_verified", label="Verify your email address", done=email_verified
             )
         )
     else:
@@ -113,6 +119,17 @@ def build_onboarding_status(
                 done=pipeline_count > 0,
                 instructions=(
                     None if pipeline_count > 0 else "GET /ai/pipelines lists every pipeline."
+                ),
+            ),
+            OnboardingChecklistItem(
+                id="email_verified",
+                label="Verify your email address",
+                done=email_verified,
+                instructions=(
+                    None
+                    if email_verified
+                    else "Check your inbox (or click resend on the dashboard) -- "
+                    "verification is required before your first analysis can run."
                 ),
             ),
         ]
@@ -155,6 +172,7 @@ def get_onboarding_status(
         live_satellite=has_live_satellite(),
         pipeline_count=pipeline_count,
         onboarding_complete=current_user.onboarding_completed_at is not None,
+        email_verified=current_user.email_verified_at is not None,
     )
 
 
@@ -179,7 +197,7 @@ def complete_onboarding(
 def run_first_analysis(
     request: FirstAnalysisRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_verified),
 ):
     """Guided first analysis -- one call from zero to a completed run.
 

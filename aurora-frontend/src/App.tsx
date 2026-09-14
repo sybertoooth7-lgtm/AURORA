@@ -4,12 +4,15 @@ import { Layout } from './components/Layout'
 import { AuthProvider, useAuth } from './lib/auth'
 import { AreaDetailPage } from './pages/AreaDetailPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { FleetPage } from './pages/FleetPage'
+import { FlightDetailPage } from './pages/FlightDetailPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { NewAreaPage } from './pages/NewAreaPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { SettingsPage } from './pages/SettingsPage'
 import { VerifyEmailPage } from './pages/VerifyEmailPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -38,6 +41,9 @@ function AppRoutes() {
         <Route index element={<DashboardPage />} />
         <Route path="areas/new" element={<NewAreaPage />} />
         <Route path="areas/:id" element={<AreaDetailPage />} />
+        <Route path="fleet" element={<FleetPage />} />
+        <Route path="fleet/:flightId" element={<FlightDetailPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   )

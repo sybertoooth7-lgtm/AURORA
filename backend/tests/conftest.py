@@ -23,6 +23,7 @@ def _prepare_demo_database():
     import app.models.ai_model  # noqa: F401
     import app.models.alert  # noqa: F401
     import app.models.analysis  # noqa: F401
+    import app.models.api_key  # noqa: F401
     import app.models.satellite_imagery  # noqa: F401
     import app.models.user  # noqa: F401
 

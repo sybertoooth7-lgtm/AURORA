@@ -4,6 +4,7 @@ from .admin import router as admin_router
 from .ai import router as ai_router
 from .alerts import router as alerts_router
 from .analysis import router as analysis_router
+from .api_keys import router as api_keys_router
 from .auth import router as auth_router
 from .health import router as health_router
 from .insurance import router as insurance_router
@@ -18,6 +19,7 @@ __all__ = [
     "analysis_router",
     "satellite_router",
     "auth_router",
+    "api_keys_router",
     "alerts_router",
     "reports_router",
     "ai_router",

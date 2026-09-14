@@ -119,6 +119,14 @@ def logout(token: str = Depends(_bearer_scheme), _user: User = Depends(get_curre
     revoke_token(token)
 
 
+@router.get("/me", response_model=UserResponse)
+def me(current_user: User = Depends(get_current_user)):
+    """The current session's full account profile. Auth endpoints otherwise
+    only echo the token's {sub, username} (see app.schemas.user.UserResponse),
+    and the dashboard needs verified-status + email to render correctly."""
+    return current_user
+
+
 @router.post("/password-reset/request", status_code=status.HTTP_202_ACCEPTED)
 def request_password_reset(body: PasswordResetRequest, db: Session = Depends(get_db)):
     """Always responds the same way whether or not the email is registered

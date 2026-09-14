@@ -142,6 +142,22 @@ class FlightStore:
             "flight_health": health,
         }
 
+    def list_flights(self) -> list[dict[str, Any]]:
+        with self._lock:
+            ids = list(self._flights.keys())
+        # summary() returns None only for unknown ids; these are the ids we
+        # just snapshotted, so drop Nones to keep the type honest.
+        return [s for s in (self.summary(fid) for fid in ids) if s is not None]
+
+    def get_telemetry(self, flight_id: str, limit: int = 50) -> list[dict[str, Any]]:
+        flight = self.get(flight_id)
+        if flight is None:
+            return []
+        entries = flight.logger.recent("flight", n=limit)
+        # timestamp is the numeric arrival epoch; a frame-supplied ISO string
+        # in the payload must not shadow it, so it is applied last.
+        return [{**e.data, "level": e.level, "timestamp": e.timestamp} for e in entries]
+
     def clear(self) -> None:
         with self._lock:
             self._flights.clear()

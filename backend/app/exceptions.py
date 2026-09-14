@@ -58,6 +58,14 @@ class PipelineUnavailableError(AuroraError):
     code = "pipeline_unavailable"
 
 
+class VerificationRequiredError(AuroraError):
+    """Raised when an unverified account hits a capability-gated endpoint
+    (runs that consume satellite quota). Read endpoints and the
+    verification flow itself stay open so the user can complete it."""
+    status_code = 403
+    code = "email_unverified"
+
+
 class ModelRegistryError(AuroraError):
     status_code = 422
     code = "model_registry"

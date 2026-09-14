@@ -3,8 +3,16 @@ import type {
   Analysis,
   AnalysisResult,
   AnalysisType,
+  ApiKeyCreated,
+  ApiKeyListEntry,
+  ApiKeyListResponse,
+  FlightListResponse,
+  FlightSummary,
   InferResponse,
   PipelineDescription,
+  RoboticsInspectResponse,
+  SimulateResponse,
+  TelemetryFrame,
   User,
 } from './types'
 
@@ -99,6 +107,8 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  me: () => request<User>('/auth/me'),
+
   listAnalyses: () => request<Analysis[]>('/analysis/'),
 
   getAnalysis: (id: number) => request<Analysis>(`/analysis/${id}`),
@@ -164,4 +174,39 @@ export const api = {
 
   resendEmailVerification: () =>
     request<{ detail: string }>('/auth/verify-email/resend', { method: 'POST' }),
+
+  listApiKeys: () => request<ApiKeyListResponse>('/auth/api-keys'),
+
+  createApiKey: (input: { name: string; expires_days?: number }) =>
+    request<ApiKeyCreated>('/auth/api-keys', { method: 'POST', body: JSON.stringify(input) }),
+
+  revokeApiKey: (id: number) =>
+    request<ApiKeyListEntry>(`/auth/api-keys/${id}/revoke`, { method: 'POST' }),
+
+  listFlights: () => request<FlightListResponse>('/robotics/flights'),
+
+  getFlight: (id: string) => request<FlightSummary>(`/robotics/flights/${id}`),
+
+  getFlightTelemetry: (id: string, limit = 200) =>
+    request<TelemetryFrame[]>(`/robotics/flights/${id}/telemetry?limit=${limit}`),
+
+  simulateFlight: (input: {
+    latitude: number
+    longitude: number
+    radius_km: number
+    num_frames: number
+  }) => request<SimulateResponse>('/robotics/simulate', { method: 'POST', body: JSON.stringify(input) }),
+
+  inspectFlightArea: (input: {
+    latitude: number
+    longitude: number
+    radius_km: number
+    use_history?: boolean
+    flight_id?: string
+    description?: string
+  }) =>
+    request<RoboticsInspectResponse>('/robotics/inspect', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 }

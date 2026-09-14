@@ -24,7 +24,7 @@ All commands run from `backend/`:
 & "C:\Users\NEC\AppData\Local\Temp\opencode\aurora-venv\Scripts\python.exe" -m pytest tests/ -p no:warnings
 ```
 
-Expect exactly **337 tests passing**, `ruff` and `mypy` clean.
+Expect exactly **361 tests passing**, `ruff` and `mypy` clean.
 
 For the frontend type-check/build:
 
@@ -58,3 +58,5 @@ npm.cmd run build
 - Schema changes go through Alembic migrations (never `create_all` autocrud).
 - New pipeline code follows the contract in `app/ai/base.py` (`Pipeline`, `PipelineResult`, `SatelliteObservation` as the only observation input) and is registered in `app/ai/registry.py::build_workspace_pipelines`.
 - Adding an endpoint means: router in `app/routes/`, Pydantic schemas in `app/schemas/`, registration in `app/routes/__init__.py` + `app/main.py`, canonical Swagger tag in `openapi_tags`, and a test.
+- Email verification is **enforced**: capability-gated write endpoints (create analysis, monitor, re-run, `/ai/infer`, insurance trigger-check, robotics inspect/simulate, onboarding first-analysis) use `require_verified` (403 `email_unverified`); reads and auth flows stay on `get_current_user`. API keys are `aur_`-prefixed JWTs-for-machines routed in `app.security.get_current_user` by prefix before the DB (sha256 hash at rest, plaintext shown once); keys live at `/auth/api-keys`.
+- Operator bootstrap is the CLI (`backend/cli.py`), not a route: `create-admin`, `set-admin`, `revoke-admin`, `list-users`, `set-verified`. Password via `AURORA_CLI_PASSWORD` or an interactive prompt.

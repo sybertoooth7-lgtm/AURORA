@@ -5,20 +5,14 @@ All notable changes to the AURORA platform. Dates are when the change landed on 
 ## Unreleased
 
 ### Added
-- **Continuous monitoring** — `PATCH /analysis/{id}/monitor` sets a re-check cadence (bounded by `MONITOR_MIN_INTERVAL_MINUTES`), `POST /analysis/{id}/re-run` triggers an immediate re-check, both shown in the web dashboard (last/next check). A daemon-thread scheduler (`app/monitoring.py`) fires due re-checks onto the normal RQ worker and de-duplicates across API replicas with a per-analysis Redis lock; manual re-runs share the daily quota.
-- **Demo mode** (`ENABLE_DEMO_MODE=true`) — the platform boots with zero external infrastructure: in-memory SQLite database + in-memory queue replace Postgres/PostGIS/Redis, analysis jobs execute inline, and all pipeline logic + the demo satellite provider run for real with `provenance=simulated`. End-to-end subprocess test in `tests/test_demo_mode.py`. With demo mode on locally, the entire test suite (including the Redis-dependent auth-hardening and rate-limiter tests) runs with no external services.
-- **Admin API** — `GET/POST /admin/users...` for listing and disabling/enabling accounts (`app/routes/admin.py`); no self-serve admin-grant endpoint by design.
-- **Email verification & password reset** — Redis-backed single-use tokens, provider-agnostic SMTP sender (`app/email.py`), verification/reset routes, JWT `token_version` invalidation on password change.
-- **Redis-backed rate limiting** (`app/rate_limiter.py`) — sliding-window log via sorted sets, so the per-IP throttle holds across API replicas (replaces the per-process limiter); daily per-user analysis quota (`app/quota.py`).
-- **Real Sentinel-2 provider activation** — the live Sentinel-2 L2A path (Copernicus Data Space Ecosystem) is now verified end-to-end with live credentials. Set `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` in `backend/.env` (gitignored) and disable demo mode (`ENABLE_DEMO_MODE=false`) to receive real satellite observations (`source: sentinel-2-l2a`, `simulated: false`).
+- **API keys** (`/auth/api-keys`) — mint/list/revoke machine credentials with the same bearer header as JWTs (`app/api_keys.py`, `app/models/api_key.py`, migration `3b7e9f1c2d5a`). Secrets are `aur_`-prefixed, SHA-256-hashed at rest, shown once at creation, revocable and optionally expiring; `get_current_user` routes by prefix before it ever hits the DB.
+- **Email verification is now enforced** — capability-gated endpoints (new analyses, AI inference, insurance checks, robotics inspect/simulate, onboarding first-analysis) return `403 email_unverified` until the address is confirmed (`VerificationRequiredError`, `require_verified`); reads and the verification flow stay open. `GET /auth/me` exposes the profile (incl. `email_verified`) and the onboarding checklist gained an `email_verified` step.
+- **Operator CLI** (`backend/cli.py`) — first-admin bootstrap and account administration without a second API route: `create-admin`, `set-admin`, `revoke-admin`, `list-users`, `set-verified`; password via `AURORA_CLI_PASSWORD` or an interactive prompt; bootstrap emails gated by `CLI_ADMIN_EMAIL_DOMAIN`.
+- **Fleet dashboard API** — `GET /robotics/flights` (all flights, newest first), `GET /robotics/flights/{id}/telemetry` (paginated frames), `POST /robotics/simulate` (deterministic orbit survey openly labelled `is_simulated`) for the operations-fleet UI.
+- **Web UI** — operations fleet page with flight health/KPIs, flight detail page with inline-SVG telemetry charts (battery, altitude, motor temp, GPS accuracy), post-flight satellite inspection panel, and a Settings page with account verification status + full API-key management (create with one-time secret reveal, list, revoke).
 
 ### Fixed
-- Merged admin/verification/reset work was missing `app/schemas/admin.py` (referenced by `app/routes/admin.py`), which broke app import — schema added.
-- Setting only one of `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` used to silently fall back to the demo satellite provider; startup now logs a warning so partial config is loud.
-- Docs corrected after the merged rate limiter: `docs/API.md` and `backend/README.md` no longer claim the limiter is per-process/in-memory, and the offline-suite note no longer requires a local Redis.
-- The live Sentinel-2 Statistical API rejected requests with `400` ("pixel size exceeds the limit") because `resx`/`resy` were sent as meter values over a WGS84 degree bbox; resolution is now expressed in the bbox's CRS units (~10 m ≈ 8.98e-5 degrees).
-- Demo mode now always uses the deterministic demo satellite provider, even when Sentinel credentials are configured, keeping demo fully deterministic and honest; live data is the explicit non-demo path.
-- Onboarding's "Connect live satellite data" flag (`has_live_satellite`) now reflects the provider actually serving observations instead of only checking credentials, so demo mode can no longer claim a live source while serving simulated data.
+- Docs no longer claim API keys are unimplemented or that email verification is informational-only (both now shipped).
 
 ### Planned
 - Deploy Sentinel-2 credentials (`SENTINEL_CLIENT_ID` / `SENTINEL_CLIENT_SECRET`) to production (with `ENABLE_DEMO_MODE=false` and PostGIS + Redis provisioned).

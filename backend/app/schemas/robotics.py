@@ -44,6 +44,38 @@ class FlightSummaryResponse(BaseModel):
     flight_health: FlightHealth
 
 
+class FlightListResponse(BaseModel):
+    flights: list[FlightSummaryResponse]
+    total: int
+
+
+class TelemetryFrameResponse(BaseModel):
+    """One telemetry frame as served to the fleet dashboard."""
+
+    timestamp: float
+    battery_percent: float | None = None
+    gps_accuracy_m: float | None = None
+    motor_temp_c: float | None = None
+    altitude_m: float | None = None
+    heading_deg: float | None = None
+    faults: list[str] = Field(default_factory=list)
+    sequence: int | None = None
+    is_simulated: bool = False
+    level: str = "info"
+
+
+class SimulateRequest(BaseModel):
+    """Spawn a deterministic simulated flight over an area.
+
+    No real satellite or robot resources are used; every frame is labelled
+    ``is_simulated`` so dashboards can show it honestly."""
+
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    radius_km: float = Field(gt=0, le=500)
+    num_frames: int = Field(default=20, ge=5, le=120)
+
+
 class RoboticsInspectRequest(BaseModel):
     """Post-flight inspection: satellite NDVI report for a flight's area."""
 

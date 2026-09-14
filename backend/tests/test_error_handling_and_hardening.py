@@ -53,6 +53,21 @@ def _register_and_login(client, username, password="correcthorsebatterystaple"):
         "/auth/register",
         json={"email": email, "username": username, "password": password},
     )
+    # The quota tests hit POST /analysis/ (verification-gated); mark the
+    # account verified the way confirming a real link would.
+    from datetime import UTC, datetime
+
+    from app.database import SessionLocal
+    from app.models.user import User
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username).first()
+        assert user is not None
+        user.email_verified_at = datetime.now(UTC)
+        db.commit()
+    finally:
+        db.close()
     resp = client.post("/auth/token", json={"username": username, "password": password})
     return resp.json()["access_token"]
 

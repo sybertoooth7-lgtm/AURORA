@@ -1,28 +1,29 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, clearToken, getToken, setSessionExpiredHandler, setToken } from './api'
+import type { User } from './types'
 
-interface SessionUser {
-  id: number
-  username: string
-}
+// The live /auth/me profile. After login (or on boot with a stored token)
+// we fill it in from the real endpoint so email_verified and friends are
+// accurate; while that's in flight we show the fast JWT-derived identity.
+export type SessionUser = Pick<User, 'id' | 'username' | 'email' | 'email_verified'>
 
 interface AuthContextValue {
   user: SessionUser | null
   login: (username: string, password: string) => Promise<void>
   register: (input: { email: string; username: string; password: string; full_name?: string }) => Promise<void>
   logout: () => void
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-// The backend doesn't expose a /auth/me endpoint -- the JWT already carries
-// { sub, username }, so we read the session identity straight off the token
-// instead of an extra round trip. This does not verify the signature; it's
-// only used for display, not for anything security-sensitive.
-function decodeSessionUser(token: string): SessionUser | null {
+// Placeholder profile used the moment a token exists, before /auth/me
+// returns the real one. Never falsy-identity: the session is navigable
+// immediately, the banner just stays quiet until the profile lands.
+function placeholderSession(token: string): SessionUser | null {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
-    return { id: Number(payload.sub), username: payload.username }
+    return { id: Number(payload.sub), username: payload.username, email: '', email_verified: false }
   } catch {
     return null
   }
@@ -31,14 +32,29 @@ function decodeSessionUser(token: string): SessionUser | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(() => {
     const token = getToken()
-    return token ? decodeSessionUser(token) : null
+    return token ? placeholderSession(token) : null
   })
 
-  const login = useCallback(async (username: string, password: string) => {
-    const { access_token } = await api.login({ username, password })
-    setToken(access_token)
-    setUser(decodeSessionUser(access_token))
+  const refreshProfile = useCallback(async () => {
+    if (!getToken()) return
+    try {
+      const profile = await api.me()
+      setUser(profile)
+    } catch {
+      // Token is invalid/expired -- api.request already handled the 401
+      // session-expiry path; nothing more to do here.
+    }
   }, [])
+
+  const login = useCallback(
+    async (username: string, password: string) => {
+      const { access_token } = await api.login({ username, password })
+      setToken(access_token)
+      setUser(placeholderSession(access_token))
+      await refreshProfile()
+    },
+    [refreshProfile],
+  )
 
   const register = useCallback(
     async (input: { email: string; username: string; password: string; full_name?: string }) => {
@@ -63,7 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setSessionExpiredHandler(null)
   }, [logout])
 
-  const value = useMemo(() => ({ user, login, register, logout }), [user, login, register, logout])
+  // Some providers land users on /app after a page refresh; pull the real
+  // profile (email_verified, email) once on boot.
+  useEffect(() => {
+    void refreshProfile()
+  }, [refreshProfile])
+
+  const value = useMemo(
+    () => ({ user, login, register, logout, refreshProfile }),
+    [user, login, register, logout, refreshProfile],
+  )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

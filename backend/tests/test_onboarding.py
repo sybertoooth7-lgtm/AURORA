@@ -23,12 +23,42 @@ class TestOnboardingStatus:
             live_satellite=False,
             pipeline_count=9,
             onboarding_complete=False,
+            email_verified=False,
         )
         assert status.completed is False
         # account + pipeline review are done by construction; the data-capable
-        # steps are not.
-        assert status.progress == 50
+        # steps (and verification) are not.
+        assert status.progress == 40
         assert status.next_action == "satellite_source"
+
+    def test_verification_ticks_progress_without_unlocking_runs(self):
+        status = build_onboarding_status(
+            _FakeUser(),
+            analysis_count=0,
+            live_satellite=False,
+            pipeline_count=9,
+            onboarding_complete=False,
+            email_verified=True,
+        )
+        assert status.progress == 60
+        assert status.next_action == "satellite_source"
+        item = next(c for c in status.checklist if c.id == "email_verified")
+        assert item.done is True
+        assert item.instructions is None
+
+    def test_unverified_item_carries_instructions(self):
+        status = build_onboarding_status(
+            _FakeUser(),
+            analysis_count=0,
+            live_satellite=False,
+            pipeline_count=9,
+            onboarding_complete=False,
+            email_verified=False,
+        )
+        item = next(c for c in status.checklist if c.id == "email_verified")
+        assert item.done is False
+        assert item.instructions is not None
+        assert "verification is required" in item.instructions
 
     def test_account_is_always_done(self):
         status = build_onboarding_status(
@@ -37,6 +67,7 @@ class TestOnboardingStatus:
             live_satellite=False,
             pipeline_count=9,
             onboarding_complete=False,
+            email_verified=False,
         )
         account_item = next(c for c in status.checklist if c.id == "account")
         assert account_item.done is True
@@ -48,6 +79,7 @@ class TestOnboardingStatus:
             live_satellite=True,
             pipeline_count=9,
             onboarding_complete=False,
+            email_verified=True,
         )
         sat_item = next(c for c in status.checklist if c.id == "satellite_source")
         assert sat_item.done is True
@@ -60,6 +92,7 @@ class TestOnboardingStatus:
             live_satellite=False,
             pipeline_count=9,
             onboarding_complete=False,
+            email_verified=True,
         )
         sat_item = next(c for c in status.checklist if c.id == "satellite_source")
         assert sat_item.done is False
@@ -73,6 +106,7 @@ class TestOnboardingStatus:
             live_satellite=False,
             pipeline_count=9,
             onboarding_complete=False,
+            email_verified=True,
         )
         item = next(c for c in status.checklist if c.id == "first_analysis")
         assert item.done is True
@@ -84,6 +118,7 @@ class TestOnboardingStatus:
             live_satellite=True,
             pipeline_count=9,
             onboarding_complete=True,
+            email_verified=True,
         )
         assert status.completed is True
         # still guides the freshly-onboarded user toward their first run.
@@ -96,6 +131,7 @@ class TestOnboardingStatus:
             live_satellite=False,
             pipeline_count=0,
             onboarding_complete=False,
+            email_verified=False,
         )
         done_ids = [c.id for c in status.checklist if c.done]
         done_ids.append("first_analysis")  # mock run

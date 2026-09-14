@@ -48,7 +48,7 @@ from app.schemas.ai import (
     PipelineDescription,
     PipelineResultResponse,
 )
-from app.security import get_current_user, require_admin
+from app.security import get_current_user, require_admin, require_verified
 
 logger = get_logger(__name__)
 
@@ -160,7 +160,7 @@ geometry=area_geometry(area["polygon_wkt"]),
 def run_inference(
     request: InferRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_verified),
 ):
     """Run a pipeline synchronously over an area and persist the result.
 

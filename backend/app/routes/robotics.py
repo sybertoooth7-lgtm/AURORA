@@ -26,13 +26,16 @@ from app.routes.analysis import build_area_polygon_wkt
 from app.schemas.ai import PipelineResultResponse
 from app.schemas.robotics import (
     FlightHealth,
+    FlightListResponse,
     FlightSummaryResponse,
     FlightTelemetryFrame,
     RoboticsInspectRequest,
     RoboticsInspectResponse,
+    SimulateRequest,
     TelemetryAckResponse,
+    TelemetryFrameResponse,
 )
-from app.security import get_current_user
+from app.security import get_current_user, require_verified
 
 logger = get_logger(__name__)
 
@@ -74,6 +77,94 @@ def get_flight(
     return summary
 
 
+@router.get("/flights/{flight_id}/telemetry", response_model=list[TelemetryFrameResponse])
+def get_flight_telemetry(
+    flight_id: str,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
+):
+    """Most recent telemetry frames for a flight (newest kept last, in
+    arrival order). ``limit`` caps how many frames are returned."""
+    if flight_store.get(flight_id) is None:
+        raise HTTPException(status_code=404, detail="Flight not found")
+    raw = flight_store.get_telemetry(flight_id, limit=max(1, min(limit, 2000)))
+    return [TelemetryFrameResponse.model_validate(frame) for frame in raw]
+
+
+@router.get("/flights", response_model=FlightListResponse)
+def list_flights(
+    current_user: User = Depends(get_current_user),
+):
+    """Every flight the process has seen, newest-started first, with a
+    one-line health summary each (provenance surfaced per-frame)."""
+    flights = flight_store.list_flights()
+    flights.sort(key=lambda f: f["started_at"], reverse=True)
+    return FlightListResponse(
+        flights=[FlightSummaryResponse(**f) for f in flights],
+        total=len(flights),
+    )
+
+
+@router.post(
+    "/simulate",
+    response_model=FlightSummaryResponse,
+    status_code=201,
+)
+def simulate_flight(
+    request: SimulateRequest,
+    current_user: User = Depends(require_verified),
+):
+    """Spawn a fully simulated flight over the requested area.
+
+    Generates an orbit-like survey path around the area center, ingests the
+    frames through the normal telemetry bridge (so the fleet dashboard works
+    unchanged), and labels every frame ``is_simulated`` -- no real robot or
+    satellite is involved and the UI shows it as such.
+    """
+    import math
+    import random
+    from datetime import UTC, datetime, timedelta
+    from uuid import uuid4
+
+    flight_id = f"sim-{uuid4().hex[:8]}"
+    rng = random.Random(flight_id)
+    base = datetime.now(UTC)
+    lat_delta = request.radius_km / 111.32
+    lon_delta = request.radius_km / (111.32 * max(math.cos(math.radians(request.latitude)), 0.01))
+    frames = request.num_frames
+    for i in range(frames):
+        progress = i / max(frames - 1, 1)
+        angle = 2 * math.pi * progress
+        battery = 100.0 - 45.0 * progress + rng.uniform(-2.0, 2.0)
+        frame = {
+            "battery_percent": round(max(3.0, min(100.0, battery)), 1),
+            "altitude_m": round(12.0 + 3.0 * math.sin(4 * angle) + rng.uniform(-0.8, 0.8), 1),
+            "motor_temp_c": round(24.0 + 18.0 * progress + rng.uniform(-2.0, 2.0), 1),
+            "heading_deg": round(math.degrees(angle) % 360.0, 1),
+            "sequence": i,
+            "timestamp": (base + timedelta(seconds=3 * i)).isoformat(),
+            "faults": ["low_battery"] if battery < 30.0 else [],
+            "lat": round(request.latitude + lat_delta * math.cos(angle), 6),
+            "lon": round(request.longitude + lon_delta * math.sin(angle), 6),
+            "is_simulated": True,
+        }
+        flight_store.ingest(flight_id, frame, source="simulator")
+
+    logger.info(
+        "Simulated flight created",
+        extra_keys={
+            "flight_id": flight_id,
+            "user_id": current_user.id,
+            "frames": frames,
+            "area_lat": request.latitude,
+            "area_lon": request.longitude,
+        },
+    )
+    summary = flight_store.summary(flight_id)
+    assert summary is not None
+    return summary
+
+
 def _build_combined_report(damage_proxy: float, flight_health: dict) -> list:
     report = [f"Satellite field-damage proxy {damage_proxy:.2f}."]
     health = flight_health.get("health_score")
@@ -100,7 +191,7 @@ def _build_combined_report(damage_proxy: float, flight_health: dict) -> list:
 def inspect_flight_area(
     request: RoboticsInspectRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_verified),
 ):
     """Post-flight inspection report for a flight's field area.
 

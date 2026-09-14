@@ -54,6 +54,19 @@ class Settings(BaseSettings):
     LOGIN_MAX_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_SECONDS: int = 900  # 15 minutes
 
+    # API keys: long-lived credentials a machine/script can authenticate with
+    # in place of a short-lived JWT (the Authorization header is the same
+    # "Bearer <key>" shape). Keys are stored hashed (sha256) -- the raw secret
+    # is shown exactly once at creation. The prefix makes a leaked key
+    # identifiable at a glance (and lets us route it in get_current_user
+    # without a DB hit-first).
+    API_KEY_PREFIX: str = "aur_"
+    MAX_API_KEYS_PER_USER: int = 20
+
+    # Where the operator CLI puts created admin accounts' email addresses
+    # (there's no email address to collect in a bootstrap command).
+    CLI_ADMIN_EMAIL_DOMAIN: str = "admin.local"
+
     # Password reset. Tokens live in Redis (see app.security), not the DB --
     # they're short-lived and single-use, so a TTL key is a better fit than
     # a table that needs its own cleanup job.

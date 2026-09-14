@@ -11,8 +11,10 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from app.api_keys import find_api_key
 from app.config import get_settings
 from app.database import get_db
+from app.exceptions import VerificationRequiredError
 from app.models.user import User
 from app.queue import get_redis
 
@@ -98,6 +100,44 @@ def clear_failed_logins(username: str) -> None:
 
 # --- Tokens ------------------------------------------------------------
 
+def _as_aware(value: datetime) -> datetime:
+    """SQLite returns naive datetimes, Postgres tz-aware ones -- normalize
+    before any comparison so behaviour is identical in demo and CI."""
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
+def _authenticate_api_key(raw_key: str, db: Session) -> User | None:
+    """Validate a long-lived API key and resolve it to the owning user.
+
+    Returns None for unknown/revoked/expired keys (or a disabled account);
+    the caller maps that to the standard 401.
+    """
+    settings = get_settings()
+    if not raw_key.startswith(settings.API_KEY_PREFIX):
+        return None
+
+    row = find_api_key(db, raw_key)
+    if row is None:
+        return None
+    if row.revoked_at is not None:
+        return None
+    if row.expires_at is not None and _as_aware(row.expires_at) <= datetime.now(UTC):
+        return None
+
+    user = db.query(User).filter(User.id == row.user_id, User.is_active.is_(True)).first()
+    if user is None:
+        return None
+
+    # last_used_at is observability, not logic -- persist it lazily so a
+    # high-volume client doesn't turn every request into a DB write.
+    last_used = _as_aware(row.last_used_at) if row.last_used_at else None
+    now = datetime.now(UTC)
+    if last_used is None or (now - last_used).total_seconds() > 60:
+        row.last_used_at = now
+        db.commit()
+
+    return user
+
 def create_access_token(user: User) -> str:
     settings = get_settings()
     expires = datetime.now(UTC) + timedelta(
@@ -156,6 +196,17 @@ def get_current_user(
         detail="Invalid or expired access token",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    settings = get_settings()
+
+    # API keys use the same Authorization: Bearer header as JWTs; route by
+    # the distinctive prefix so JWT paths never pay a DB hit for a key.
+    if token.startswith(settings.API_KEY_PREFIX):
+        user = _authenticate_api_key(token, db)
+        if user is None:
+            raise credentials_error
+        user._auth_method = "api_key"
+        return user
+
     payload = _decode_token(token)
     try:
         user_id = int(payload["sub"])
@@ -178,7 +229,20 @@ def get_current_user(
     if payload.get("tv") != user.token_version:
         raise credentials_error
 
+    user._auth_method = "jwt"
     return user
+
+
+def require_verified(current_user: User = Depends(get_current_user)) -> User:
+    """Dependency for endpoints that consume real satellite quota or persist
+    runs: an unverified account may browse read-only surfaces and finish the
+    verification flow, but may not run analyses until its email is confirmed.
+    """
+    if current_user.email_verified_at is None:
+        raise VerificationRequiredError(
+            "Verify your email address to run analyses on AURORA."
+        )
+    return current_user
 
 
 def require_admin(current_user: User = Depends(get_current_user)) -> User:

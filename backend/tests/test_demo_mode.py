@@ -4,12 +4,15 @@ Booting the app in-process is impossible here: ``get_settings`` is
 ``lru_cache``d and the SQLAlchemy engine is built at module import time, so
 the flag cannot be flipped after ``main`` has been imported. Instead this
 test launches ``uvicorn main:app`` as a subprocess with the flag set and
-drives the full platform lifecycle -- register -> token -> AI inference ->
-insurance trigger-check -> robotics inspect -> analysis listing -- all on an
-in-memory SQLite database with zero Postgres/Redis.
+drives the full platform lifecycle -- register -> (unverified enforced) ->
+confirm the email link that got logged (SMTP is unconfigured, so the email
+is logged to stdout) -> token -> AI inference -> insurance trigger-check ->
+robotics inspect -> analysis listing -- all on an in-memory SQLite database
+with zero Postgres/Redis.
 """
 
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -21,6 +24,8 @@ import pytest
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
+_VERIFY_TOKEN_RE = re.compile(r"verify-email\?token=([\w-]+)")
+
 
 def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -28,57 +33,72 @@ def _free_port() -> int:
         return sock.getsockname()[1]
 
 
+def _read_verify_token(log_path: Path, timeout: float = 25.0) -> str:
+    """Poll the subprocess stdout capture for the logged verification link."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if log_path.exists():
+            match = _VERIFY_TOKEN_RE.search(log_path.read_text(errors="replace"))
+            if match:
+                return match.group(1)
+        time.sleep(0.5)
+    raise AssertionError("Verification token never appeared in demo server logs")
+
+
 @pytest.fixture(scope="module")
-def demo_server():
+def demo_server(tmp_path_factory):
     port = _free_port()
+    log_path = tmp_path_factory.mktemp("demo") / "server.log"
     env = os.environ.copy()
     env["ENABLE_DEMO_MODE"] = "true"
     env["PYTHONUNBUFFERED"] = "1"
-    proc = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "uvicorn",
-            "main:app",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(port),
-            "--log-level",
-            "warning",
-        ],
-        cwd=str(BACKEND_DIR),
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    base = f"http://127.0.0.1:{port}"
-    try:
-        deadline = time.monotonic() + 40
-        while True:
-            if proc.poll() is not None:
-                pytest.fail("demo uvicorn process exited before becoming healthy")
-            try:
-                response = httpx.get(f"{base}/health/", timeout=5)
-                if response.status_code == 200:
-                    break
-            except httpx.HTTPError:
-                pass
-            if time.monotonic() > deadline:
-                pytest.fail("demo server did not become healthy in time")
-            time.sleep(0.5)
-        yield base
-    finally:
-        proc.terminate()
+    with log_path.open("w", encoding="utf-8") as log_file:
+        proc = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "main:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(port),
+                "--log-level",
+                "warning",
+            ],
+            cwd=str(BACKEND_DIR),
+            env=env,
+            stdout=log_file,
+            stderr=subprocess.DEVNULL,
+        )
+        base = f"http://127.0.0.1:{port}"
         try:
-            proc.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait(timeout=10)
+            deadline = time.monotonic() + 40
+            while True:
+                if proc.poll() is not None:
+                    pytest.fail("demo uvicorn process exited before becoming healthy")
+                try:
+                    response = httpx.get(f"{base}/health/", timeout=5)
+                    if response.status_code == 200:
+                        break
+                except httpx.HTTPError:
+                    pass
+                if time.monotonic() > deadline:
+                    pytest.fail("demo server did not become healthy in time")
+                time.sleep(0.5)
+            yield base, log_path
+        finally:
+            proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=10)
 
 
 def test_demo_mode_serves_the_full_platform(demo_server):
-    with httpx.Client(base_url=demo_server, timeout=30) as client:
+    base, log_path = demo_server
+    with httpx.Client(base_url=base, timeout=30) as client:
         # Public metadata endpoints boot fine with no infra.
         health = client.get("/health/").json()
         assert health["status"] == "healthy"
@@ -102,6 +122,7 @@ def test_demo_mode_serves_the_full_platform(demo_server):
             },
         )
         assert register.status_code == 201
+        assert register.json()["email_verified"] is False
         token = client.post(
             "/auth/token",
             json={"username": "demo_user", "password": "demo-pass-123"},
@@ -109,6 +130,24 @@ def test_demo_mode_serves_the_full_platform(demo_server):
         auth = {"Authorization": f"Bearer {token}"}
 
         area = {"latitude": 31.2304, "longitude": 121.4737, "radius_km": 5.0}
+
+        # Email verification is ENFORCED: reads work, gated runs are refused
+        # until the logged verification link is confirmed over the API.
+        me = client.get("/auth/me", headers=auth)
+        assert me.status_code == 200
+        assert me.json()["email_verified"] is False
+        blocked = client.post(
+            "/ai/infer",
+            headers=auth,
+            json={"analysis_type": "vegetation_stress", "use_history": False, **area},
+        )
+        assert blocked.status_code == 403, blocked.text
+        assert blocked.json()["code"] == "email_unverified"
+
+        verify_token = _read_verify_token(log_path)
+        confirmed = client.post("/auth/verify-email/confirm", json={"token": verify_token})
+        assert confirmed.status_code == 204
+        assert client.get("/auth/me", headers=auth).json()["email_verified"] is True
 
         # AI inference (vegetation stress) -- synchronously persisted.
         infer = client.post(

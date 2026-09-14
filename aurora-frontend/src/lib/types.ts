@@ -23,7 +23,79 @@ export interface User {
   username: string
   full_name: string | null
   is_active: boolean
+  email_verified: boolean
   created_at: string
+}
+
+// API keys (`/auth/api-keys`). `key` is the plaintext secret, shown exactly
+// once at creation.
+export interface ApiKeyCreated {
+  id: number
+  name: string
+  prefix: string
+  key: string
+  expires_at: string | null
+  created_at: string
+}
+
+export interface ApiKeyListEntry {
+  id: number
+  name: string
+  prefix: string
+  revoked: boolean
+  expires_at: string | null
+  created_at: string
+  last_used_at: string | null
+}
+
+export interface ApiKeyListResponse {
+  keys: ApiKeyListEntry[]
+  total: number
+}
+
+// Robotics fleet (`/robotics`).
+export interface FlightHealth {
+  health_score: number
+  status: string
+  samples: number
+  fault_count: number
+  battery_min: number | null
+}
+
+export interface FlightSummary {
+  flight_id: string
+  started_at: string
+  telemetry_count: number
+  flight_health: FlightHealth
+}
+
+export interface FlightListResponse {
+  flights: FlightSummary[]
+  total: number
+}
+
+export interface TelemetryFrame {
+  timestamp: number
+  battery_percent: number | null
+  gps_accuracy_m: number | null
+  motor_temp_c: number | null
+  altitude_m: number | null
+  heading_deg: number | null
+  faults: string[]
+  sequence: number | null
+  is_simulated: boolean
+  level: string
+}
+
+export interface SimulateResponse extends FlightSummary {}
+
+export interface RoboticsInspectResponse {
+  result: PipelineResult
+  analysis_id: number
+  flight_id: string | null
+  flight_health: FlightHealth | null
+  vsatellite_damage_proxy: number | null
+  combined_report: string[]
 }
 
 export interface Analysis {
