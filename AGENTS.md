@@ -41,7 +41,7 @@ npm.cmd run build
 - No local Postgres/Redis/Docker. As a result:
   - **Alembic migrations cannot be run locally** — they are validated in CI (`alembic upgrade head` against PostGIS 16).
   - **Demo mode** (`ENABLE_DEMO_MODE=true` in `backend/.env`) is the normal local dev path: the app + the full test suite run on an in-memory SQLite database and an in-memory Redis substitute (`app.queue._DemoRedis`, which implements the exact string/zset/getdel surface AURORA uses) with zero external services. `tests/conftest.py` creates the demo schema for in-process `TestClient` tests. `tests/test_demo_mode.py` exercises demo mode end-to-end via a subprocess (the flag cannot be flipped in-process: settings are `lru_cache`d and the engine is built at module import). Never import `geoalchemy2` when demo mode is on — its global SQLite dialect patches break the in-memory DB; `app.database.geometry_type()`/`area_geometry()` abstract that away.
-- Real Sentinel-2 data requires `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` (Copernicus Data Space); otherwise the deterministic demo provider is used.
+- Real Sentinel-2 data requires `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` (Copernicus Data Space) **and** `ENABLE_DEMO_MODE=false` — demo mode always uses the deterministic demo provider; otherwise the demo provider is used when credentials are absent.
 - `gh` CLI is at `%LOCALAPPDATA%\Programs\gh\bin`. It authenticates CI checks via the token in the Windows Credential Manager (`git credential fill`), which lacks `read:org` — so use the GitHub REST API or git's stored creds, not `gh auth`.
 
 ## Honesty invariants (do not break)

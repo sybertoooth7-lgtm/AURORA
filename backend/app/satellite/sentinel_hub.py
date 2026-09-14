@@ -133,6 +133,14 @@ class SentinelHubProvider(SatelliteProvider):
     def _stats_request_body(self, latitude: float, longitude: float, radius_km: float) -> dict[str, Any]:
         now = datetime.now(UTC)
         start = now - timedelta(days=self._lookback_days)
+        # The Statistical API interprets resx/resy in the bbox's own CRS. The bbox
+        # is expressed in WGS84 degrees (CRS84), so the ~10 m resolution below is
+        # converted to degrees; a meter value (e.g. 10) over a degree bbox is
+        # rejected with a pixel-size error.
+        meridional_m = 111320.0
+        res_deg = 10.0 / meridional_m
+        resx = res_deg / max(math.cos(math.radians(latitude)), 0.01)
+        resy = res_deg
         return {
             "input": {
                 "bounds": {
@@ -153,8 +161,8 @@ class SentinelHubProvider(SatelliteProvider):
                 },
                 "aggregationInterval": {"of": "P1D"},
                 "evalscript": _NDVI_EVALSCRIPT,
-                "resx": 10,
-                "resy": 10,
+                "resx": resx,
+                "resy": resy,
             },
         }
 

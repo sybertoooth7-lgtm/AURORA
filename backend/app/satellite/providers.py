@@ -152,12 +152,16 @@ class DemoSatelliteProvider(SatelliteProvider):
 def get_satellite_provider() -> SatelliteProvider:
     """Return the configured provider boundary for the current deployment.
 
-    Uses the real Copernicus Data Space Ecosystem (Sentinel Hub) provider
-    when SENTINEL_CLIENT_ID / SENTINEL_CLIENT_SECRET are configured, and
-    falls back to the deterministic demo provider otherwise (local dev,
-    tests, or before credentials are provisioned).
+    Demo mode is deterministic and fully offline, so it always uses the demo
+    provider -- even if Sentinel credentials are configured. Real data is the
+    non-demo path: SENTINEL_CLIENT_ID / SENTINEL_CLIENT_SECRET select the
+    Copernicus Data Space Ecosystem (Sentinel Hub) provider, otherwise the
+    deterministic demo provider is used (local dev, tests, or before
+    credentials are provisioned).
     """
     settings = get_settings()
+    if settings.ENABLE_DEMO_MODE:
+        return DemoSatelliteProvider()
     if settings.SENTINEL_CLIENT_ID and settings.SENTINEL_CLIENT_SECRET:
         from app.satellite.sentinel_hub import SentinelHubProvider
 

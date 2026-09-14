@@ -9,14 +9,17 @@ All notable changes to the AURORA platform. Dates are when the change landed on 
 - **Admin API** — `GET/POST /admin/users...` for listing and disabling/enabling accounts (`app/routes/admin.py`); no self-serve admin-grant endpoint by design.
 - **Email verification & password reset** — Redis-backed single-use tokens, provider-agnostic SMTP sender (`app/email.py`), verification/reset routes, JWT `token_version` invalidation on password change.
 - **Redis-backed rate limiting** (`app/rate_limiter.py`) — sliding-window log via sorted sets, so the per-IP throttle holds across API replicas (replaces the per-process limiter); daily per-user analysis quota (`app/quota.py`).
+- **Real Sentinel-2 provider activation** — the live Sentinel-2 L2A path (Copernicus Data Space Ecosystem) is now verified end-to-end with live credentials. Set `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` in `backend/.env` (gitignored) and disable demo mode (`ENABLE_DEMO_MODE=false`) to receive real satellite observations (`source: sentinel-2-l2a`, `simulated: false`).
 
 ### Fixed
 - Merged admin/verification/reset work was missing `app/schemas/admin.py` (referenced by `app/routes/admin.py`), which broke app import — schema added.
 - Setting only one of `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` used to silently fall back to the demo satellite provider; startup now logs a warning so partial config is loud.
 - Docs corrected after the merged rate limiter: `docs/API.md` and `backend/README.md` no longer claim the limiter is per-process/in-memory, and the offline-suite note no longer requires a local Redis.
+- The live Sentinel-2 Statistical API rejected requests with `400` ("pixel size exceeds the limit") because `resx`/`resy` were sent as meter values over a WGS84 degree bbox; resolution is now expressed in the bbox's CRS units (~10 m ≈ 8.98e-5 degrees).
+- Demo mode now always uses the deterministic demo satellite provider, even when Sentinel credentials are configured, keeping demo fully deterministic and honest; live data is the explicit non-demo path.
 
 ### Planned
-- Real Sentinel-2 provider activation (requires `SENTINEL_CLIENT_ID` / `SENTINEL_CLIENT_SECRET`).
+- Deploy Sentinel-2 credentials (`SENTINEL_CLIENT_ID` / `SENTINEL_CLIENT_SECRET`) to production (with `ENABLE_DEMO_MODE=false` and PostGIS + Redis provisioned).
 
 ## [0.2.0] - 2026-09-11 — AURORA-2 "Earth-revenue integration"
 
