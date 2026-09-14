@@ -79,6 +79,11 @@ def _set_next_check(analysis_id: int, minutes_ago: int) -> None:
         db.close()
 
 
+def _as_aware(value: datetime) -> datetime:
+    """SQLite returns naive datetimes, Postgres tz-aware ones."""
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
 def _set_status(analysis_id: int, status: str) -> None:
     db = SessionLocal()
     try:
@@ -241,7 +246,7 @@ class TestMonitoringScheduler:
             analysis = db.query(Analysis).filter(Analysis.id == area["id"]).first()
             assert analysis.status == "completed"
             assert analysis.next_check_at is not None
-            assert analysis.next_check_at > datetime.now(UTC).replace(tzinfo=None)
+            assert _as_aware(analysis.next_check_at) > datetime.now(UTC)
         finally:
             db.close()
 
