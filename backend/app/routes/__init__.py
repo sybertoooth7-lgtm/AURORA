@@ -1,5 +1,6 @@
 """API routes for AURORA"""
 
+from .admin import router as admin_router
 from .ai import router as ai_router
 from .alerts import router as alerts_router
 from .analysis import router as analysis_router
@@ -24,4 +25,5 @@ __all__ = [
     "insurance_router",
     "robotics_router",
     "onboarding_router",
+    "admin_router",
 ]

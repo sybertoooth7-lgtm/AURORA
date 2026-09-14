@@ -13,6 +13,32 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 RATE_LIMIT_REQUESTS=120
 RATE_LIMIT_WINDOW_SECONDS=60
 
+# Auth-specific hardening (see app/security.py). Defaults shown -- usually
+# fine to leave unset. Note: the app refuses to start with ENVIRONMENT set
+# to anything other than "development" unless SECRET_KEY has been changed
+# from the placeholder above and is at least 32 characters.
+AUTH_RATE_LIMIT_REQUESTS=10
+AUTH_RATE_LIMIT_WINDOW_SECONDS=60
+LOGIN_MAX_ATTEMPTS=5
+LOGIN_LOCKOUT_SECONDS=900
+
+# Password reset. Tokens are single-use and live in Redis for this long.
+PASSWORD_RESET_TOKEN_TTL_SECONDS=3600
+# Used to build the link emailed to the user: {FRONTEND_URL}/reset-password?token=...
+FRONTEND_URL=http://localhost:5173
+
+# Outbound email (password reset today, more later). Leave SMTP_HOST blank
+# for local dev -- app/email.py logs the message instead of sending it, so
+# the reset flow is fully testable without real credentials. Any standard
+# SMTP provider works here (Gmail, SendGrid, Mailgun, Postmark, AWS SES's
+# SMTP interface, etc.) -- nothing vendor-specific.
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_USE_TLS=True
+EMAIL_FROM=AURORA <no-reply@aurora.example>
+
 # Optional: real satellite data via the Copernicus Data Space Ecosystem.
 # Create a free OAuth client at https://shapps.dataspace.copernicus.eu/dashboard/
 # (User Settings -> OAuth clients). Leave both blank to use the deterministic
@@ -27,5 +53,27 @@ REDIS_URL=redis://localhost:6379/0
 ENVIRONMENT=development
 DEBUG=True
 LOG_LEVEL=INFO
+# text for local dev, json for log aggregation (CloudWatch/ELK)
+LOG_FORMAT=text
 # Vite dev server default port is 5173, not 3000
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+
+# AI pipelines
+# How many historical observations history-aware pipelines pull (anomaly
+# detection, land change). More history = more robust baselines.
+AI_HISTORY_LIMIT=8
+# Sync /ai/infer will tolerate a slow provider response before warning.
+AI_INFER_SYNC_TIMEOUT_SECONDS=30
+
+# Parametric agriculture insurance (AURORA-2)
+# Default payout trigger threshold (0..1) used by /insurance/defaults and as
+# the request default for /insurance/trigger-check.
+INSURANCE_DEFAULT_TRIGGER_THRESHOLD=0.4
+# Hard cap on sum_insured_usd accepted by a trigger-check.
+INSURANCE_MAX_SUM_INSURED_USD=50000000.0
+# Sentinel Hub OAuth setup page linked from the onboarding checklist.
+ONBOARDING_SENTINEL_SETUP_URL=https://shapps.dataspace.copernicus.eu/dashboard/
+
+# Robotics field services (AURORA-2)
+# Max telemetry frames kept per in-memory flight before eviction.
+ROBOTICS_FLIGHT_RETENTION_FRAMES=1000

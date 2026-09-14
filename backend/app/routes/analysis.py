@@ -10,6 +10,7 @@ from app.database import area_geometry, get_db
 from app.models.analysis import Analysis, AnalysisResult
 from app.models.user import User
 from app.queue import get_analysis_queue
+from app.quota import check_and_increment_daily_quota
 from app.schemas.analysis import (
     AnalysisCreate,
     AnalysisResponse,
@@ -52,6 +53,10 @@ async def create_analysis(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new analysis"""
+    check_and_increment_daily_quota(
+        current_user.id, "analyses", get_settings().MAX_ANALYSES_PER_USER_PER_DAY
+    )
+
     area = build_area_polygon_wkt(analysis.latitude, analysis.longitude, analysis.radius_km)
 
     db_analysis = Analysis(

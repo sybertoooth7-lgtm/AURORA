@@ -54,6 +54,31 @@ class Settings(BaseSettings):
     LOGIN_MAX_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_SECONDS: int = 900  # 15 minutes
 
+    # Password reset. Tokens live in Redis (see app.security), not the DB --
+    # they're short-lived and single-use, so a TTL key is a better fit than
+    # a table that needs its own cleanup job.
+    PASSWORD_RESET_TOKEN_TTL_SECONDS: int = 3600  # 1 hour
+    # Verification links are longer-lived than password reset links --
+    # there's no security reason to rush someone into clicking it, and
+    # people often don't check the inbox they signed up with right away.
+    EMAIL_VERIFICATION_TOKEN_TTL_SECONDS: int = 259200  # 3 days
+    # Used to build the reset link emailed to the user, e.g.
+    # {FRONTEND_URL}/reset-password?token=...
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Outbound email (password reset, and future transactional mail).
+    # Leave SMTP_HOST unset for local dev / before you've picked a provider --
+    # app.email then logs the message instead of sending it, so the reset
+    # flow is still fully testable without real SMTP credentials. Any
+    # standard SMTP provider works (Gmail, SendGrid, Mailgun, Postmark, AWS
+    # SES's SMTP interface, etc.) -- there's no vendor-specific code here.
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_USE_TLS: bool = True
+    EMAIL_FROM: str = "AURORA <no-reply@aurora.example>"
+
     # Satellite Data — Copernicus Data Space Ecosystem (Sentinel Hub)
     # Free OAuth client credentials from https://shapps.dataspace.copernicus.eu/dashboard/
     # (User Settings -> OAuth clients). Leave unset to fall back to the
@@ -79,6 +104,32 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "text"  # text | json
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+
+    # Swagger/ReDoc/OpenAPI JSON are handy in development but shouldn't be
+    # publicly reachable in production by default -- they hand an attacker
+    # your entire API surface, auth flow included, without them having to
+    # guess anything. Left unset (None), this follows ENVIRONMENT: on in
+    # development, off everywhere else. Set it explicitly to override
+    # either way (e.g. force it on in a staging environment).
+    ENABLE_API_DOCS: bool | None = None
+
+    @property
+    def api_docs_enabled(self) -> bool:
+        if self.ENABLE_API_DOCS is not None:
+            return self.ENABLE_API_DOCS
+        return self.ENVIRONMENT == "development"
+
+    # Error tracking. Unset by default -- app.observability only calls
+    # sentry_sdk.init() when a DSN is actually configured, so this is a
+    # no-op until you set one. Get a free DSN at https://sentry.io.
+    SENTRY_DSN: str | None = None
+
+    # Per-user cap on analyses submitted per day. Each analysis costs a
+    # real Sentinel Hub processing-unit request against the Copernicus
+    # Data Space Ecosystem's free-tier quota -- without a cap, one user
+    # (or one bug in a client retry loop) can burn through the whole
+    # account's quota and take real satellite data down for everyone.
+    MAX_ANALYSES_PER_USER_PER_DAY: int = 50
 
     # AI pipelines
     # Number of historical observations fetched for history-aware pipelines
