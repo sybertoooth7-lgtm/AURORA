@@ -5,10 +5,15 @@ All notable changes to the AURORA platform. Dates are when the change landed on 
 ## Unreleased
 
 ### Added
-- **Demo mode** (`ENABLE_DEMO_MODE=true`) — the platform boots with zero external infrastructure: in-memory SQLite database + in-memory queue replace Postgres/PostGIS/Redis, analysis jobs execute inline, and all pipeline logic + the demo satellite provider run for real with `provenance=simulated`. End-to-end subprocess test in `tests/test_demo_mode.py`.
+- **Demo mode** (`ENABLE_DEMO_MODE=true`) — the platform boots with zero external infrastructure: in-memory SQLite database + in-memory queue replace Postgres/PostGIS/Redis, analysis jobs execute inline, and all pipeline logic + the demo satellite provider run for real with `provenance=simulated`. End-to-end subprocess test in `tests/test_demo_mode.py`. With demo mode on locally, the entire test suite (including the Redis-dependent auth-hardening and rate-limiter tests) runs with no external services.
+- **Admin API** — `GET/POST /admin/users...` for listing and disabling/enabling accounts (`app/routes/admin.py`); no self-serve admin-grant endpoint by design.
+- **Email verification & password reset** — Redis-backed single-use tokens, provider-agnostic SMTP sender (`app/email.py`), verification/reset routes, JWT `token_version` invalidation on password change.
+- **Redis-backed rate limiting** (`app/rate_limiter.py`) — sliding-window log via sorted sets, so the per-IP throttle holds across API replicas (replaces the per-process limiter); daily per-user analysis quota (`app/quota.py`).
+
+### Fixed
+- Merged admin/verification/reset work was missing `app/schemas/admin.py` (referenced by `app/routes/admin.py`), which broke app import — schema added.
 
 ### Planned
-- Redis-backed global rate limiting (current limiter is per-process in-memory).
 - Real Sentinel-2 provider activation (requires `SENTINEL_CLIENT_ID` / `SENTINEL_CLIENT_SECRET`).
 
 ## [0.2.0] - 2026-09-11 — AURORA-2 "Earth-revenue integration"

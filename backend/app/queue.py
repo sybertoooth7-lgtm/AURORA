@@ -30,6 +30,7 @@ class _DemoRedis:
 
     def __init__(self) -> None:
         self._data: dict[bytes, tuple[bytes, float | None]] = {}
+        self._zsets: dict[bytes, dict[bytes, float]] = {}
 
     def _encode(self, value) -> bytes:
         return value if isinstance(value, bytes) else str(value).encode()
@@ -73,21 +74,102 @@ class _DemoRedis:
         return True
 
     def delete(self, *keys) -> int:
-        return sum(1 for k in keys if self._data.pop(self._encode(k), None) is not None)
+        removed = 0
+        for k in keys:
+            encoded = self._encode(k)
+            removed += self._data.pop(encoded, None) is not None
+            removed += self._zsets.pop(encoded, None) is not None
+        return removed
+
+    def getdel(self, key):
+        encoded = self._encode(key)
+        entry = self._data.pop(encoded, None)
+        return entry[0] if entry else None
 
     def keys(self, pattern: str = "*") -> list[bytes]:
         self._prune()
         if pattern.endswith("*"):
             prefix = pattern[:-1].encode()
-            return [k for k in self._data if k.startswith(prefix)]
+            matched = [k for k in self._data if k.startswith(prefix)]
+            matched += [k for k in self._zsets if k.startswith(prefix)]
+            return matched
         return []
 
     def flushdb(self) -> bool:
         self._data.clear()
+        self._zsets.clear()
         return True
 
     def ping(self) -> bool:
         return True
+
+    # Sorted-set surface used by the Redis-backed rate limiter
+    # (app.rate_limiter) via a single pipeline.
+    def zadd(self, key, mapping) -> int:
+        store = self._zsets.setdefault(self._encode(key), {})
+        added = 0
+        for member, score in mapping.items():
+            encoded_member = self._encode(member)
+            if encoded_member not in store:
+                added += 1
+            store[encoded_member] = float(score)
+        return added
+
+    def zremrangebyscore(self, key, min_, max_) -> int:
+        store = self._zsets.get(self._encode(key))
+        if not store:
+            return 0
+        kept = {m: s for m, s in store.items() if not (s >= min_ and s <= max_)}
+        removed = len(store) - len(kept)
+        if kept:
+            self._zsets[self._encode(key)] = kept
+        else:
+            self._zsets.pop(self._encode(key), None)
+        return removed
+
+    def zcard(self, key) -> int:
+        return len(self._zsets.get(self._encode(key), {}))
+
+    def pipeline(self, transaction=True):
+        return _DemoPipeline(self)
+
+
+class _DemoPipeline:
+    """Buffers ops and replays them on ``_DemoRedis`` on execute()."""
+
+    def __init__(self, redis: "_DemoRedis") -> None:
+        self._redis = redis
+        self._ops: list[tuple] = []
+
+    def zremrangebyscore(self, key, min_, max_):
+        self._ops.append(("zremrangebyscore", key, min_, max_))
+        return self
+
+    def zadd(self, key, mapping):
+        self._ops.append(("zadd", key, mapping))
+        return self
+
+    def zcard(self, key):
+        self._ops.append(("zcard", key))
+        return self
+
+    def expire(self, key, time_):
+        self._ops.append(("expire", key, time_))
+        return self
+
+    def execute(self) -> list:
+        results = []
+        for op in self._ops:
+            method = getattr(self._redis, op[0])
+            if op[0] == "expire":
+                results.append(method(op[1], op[2]))
+            elif op[0] in ("zadd",):
+                results.append(method(op[1], op[2]))
+            elif op[0] == "zremrangebyscore":
+                results.append(method(op[1], op[2], op[3]))
+            elif op[0] == "zcard":
+                results.append(method(op[1]))
+        return results
 
 
 class _InlineQueue:
