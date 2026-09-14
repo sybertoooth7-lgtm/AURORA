@@ -3,11 +3,10 @@
 import math
 
 from fastapi import APIRouter, Depends, HTTPException
-from geoalchemy2.elements import WKTElement
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.database import get_db
+from app.database import area_geometry, get_db
 from app.models.analysis import Analysis, AnalysisResult
 from app.models.user import User
 from app.queue import get_analysis_queue
@@ -58,7 +57,7 @@ async def create_analysis(
     db_analysis = Analysis(
         user_id=current_user.id,
         analysis_type=analysis.analysis_type,
-        geometry=WKTElement(area["polygon_wkt"], srid=4326),
+        geometry=area_geometry(area["polygon_wkt"]),
         latitude=analysis.latitude,
         longitude=analysis.longitude,
         radius_km=analysis.radius_km,

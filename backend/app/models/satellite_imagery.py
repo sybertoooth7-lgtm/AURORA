@@ -1,10 +1,11 @@
 """Satellite imagery model"""
 
-from geoalchemy2 import Geometry
 from sqlalchemy import Column, DateTime, Float, Integer, String, Text
 from sqlalchemy.sql import func
 
-from app.database import Base
+from app.database import Base, geometry_type
+
+_GEOM = geometry_type()
 
 
 class SatelliteImage(Base):
@@ -15,7 +16,7 @@ class SatelliteImage(Base):
     source = Column(String, nullable=False)  # Sentinel, Landsat, etc.
     image_id = Column(String, unique=True, index=True, nullable=False)
     date_acquired = Column(DateTime(timezone=True), nullable=False)
-    geometry = Column(Geometry('POLYGON', srid=4326), nullable=False)
+    geometry = Column(_GEOM, nullable=False)
     cloud_coverage = Column(Float, nullable=True)
     resolution_m = Column(Float, nullable=True)
     url = Column(String, nullable=True)

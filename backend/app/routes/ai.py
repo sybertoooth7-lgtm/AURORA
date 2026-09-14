@@ -14,7 +14,6 @@ import time
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from geoalchemy2.elements import WKTElement
 from sqlalchemy.orm import Session
 
 from app.ai import get_pipeline, list_pipeline_descriptions
@@ -29,7 +28,7 @@ from app.ai.repository import (
     set_status,
 )
 from app.config import get_settings
-from app.database import get_db
+from app.database import area_geometry, get_db
 from app.exceptions import (
     PipelineUnavailableError,
     SatelliteDataUnavailableError,
@@ -115,7 +114,7 @@ def _persist_analysis_result(db: Session, user_id: int, analysis_type, area: dic
     db_analysis = Analysis(
         user_id=user_id,
         analysis_type=analysis_type,
-        geometry=WKTElement(area["polygon_wkt"], srid=4326),
+geometry=area_geometry(area["polygon_wkt"]),
         latitude=area["latitude"],
         longitude=area["longitude"],
         radius_km=area["radius_km"],
@@ -134,7 +133,7 @@ def _persist_analysis_result(db: Session, user_id: int, analysis_type, area: dic
 
     db_result = AnalysisResult(
         analysis_id=db_analysis.id,
-        result_geometry=WKTElement(area["polygon_wkt"], srid=4326),
+        result_geometry=area_geometry(area["polygon_wkt"]),
         severity_score=result.severity,
         confidence=result.confidence,
         finding=result.findings[0] if result.findings else "",

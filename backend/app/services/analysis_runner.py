@@ -9,11 +9,9 @@ leave the analysis in a clear "failed" state with the error logged.
 import json
 from datetime import UTC, datetime
 
-from geoalchemy2.elements import WKTElement
-
 from app.ai import get_pipeline
 from app.ai.registry import UnknownPipelineError
-from app.database import SessionLocal
+from app.database import SessionLocal, area_geometry
 from app.logging_conf import get_logger
 from app.models.alert import Alert
 from app.models.analysis import Analysis, AnalysisResult
@@ -80,9 +78,8 @@ def run_analysis(analysis_id: int) -> None:
 
         db_result = AnalysisResult(
             analysis_id=analysis.id,
-            result_geometry=WKTElement(
+            result_geometry=area_geometry(
                 _polygon_wkt(analysis.latitude, analysis.longitude, analysis.radius_km),
-                srid=4326,
             ),
             severity_score=result.severity,
             confidence=result.confidence,

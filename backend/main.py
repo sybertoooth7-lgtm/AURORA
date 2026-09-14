@@ -35,6 +35,14 @@ async def lifespan(app: FastAPI):
     # multiple API replicas, every instance hitting create_all/upgrade on
     # startup races the others.
     logger.info("AURORA Backend starting (environment=%s)", settings.ENVIRONMENT)
+    # Demo mode runs on an ephemeral in-memory database, so create its
+    # schema here (create_all is never used against real Postgres -- see the
+    # Alembic note above).
+    if settings.ENABLE_DEMO_MODE:
+        from app.database import init_demo_schema
+
+        init_demo_schema()
+        logger.info("Demo mode: in-memory SQLite schema created (no Postgres/Redis required)")
     # Register AI pipelines eagerly so a misconfiguration is loud at startup,
     # not on the first analysis request.
     from app.ai.registry import build_workspace_pipelines, list_pipeline_descriptions

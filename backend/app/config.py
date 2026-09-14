@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+psycopg://localhost/aurora_db"
     SQLALCHEMY_ECHO: bool = False
 
+    # Demo mode: run the whole platform with zero external infrastructure
+    # (in-memory SQLite + in-memory Redis substitute + inline job execution).
+    # Real pipeline logic and the demo satellite provider are unchanged; data
+    # is ephemeral. Migrations are bypassed via create_all in this mode only.
+    ENABLE_DEMO_MODE: bool = False
+
     # API
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000

@@ -2,13 +2,12 @@
 
 import enum
 
-from geoalchemy2 import Geometry
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.database import Base
+from app.database import Base, geometry_type
 
 
 class AnalysisType(str, enum.Enum):
@@ -27,6 +26,9 @@ class AnalysisType(str, enum.Enum):
     ROBOTICS_INSPECTION = "robotics_inspection"
 
 
+_GEOM = geometry_type()
+
+
 class Analysis(Base):
     """Analysis job/request"""
     __tablename__ = "analyses"
@@ -34,7 +36,7 @@ class Analysis(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     analysis_type = Column(SQLEnum(AnalysisType), nullable=False)
-    geometry = Column(Geometry('POLYGON', srid=4326), nullable=False)
+    geometry = Column(_GEOM, nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     radius_km = Column(Float, nullable=False)
@@ -54,7 +56,7 @@ class AnalysisResult(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     analysis_id = Column(Integer, ForeignKey("analyses.id"), nullable=False)
-    result_geometry = Column(Geometry('POLYGON', srid=4326), nullable=True)
+    result_geometry = Column(_GEOM, nullable=True)
     severity_score = Column(Float, nullable=True)  # 0-1
     confidence = Column(Float, nullable=True)  # 0-1
     finding = Column(Text, nullable=False)

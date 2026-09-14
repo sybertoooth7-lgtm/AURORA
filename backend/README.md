@@ -146,6 +146,26 @@ uvicorn main:app --reload
 python worker.py
 ```
 
+### Option 3: Demo mode (zero external infrastructure)
+
+Run the whole platform with nothing installed but the Python deps -- an
+in-memory SQLite database and an in-memory queue replace Postgres, PostGIS
+and Redis, and analysis jobs execute inline during the request. All pipeline
+logic and the deterministic demo satellite provider are the real ones;
+results carry `provenance=simulated` and data is ephemeral (lost on restart).
+
+```bash
+# in backend/.env
+ENABLE_DEMO_MODE=true
+
+uvicorn main:app --reload
+```
+
+No database, no Redis, no worker process needed. Set
+`ENABLE_DEMO_MODE=false` (or unset it) to go back to the Postgres/Redis
+deployment path; demo mode never touches either and never uses `create_all`
+against a real database.
+
 ### Database migrations
 
 Schema changes go through Alembic, not `Base.metadata.create_all()`. After

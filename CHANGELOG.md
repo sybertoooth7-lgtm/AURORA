@@ -4,6 +4,9 @@ All notable changes to the AURORA platform. Dates are when the change landed on 
 
 ## Unreleased
 
+### Added
+- **Demo mode** (`ENABLE_DEMO_MODE=true`) — the platform boots with zero external infrastructure: in-memory SQLite database + in-memory queue replace Postgres/PostGIS/Redis, analysis jobs execute inline, and all pipeline logic + the demo satellite provider run for real with `provenance=simulated`. End-to-end subprocess test in `tests/test_demo_mode.py`.
+
 ### Planned
 - Redis-backed global rate limiting (current limiter is per-process in-memory).
 - Real Sentinel-2 provider activation (requires `SENTINEL_CLIENT_ID` / `SENTINEL_CLIENT_SECRET`).

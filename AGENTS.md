@@ -23,7 +23,7 @@ All commands run from `backend/`:
 & "C:\Users\NEC\AppData\Local\Temp\opencode\aurora-venv\Scripts\python.exe" -m pytest tests/ --ignore=tests/test_auth_hardening.py -p no:warnings
 ```
 
-Expect exactly **281 tests passing**, `ruff` and `mypy` clean.
+Expect exactly **282 tests passing**, `ruff` and `mypy` clean.
 
 For the frontend type-check/build:
 
@@ -40,6 +40,7 @@ npm.cmd run build
 - No local Postgres/Redis/Docker. As a result:
   - **Alembic migrations cannot be run locally** — they are validated in CI (`alembic upgrade head` against PostGIS 16).
   - **`tests/test_auth_hardening.py` needs Redis** and stays excluded from local runs; CI runs the full suite.
+  - **Demo mode** (`ENABLE_DEMO_MODE=true` in `backend/.env`) boots the app with an in-memory SQLite database + in-memory queue and needs no external services at all. It is the normal local dev path. `tests/test_demo_mode.py` exercises it end-to-end via a subprocess (the flag cannot be flipped in-process: settings are `lru_cache`d and the engine is built at module import). Never import `geoalchemy2` when demo mode is on — its global SQLite dialect patches break the in-memory DB; `app.database.geometry_type()`/`area_geometry()` abstract that away.
 - Real Sentinel-2 data requires `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` (Copernicus Data Space); otherwise the deterministic demo provider is used.
 - `gh` CLI is at `%LOCALAPPDATA%\Programs\gh\bin`. It authenticates CI checks via the token in the Windows Credential Manager (`git credential fill`), which lacks `read:org` — so use the GitHub REST API or git's stored creds, not `gh auth`.
 

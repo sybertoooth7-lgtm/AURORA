@@ -104,6 +104,12 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
+**Option 3 — demo mode (zero infra):** set `ENABLE_DEMO_MODE=true` in
+`backend/.env` and run `uvicorn main:app --reload`. The platform boots with
+an in-memory SQLite database + in-memory queue — no Postgres, PostGIS or
+Redis needed; all pipeline logic runs for real (demo satellite provider,
+`provenance=simulated`), and data is ephemeral.
+
 API will be available at: `http://localhost:8000`
 
 **Health Check:**
