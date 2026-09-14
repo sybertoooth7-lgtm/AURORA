@@ -17,6 +17,7 @@ All notable changes to the AURORA platform. Dates are when the change landed on 
 - Docs corrected after the merged rate limiter: `docs/API.md` and `backend/README.md` no longer claim the limiter is per-process/in-memory, and the offline-suite note no longer requires a local Redis.
 - The live Sentinel-2 Statistical API rejected requests with `400` ("pixel size exceeds the limit") because `resx`/`resy` were sent as meter values over a WGS84 degree bbox; resolution is now expressed in the bbox's CRS units (~10 m ≈ 8.98e-5 degrees).
 - Demo mode now always uses the deterministic demo satellite provider, even when Sentinel credentials are configured, keeping demo fully deterministic and honest; live data is the explicit non-demo path.
+- Onboarding's "Connect live satellite data" flag (`has_live_satellite`) now reflects the provider actually serving observations instead of only checking credentials, so demo mode can no longer claim a live source while serving simulated data.
 
 ### Planned
 - Deploy Sentinel-2 credentials (`SENTINEL_CLIENT_ID` / `SENTINEL_CLIENT_SECRET`) to production (with `ENABLE_DEMO_MODE=false` and PostGIS + Redis provisioned).

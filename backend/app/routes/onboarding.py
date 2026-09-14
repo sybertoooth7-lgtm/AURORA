@@ -21,6 +21,7 @@ from app.models.analysis import Analysis
 from app.models.user import User
 from app.routes.ai import _fetch_observation, _persist_analysis_result
 from app.routes.analysis import build_area_polygon_wkt
+from app.satellite.providers import DemoSatelliteProvider, get_satellite_provider
 from app.schemas.ai import PipelineResultResponse
 from app.schemas.onboarding import (
     FirstAnalysisRequest,
@@ -36,8 +37,13 @@ router = APIRouter(prefix="/onboarding", tags=["Onboarding"])
 
 
 def has_live_satellite() -> bool:
-    settings = get_settings()
-    return bool(settings.SENTINEL_CLIENT_ID and settings.SENTINEL_CLIENT_SECRET)
+    """True only when the provider actually serving observations is live.
+
+    Mirrors ``get_satellite_provider()`` by construction so the onboarding
+    checklist can never claim a live source while demo mode (always
+    simulated) or the demo fallback is in effect.
+    """
+    return not isinstance(get_satellite_provider(), DemoSatelliteProvider)
 
 
 def build_onboarding_status(

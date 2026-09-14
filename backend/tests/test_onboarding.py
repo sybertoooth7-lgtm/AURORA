@@ -5,7 +5,7 @@ next_action logic is exercised without a database connection.
 """
 
 
-from app.routes.onboarding import build_onboarding_status
+from app.routes.onboarding import build_onboarding_status, has_live_satellite
 
 
 class _FakeUser:
@@ -101,3 +101,29 @@ class TestOnboardingStatus:
         done_ids.append("first_analysis")  # mock run
         progress = round(len(done_ids) / len(status.checklist) * 100)
         assert 0 < progress < 100
+
+
+class TestHasLiveSatellite:
+    def _set(self, monkeypatch, demo: bool, creds: bool) -> None:
+        class _Settings:
+            ENABLE_DEMO_MODE = demo
+            SENTINEL_CLIENT_ID = "id" if creds else None
+            SENTINEL_CLIENT_SECRET = "secret" if creds else None
+            SENTINEL_TOKEN_URL = "https://token.example"
+            SENTINEL_STATS_URL = "https://stats.example"
+            SENTINEL_LOOKBACK_DAYS = 30
+
+        monkeypatch.setattr("app.routes.onboarding.get_settings", lambda: _Settings())
+        monkeypatch.setattr("app.satellite.providers.get_settings", lambda: _Settings())
+
+    def test_demo_mode_forces_simulated(self, monkeypatch):
+        self._set(monkeypatch, demo=True, creds=True)
+        assert has_live_satellite() is False
+
+    def test_live_when_configured_outside_demo(self, monkeypatch):
+        self._set(monkeypatch, demo=False, creds=True)
+        assert has_live_satellite() is True
+
+    def test_no_credentials_means_simulated(self, monkeypatch):
+        self._set(monkeypatch, demo=False, creds=False)
+        assert has_live_satellite() is False

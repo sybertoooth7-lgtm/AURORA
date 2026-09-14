@@ -24,7 +24,7 @@ All commands run from `backend/`:
 & "C:\Users\NEC\AppData\Local\Temp\opencode\aurora-venv\Scripts\python.exe" -m pytest tests/ -p no:warnings
 ```
 
-Expect exactly **325 tests passing**, `ruff` and `mypy` clean.
+Expect exactly **328 tests passing**, `ruff` and `mypy` clean.
 
 For the frontend type-check/build:
 
