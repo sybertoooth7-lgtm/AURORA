@@ -48,8 +48,11 @@ class _DemoRedis:
         entry = self._data.get(self._encode(key))
         return entry[0] if entry else None
 
-    def set(self, key, value, ex=None) -> bool:
-        self._data[self._encode(key)] = (
+    def set(self, key, value, ex=None, nx=False) -> bool:
+        encoded = self._encode(key)
+        if nx and encoded in self._data:
+            return False
+        self._data[encoded] = (
             self._encode(value),
             time.monotonic() + ex if ex else None,
         )

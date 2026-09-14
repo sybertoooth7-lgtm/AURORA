@@ -153,6 +153,18 @@ class Settings(BaseSettings):
     # -- this bounds how many frames each flight keeps before eviction.
     ROBOTICS_FLIGHT_RETENTION_FRAMES: int = 1000
 
+    # Continuous monitoring: scheduled re-checks of areas that have a cadence
+    # set (PATCH /analysis/{id}/monitor). The scheduler is a daemon thread in
+    # the API process (app.monitoring) that enqueues due re-checks onto the
+    # same RQ queue, so the actual work is executed by the normal worker --
+    # it is safe with several API replicas because each check is de-duplicated
+    # with a per-analysis Redis lock. The minimum cadence bounds how fast one
+    # user can make the platform burn Sentinel Hub quota on auto-triggered
+    # checks, on top of the per-user daily cap on manual runs.
+    MONITOR_SCHEDULER_TICK_SECONDS: int = 60
+    MONITOR_MIN_INTERVAL_MINUTES: int = 15
+    MONITOR_LOCK_TTL_SECONDS: int = 300
+
     class Config:
         env_file = ".env"
         case_sensitive = True

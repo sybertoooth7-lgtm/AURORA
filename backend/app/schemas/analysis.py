@@ -2,8 +2,9 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from app.config import get_settings
 from app.models.analysis import AnalysisType
 
 
@@ -28,9 +29,34 @@ class AnalysisResponse(BaseModel):
     radius_km: float
     created_at: datetime
     completed_at: datetime | None
+    monitor_interval_minutes: int | None
+    next_check_at: datetime | None
 
     class Config:
         from_attributes = True
+
+
+class AnalysisMonitorUpdate(BaseModel):
+    """Set (or clear) continuous monitoring for an area.
+
+    A non-null value schedules a re-check every that many minutes, starting
+    now; null disables monitoring. The floor is enforced here against the
+    configured minimum so enabling can never create a cadence fast enough to
+    burn through the whole Sentinel free tier on one area alone.
+    """
+    monitor_interval_minutes: int | None = None
+
+    @field_validator("monitor_interval_minutes")
+    @classmethod
+    def _floor_min_interval(cls, value: int | None) -> int | None:
+        if value is None:
+            return value
+        minimum = get_settings().MONITOR_MIN_INTERVAL_MINUTES
+        if value < minimum:
+            raise ValueError(
+                f"monitor_interval_minutes must be at least {minimum} minutes"
+            )
+        return value
 
 
 class AnalysisResultListResponse(BaseModel):

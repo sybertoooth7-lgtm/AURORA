@@ -5,6 +5,7 @@ All notable changes to the AURORA platform. Dates are when the change landed on 
 ## Unreleased
 
 ### Added
+- **Continuous monitoring** — `PATCH /analysis/{id}/monitor` sets a re-check cadence (bounded by `MONITOR_MIN_INTERVAL_MINUTES`), `POST /analysis/{id}/re-run` triggers an immediate re-check, both shown in the web dashboard (last/next check). A daemon-thread scheduler (`app/monitoring.py`) fires due re-checks onto the normal RQ worker and de-duplicates across API replicas with a per-analysis Redis lock; manual re-runs share the daily quota.
 - **Demo mode** (`ENABLE_DEMO_MODE=true`) — the platform boots with zero external infrastructure: in-memory SQLite database + in-memory queue replace Postgres/PostGIS/Redis, analysis jobs execute inline, and all pipeline logic + the demo satellite provider run for real with `provenance=simulated`. End-to-end subprocess test in `tests/test_demo_mode.py`. With demo mode on locally, the entire test suite (including the Redis-dependent auth-hardening and rate-limiter tests) runs with no external services.
 - **Admin API** — `GET/POST /admin/users...` for listing and disabling/enabling accounts (`app/routes/admin.py`); no self-serve admin-grant endpoint by design.
 - **Email verification & password reset** — Redis-backed single-use tokens, provider-agnostic SMTP sender (`app/email.py`), verification/reset routes, JWT `token_version` invalidation on password change.

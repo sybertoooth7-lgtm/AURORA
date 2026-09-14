@@ -44,6 +44,12 @@ class Analysis(Base):
     description = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    # Continuous monitoring: non-null means the platform re-checks this area
+    # every `monitor_interval_minutes` minutes (see app.monitoring); the next
+    # scheduled pass, or None when monitoring is off. `completed_at` doubles
+    # as "last checked".
+    monitor_interval_minutes = Column(Integer, nullable=True)
+    next_check_at = Column(DateTime(timezone=True), nullable=True)
     results = relationship("AnalysisResult", back_populates="analysis", cascade="all, delete-orphan")
 
     def __repr__(self):

@@ -79,7 +79,8 @@ backend/
 │   │   └── flight.py          # in-memory flight store + health summariser
 │   ├── services/              # Business logic
 │   │   ├── analysis_runner.py # observation -> pipeline -> persistence
-│   │   └── insurance.py       # pure parametric trigger/payout evaluation
+│   │   ├── insurance.py       # pure parametric trigger/payout evaluation
+│   │   └── monitoring.py      # continuous-monitoring scheduler (re-check loop)
 │   └── satellite/             # Satellite data providers
 │       ├── providers.py       # Provider interface + demo provider + factory
 │       └── sentinel_hub.py    # Real Copernicus Data Space Ecosystem (Sentinel Hub) provider
@@ -225,6 +226,11 @@ alembic upgrade head
 - `GET /onboarding/status` - Checklist + next action for the current user
 - `POST /onboarding/complete` - Mark onboarding complete
 - `POST /onboarding/first-analysis` - Run a guided first analysis
+
+### Continuous monitoring
+- `PATCH /analysis/{id}/monitor` - Set or clear a re-check cadence (hourly / daily / weekly); next check starts one interval from now (auth)
+- `POST /analysis/{id}/re-run` - Immediate re-check; shares the per-user daily quota; refuses while a run is already pending/processing (auth)
+- Scheduled re-checks: a daemon-thread scheduler (`app/monitoring.py`, started in the API lifespan) polls every `MONITOR_SCHEDULER_TICK_SECONDS`, claims each due area with a Redis `SET NX` lock (`MONITOR_LOCK_TTL_SECONDS`), and enqueues it onto the normal RQ queue so the worker runs the same observation + pipeline path as a manual request. Failed passes simply retry after the cadence elapses.
 
 Every AI result carries explicit **provenance** (`real` vs `simulated`) and a
 **model** identity whose `kind` is `prototype` or `production`. Results from the

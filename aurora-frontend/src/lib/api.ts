@@ -114,6 +114,15 @@ export const api = {
   getAnalysisResults: (id: number) =>
     request<{ results: AnalysisResult[] }>(`/analysis/${id}/results`),
 
+  setMonitoring: (id: number, monitorIntervalMinutes: number | null) =>
+    request<Analysis>(`/analysis/${id}/monitor`, {
+      method: 'PATCH',
+      body: JSON.stringify({ monitor_interval_minutes: monitorIntervalMinutes }),
+    }),
+
+  rerunAnalysis: (id: number) =>
+    request<Analysis>(`/analysis/${id}/re-run`, { method: 'POST' }),
+
   listAlerts: (unreadOnly = false) =>
     request<Alert[]>(`/alerts${unreadOnly ? '?unread_only=true' : ''}`),
 

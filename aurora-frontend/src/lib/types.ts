@@ -37,6 +37,8 @@ export interface Analysis {
   radius_km: number
   created_at: string
   completed_at: string | null
+  monitor_interval_minutes: number | null
+  next_check_at: string | null
 }
 
 export interface AnalysisResultMetadata {
@@ -124,4 +126,19 @@ export interface PipelineResult {
 export interface InferResponse {
   result: PipelineResult
   created_analysis_id: number
+}
+
+// Continuous-monitoring cadences. The numbers must stay <= the backend's
+// MONITOR_MIN_INTERVAL_MINUTES floor and match what the API accepts.
+export const MONITORING_CADENCES: Array<{ minutes: number; label: string }> = [
+  { minutes: 60, label: 'Every hour' },
+  { minutes: 1440, label: 'Every day' },
+  { minutes: 10080, label: 'Every week' },
+]
+
+export function monitoringCadenceLabel(minutes: number | null): string {
+  if (minutes == null) return 'Not monitoring'
+  return (
+    MONITORING_CADENCES.find((c) => c.minutes === minutes)?.label ?? `Every ${minutes} min`
+  )
 }

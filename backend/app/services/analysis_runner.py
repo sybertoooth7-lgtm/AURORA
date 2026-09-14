@@ -7,7 +7,7 @@ leave the analysis in a clear "failed" state with the error logged.
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from app.ai import get_pipeline
 from app.ai.registry import UnknownPipelineError
@@ -99,6 +99,14 @@ def run_analysis(analysis_id: int) -> None:
             ))
         analysis.status = "completed"
         analysis.completed_at = datetime.now(UTC)
+        # A completed monitored area schedules its follow-up pass from the
+        # moment it finished. On failure next_check_at is left as the
+        # scheduler advanced it, so a failing area retries only after its
+        # cadence has elapsed rather than hammering every tick.
+        if analysis.monitor_interval_minutes is not None:
+            analysis.next_check_at = datetime.now(UTC) + timedelta(
+                minutes=analysis.monitor_interval_minutes
+            )
         db.commit()
 
         logger.info(

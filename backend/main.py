@@ -63,10 +63,19 @@ async def lifespan(app: FastAPI):
         "AI pipelines registered",
         extra_keys={"pipelines": [p["name"] for p in list_pipeline_descriptions()]},
     )
+    # Continuous monitoring: the scheduler only decides *when* a monitored
+    # area is re-checked -- each pass is still enqueued onto the RQ queue and
+    # executed by the normal worker, so it adds no execution path of its own.
+    from app.monitoring import scheduler
+
+    scheduler.start()
+    logger.info("Monitoring scheduler started")
 
     yield
 
     # Shutdown
+    scheduler.stop()
+    logger.info("Monitoring scheduler stopped")
     logger.info("AURORA Backend shutting down")
 
 
@@ -180,12 +189,27 @@ async def aurora_error_handler(request: Request, exc: AuroraError):
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError):
     logger.warning("validation_error", extra_keys={"path": request.url.path, "errors": exc.errors()})
+
+    def _sanitize(errs):
+        """Pydantic error dicts may carry exception objects in ``ctx``; convert
+        them to strings so the JSON response is always serializable."""
+        clean = []
+        for err in errs:
+            sanitized = dict(err)
+            if "ctx" in sanitized:
+                sanitized["ctx"] = {
+                    k: str(v) if isinstance(v, BaseException) else v
+                    for k, v in sanitized["ctx"].items()
+                }
+            clean.append(sanitized)
+        return clean
+
     return JSONResponse(
         status_code=422,
         content={
             "detail": "Request validation failed",
             "code": "validation_failed",
-            "errors": exc.errors(),
+            "errors": _sanitize(exc.errors()),
         },
     )
 
@@ -234,6 +258,7 @@ async def root():
         "insurance": "/insurance/defaults",
         "robotics": "/robotics/flights/{flight_id}",
         "onboarding": "/onboarding/status",
+        "monitoring": "PATCH /analysis/{id}/monitor",
     }
 
 
