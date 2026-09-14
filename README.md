@@ -136,7 +136,7 @@ npm run build        # type-check (tsc) + production build
 cd backend
 python -m ruff check .
 python -m mypy app
-python -m pytest tests/ -p no:warnings   # needs Postgres + Redis for the full suite
+python -m pytest tests/ -p no:warnings   # full suite; CI runs it against Postgres + Redis services
 ```
 
 ## 🎯 Product Strategy

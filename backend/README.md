@@ -317,17 +317,17 @@ real `SentinelHubProvider` (Copernicus Data Space Ecosystem) when
 `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` are set, or the deterministic
 `DemoSatelliteProvider` otherwise (results then report `simulated`). Running
 the worker is required for analyses to ever leave "pending" -- the API process
-no longer runs them in-process. The current rate limiter is process-local; use
-Redis for multi-instance deployment of that too.
+no longer runs them in-process. Rate limiting is Redis-backed (the budget
+holds across API replicas); in demo mode it uses the in-process substitute.
 
 ### Running Tests
 ```bash
 # From backend/. pyproject.toml sets pythonpath so `app` and `main` resolve.
 pytest
-# All AI-pipeline / provider / security tests run offline.
-# tests/test_auth_hardening.py additionally needs a local Redis
-# (redis-server, or `docker-compose up -d redis`) and is excluded from
-# offline runs with `--ignore=tests/test_auth_hardening.py`.
+# The full suite runs offline: demo mode (ENABLE_DEMO_MODE=true in .env)
+# supplies an in-memory SQLite DB plus an in-memory Redis substitute, and
+# tests/conftest.py creates the schema for in-process TestClient tests.
+# CI runs the same suite against real PostGIS 16 + Redis.
 ```
 
 ### Code Style

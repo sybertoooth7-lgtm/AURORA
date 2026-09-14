@@ -340,7 +340,10 @@ All API endpoints are rate-limited per client IP (HTTP middleware in `app/main.p
 
 Requests over the limit return `429 {"detail": "Rate limit exceeded"}`.
 
-Honest caveat: the limiter is currently a **per-process in-memory** store (bounded LRU, oldest clients evicted first). It is not a global count across replicas — a client can get a fresh budget per API instance. A Redis-backed global limiter is the planned upgrade path; the middleware lives in one place so it drops in without route changes.
+The limiter is backed by Redis (sliding-window log via sorted sets in `app/rate_limiter.py`),
+so each client IP's budget holds across **all** API replicas, not just one process. In demo
+mode (`ENABLE_DEMO_MODE=true`) it runs against the in-process Redis substitute — correct for
+a single local dev process, not load-balanced production.
 
 ## Pagination
 

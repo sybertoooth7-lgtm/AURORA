@@ -12,6 +12,8 @@ All notable changes to the AURORA platform. Dates are when the change landed on 
 
 ### Fixed
 - Merged admin/verification/reset work was missing `app/schemas/admin.py` (referenced by `app/routes/admin.py`), which broke app import — schema added.
+- Setting only one of `SENTINEL_CLIENT_ID`/`SENTINEL_CLIENT_SECRET` used to silently fall back to the demo satellite provider; startup now logs a warning so partial config is loud.
+- Docs corrected after the merged rate limiter: `docs/API.md` and `backend/README.md` no longer claim the limiter is per-process/in-memory, and the offline-suite note no longer requires a local Redis.
 
 ### Planned
 - Real Sentinel-2 provider activation (requires `SENTINEL_CLIENT_ID` / `SENTINEL_CLIENT_SECRET`).

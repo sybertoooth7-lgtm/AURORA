@@ -46,6 +46,14 @@ async def lifespan(app: FastAPI):
 
         init_demo_schema()
         logger.info("Demo mode: in-memory SQLite schema created (no Postgres/Redis required)")
+    # A single Sentinel credential silently degrades the satellite provider to
+    # the demo one -- make that loud instead of surprising.
+    if bool(settings.SENTINEL_CLIENT_ID) != bool(settings.SENTINEL_CLIENT_SECRET):
+        logger.warning(
+            "SENTINEL_CLIENT_ID and SENTINEL_CLIENT_SECRET must be set together; "
+            "with only one configured, the live satellite provider is skipped and "
+            "results report simulated=true"
+        )
     # Register AI pipelines eagerly so a misconfiguration is loud at startup,
     # not on the first analysis request.
     from app.ai.registry import build_workspace_pipelines, list_pipeline_descriptions
