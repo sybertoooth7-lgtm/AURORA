@@ -95,6 +95,22 @@ def client():
 
 
 @pytest.fixture(autouse=True)
+def _inline_analysis_queue(monkeypatch):
+    """Force analysis jobs to run synchronously in this process.
+
+    The assertions below rely on runs completing (status -> completed, new
+    AnalysisResult rows). CI runs against a real Redis whose RQ queue has no
+    worker bound to it, so jobs would otherwise sit queued forever; demo mode
+    already uses an inline queue, so this just pins that behavior everywhere.
+    """
+    from app.queue import _InlineQueue
+
+    queue = _InlineQueue()
+    monkeypatch.setattr("app.routes.analysis.get_analysis_queue", lambda: queue)
+    monkeypatch.setattr("app.monitoring.get_analysis_queue", lambda: queue)
+
+
+@pytest.fixture(autouse=True)
 def _clean_state():
     redis = get_redis()
     keys = redis.keys("auth:*") + redis.keys("quota:*") + redis.keys("ratelimit:*") + redis.keys("monitor:*")
