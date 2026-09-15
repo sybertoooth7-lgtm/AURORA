@@ -66,10 +66,21 @@ def send_verification_email(to: str, verify_url: str) -> None:
         to=to,
         subject="Verify your AURORA email address",
         body=(
-            "Confirm this email address to activate your AURORA account.\n\n"
-            "Your account is created and you can browse the dashboard, but "
-            "verification is required before the first analysis can be run "
-            f"(that confirms we can reach you). Verify it here: {verify_url}\n\n"
-            f"This link expires in {ttl_days} days."
+            "Confirm this email address to finish setting up your AURORA account.\n\n"
+            f"Verify it here: {verify_url}\n\n"
+            f"This link expires in {ttl_days} days. Your account works fine in the "
+            "meantime -- verifying just confirms we can reach you."
+        ),
+    )
+
+
+def send_alert_email(to: str, area_name: str, alert_title: str, description: str, dashboard_url: str) -> None:
+    send_email(
+        to=to,
+        subject=f"AURORA alert: {alert_title} ({area_name})",
+        body=(
+            f"{alert_title} for {area_name}.\n\n"
+            f"{description}\n\n"
+            f"View the full reading: {dashboard_url}"
         ),
     )
