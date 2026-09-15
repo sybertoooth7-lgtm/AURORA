@@ -7,14 +7,18 @@ leave the analysis in a clear "failed" state with the error logged.
 """
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
+
+from geoalchemy2.elements import WKTElement
 
 from app.ai import get_pipeline
 from app.ai.registry import UnknownPipelineError
-from app.database import SessionLocal, area_geometry
+from app.database import SessionLocal
+from app.email import send_alert_email
 from app.logging_conf import get_logger
 from app.models.alert import Alert
 from app.models.analysis import Analysis, AnalysisResult
+from app.models.user import User
 from app.satellite.providers import get_satellite_provider
 
 logger = get_logger(__name__)
@@ -30,6 +34,37 @@ def _history_limit() -> int:
     from app.config import get_settings
 
     return get_settings().AI_HISTORY_LIMIT
+
+
+def _notify_user_of_alert(db, analysis: Analysis, alert: Alert) -> None:
+    """Email the user about a newly created alert. Resilient on purpose --
+    a broken mail server shouldn't fail an otherwise-successful analysis
+    run; the alert is already saved and visible in the dashboard either
+    way, the email is a convenience on top of that, not the source of
+    truth."""
+    from app.config import get_settings
+
+    user = db.query(User).filter(User.id == analysis.user_id).first()
+    if not user:
+        return
+
+    settings = get_settings()
+    area_name = analysis.description or analysis.analysis_type.value.replace("_", " ")
+    dashboard_url = f"{settings.FRONTEND_URL}/app/areas/{analysis.id}"
+
+    try:
+        send_alert_email(
+            to=user.email,
+            area_name=area_name,
+            alert_title=alert.title,
+            description=alert.description,
+            dashboard_url=dashboard_url,
+        )
+    except OSError:
+        logger.exception(
+            "Failed to send alert email",
+            extra_keys={"analysis_id": analysis.id, "user_id": user.id},
+        )
 
 
 def _execute_pipeline(analysis: Analysis):
@@ -78,8 +113,9 @@ def run_analysis(analysis_id: int) -> None:
 
         db_result = AnalysisResult(
             analysis_id=analysis.id,
-            result_geometry=area_geometry(
+            result_geometry=WKTElement(
                 _polygon_wkt(analysis.latitude, analysis.longitude, analysis.radius_km),
+                srid=4326,
             ),
             severity_score=result.severity,
             confidence=result.confidence,
@@ -90,23 +126,19 @@ def run_analysis(analysis_id: int) -> None:
         db.flush()
 
         if result.severity >= 0.35:
-            db.add(Alert(
+            alert_title = f"{analysis.analysis_type.value.replace('_', ' ').title()} detected"
+            db_alert = Alert(
                 user_id=analysis.user_id,
                 analysis_result_id=db_result.id,
                 alert_type="warning" if result.severity < 0.7 else "critical",
-                title=f"{analysis.analysis_type.value.replace('_', ' ').title()} detected",
+                title=alert_title,
                 description=db_result.finding,
-            ))
+            )
+            db.add(db_alert)
+            db.flush()
+            _notify_user_of_alert(db, analysis, db_alert)
         analysis.status = "completed"
         analysis.completed_at = datetime.now(UTC)
-        # A completed monitored area schedules its follow-up pass from the
-        # moment it finished. On failure next_check_at is left as the
-        # scheduler advanced it, so a failing area retries only after its
-        # cadence has elapsed rather than hammering every tick.
-        if analysis.monitor_interval_minutes is not None:
-            analysis.next_check_at = datetime.now(UTC) + timedelta(
-                minutes=analysis.monitor_interval_minutes
-            )
         db.commit()
 
         logger.info(
