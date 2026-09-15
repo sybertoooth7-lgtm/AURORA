@@ -1,4 +1,4 @@
-"""Admin schemas"""
+"""Admin API schemas."""
 
 from pydantic import BaseModel
 
@@ -10,6 +10,3 @@ class UserListResponse(BaseModel):
     total: int
     skip: int
     limit: int
-
-    class Config:
-        from_attributes = True
