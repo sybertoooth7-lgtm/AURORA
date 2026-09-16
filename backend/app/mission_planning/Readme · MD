@@ -1,0 +1,74 @@
+# AURORA Mission Planning
+
+This package holds two genuinely different kinds of code, both filed
+under "Mission Planning" because that's where they sit on AURORA's org
+chart -- not because they're the same kind of thing. Read this before
+extending either half.
+
+## `scheduling.py` — the actual engineering subsystem
+
+A real mission-planning engine, in the same Stage-0-simulation spirit as
+`app/spacecraft` and `app/robotics`: deterministic, offline-testable, no
+hardware or live-route dependency yet. Given a set of `Task`s (payload
+imaging requests, downlink sessions, maneuvers -- anything with a time
+window, a duration, and resource requirements), a set of
+`ResourceBudget`s (power, downlink bandwidth, storage, or anything else
+with a capacity), and optionally a set of ground-contact windows (reuses
+`app.spacecraft.mission.ContactWindow` rather than redefining it),
+`MissionScheduler.build_schedule()` produces a conflict-free schedule via
+priority-ordered greedy placement, and reports exactly which tasks
+couldn't be placed and why.
+
+```python
+from app.mission_planning.scheduling import (
+    MissionScheduler, Task, TaskPriority, ResourceBudget,
+)
+
+scheduler = MissionScheduler()
+scheduler.add_budget(ResourceBudget(name="downlink_mb", capacity=50, unit="MB"))
+
+tasks = [
+    Task(id="img-1", name="Naivasha imaging pass", priority=TaskPriority.HIGH,
+         earliest_start_s=0, latest_finish_s=3600, duration_s=300,
+         resource_requirements={"downlink_mb": 30}),
+    Task(id="img-2", name="Nakuru imaging pass", priority=TaskPriority.NORMAL,
+         earliest_start_s=0, latest_finish_s=3600, duration_s=300,
+         resource_requirements={"downlink_mb": 30}),
+]
+scheduled, conflicts = scheduler.build_schedule(tasks)
+```
+
+Not optimal in the bin-packing sense -- a greedy list scheduler, the same
+trade-off real mission planning tools make: fast, deterministic, and easy
+to explain why a task landed where it did, at some cost in packing
+efficiency versus a global optimizer.
+
+## `data_infrastructure.py`, `customer_support.py`, `international_partnerships.py` — the org-chart functions
+
+These are **not** physics simulations, and don't pretend to be. They're
+plain business-domain models for the three functions that report into
+Mission Planning on AURORA's org chart:
+
+- **Data infrastructure** — tracks the health/quota status of the data
+  sources analyses actually depend on (Sentinel Hub, the demo fallback),
+  so Mission Planning can tell whether it's safe to schedule new work
+  against a given source.
+- **Customer support** — ticket lifecycle, SLA tracking, escalation.
+- **International partnerships** — partner relationships and the
+  agreements governing them, including flagging ones about to lapse.
+
+Each is a dataclass model plus one small manager class -- the shape of
+domain logic a future API (`/support`, `/partnerships`, an internal ops
+dashboard) would sit on top of. None of it is wired to a live route,
+persisted anywhere, or connected to real data yet; it's a starting
+domain model, not a finished feature.
+
+## Why these live in one package
+
+Because "Mission Planning" names both things on AURORA's actual org
+chart: the engineering discipline of scheduling limited spacecraft/ops
+resources, and the operational function that decides what AURORA
+monitors, supports, and partners on. Keeping them in one package mirrors
+that org-chart reality. It does **not** mean `customer_support.py` is
+secretly a simulation of anything -- there's no physics to simulate in a
+support ticket.
