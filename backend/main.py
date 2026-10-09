@@ -86,6 +86,7 @@ tags_metadata = [
     {"name": "API Keys", "description": "Long-lived machine credentials (scoped to the calling account)."},
     {"name": "Analysis", "description": "Queued analysis jobs and their results."},
     {"name": "AI Pipelines", "description": "Registered analysis pipelines, synchronous inference, model registry."},
+    {"name": "Crop Analysis", "description": "End-to-end crop condition analysis from a field boundary polygon (NDVI from satellite observations, real or simulated, with provenance)."},
     {"name": "Satellite Data", "description": "Satellite imagery sources and stored images."},
     {"name": "Insurance (Parametric)", "description": "Earth-revenue parametric agriculture insurance trigger checks."},
     {"name": "Robotics Field Services", "description": "Drone/ground-robot telemetry bridge and post-flight NDVI inspections."},
@@ -239,6 +240,7 @@ app.include_router(routes.api_keys_router)
 app.include_router(routes.alerts_router)
 app.include_router(routes.reports_router)
 app.include_router(routes.ai_router)
+app.include_router(routes.crop_router)
 app.include_router(routes.system_router)
 app.include_router(routes.insurance_router)
 app.include_router(routes.robotics_router)
@@ -256,6 +258,7 @@ async def root():
         "version": settings.APP_VERSION,
         "docs": "/docs" if settings.api_docs_enabled else None,
         "ai": "/ai/pipelines",
+        "crop": "POST /crop/analyze",
         "capabilities": "/system/capabilities",
         "insurance": "/insurance/defaults",
         "robotics": "/robotics/flights/{flight_id}",

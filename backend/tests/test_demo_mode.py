@@ -161,6 +161,29 @@ def test_demo_mode_serves_the_full_platform(demo_server):
         assert infer_body["result"]["simulated"] is True
         assert infer_body["result"]["provenance"] == "simulated"
 
+        # Crop analysis over a field boundary -- full report end to end.
+        boundary = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [121.4637, 31.2204],
+                    [121.4837, 31.2204],
+                    [121.4837, 31.2404],
+                    [121.4637, 31.2404],
+                    [121.4637, 31.2204],
+                ]
+            ],
+        }
+        crop = client.post("/crop/analyze", headers=auth, json={"field_boundary": boundary})
+        assert crop.status_code == 201, crop.text
+        crop_body = crop.json()
+        assert crop_body["analysis_id"] > 0
+        assert crop_body["provenance"] == "simulated"
+        assert crop_body["observation"]["simulated"] is True
+        assert crop_body["condition"] in {"healthy", "stressed", "critical"}
+        assert crop_body["ndvi"] is not None
+        assert any("Provenance: simulated" in line for line in crop_body["report"])
+
         # Insurance trigger-check -- honest simulated provenance.
         trigger = client.post(
             "/insurance/trigger-check",
@@ -190,7 +213,7 @@ def test_demo_mode_serves_the_full_platform(demo_server):
         assert len(inspect_body["combined_report"]) >= 2
         assert inspect_body["result"]["simulated"] is True
 
-        # All three persisted runs appear in the user's analysis list.
+        # All four persisted runs appear in the user's analysis list.
         analyses = client.get("/analysis/", headers=auth)
         assert analyses.status_code == 200
         types = {entry["analysis_type"] for entry in analyses.json()}

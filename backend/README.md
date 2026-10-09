@@ -214,6 +214,9 @@ alembic upgrade head
 - `POST /ai/models` - Register a model version (auth; starts as prototype)
 - `PATCH /ai/models/{id}/status` - Promote to production / archive (admin)
 
+### Crop analysis (field boundary)
+- `POST /crop/analyze` - End-to-end crop report: a GeoJSON field polygon is surveyed (centroid + covering radius derived in code), NDVI is measured from the latest satellite observation through the vegetation pipeline, the run is persisted as a normal analysis, and a report with explicit `real`/`simulated` provenance is returned (auth, verified)
+
 ### System
 - `GET /system/capabilities` - Index of every subsystem + pipeline (public)
 

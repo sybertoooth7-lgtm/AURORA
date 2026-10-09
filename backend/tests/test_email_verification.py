@@ -89,6 +89,15 @@ def _mark_verified(username: str) -> None:
 _GATED_ENDPOINTS = [
     ("/analysis/", {"analysis_type": "vegetation_stress", "description": "x", **_AREA}),
     ("/ai/infer", {"analysis_type": "vegetation_stress", "use_history": False, **_AREA}),
+    (
+        "/crop/analyze",
+        {
+            "field_boundary": {
+                "type": "Polygon",
+                "coordinates": [[[36.81, -1.30], [36.83, -1.30], [36.83, -1.28], [36.81, -1.28], [36.81, -1.30]]],
+            }
+        },
+    ),
     ("/insurance/trigger-check", {"sum_insured_usd": 100000, "use_history": False, **_AREA}),
     ("/robotics/inspect", {"use_history": False, **_AREA}),
     ("/onboarding/first-analysis", {"analysis_type": "vegetation_stress", "use_history": False, **_AREA}),
