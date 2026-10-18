@@ -91,9 +91,9 @@ SUBSYSTEMS: list[dict] = [
         "description": (
             "AURORA-1 3U CubeSat: ADCS, power, thermal, comms, imaging "
             "payload, flight software, mission timeline and spacecraft "
-            "simulation."
+            "simulation. Stage 0 models, exposed as simulated endpoints."
         ),
-        "modules": ["app.spacecraft"],
+        "modules": ["app.spacecraft", "app.routes.spacecraft"],
         "status": "active",
     },
     {
@@ -103,9 +103,11 @@ SUBSYSTEMS: list[dict] = [
             "One autonomy brain for Earth, Moon, Mars and asteroids: layered "
             "decision stack (mission control .. human assistance), plus ops "
             "for comms delay, radiation, disconnected operation, fail-safe "
-            "and command security."
+            "and command security. The decision stack and environment "
+            "constants are exposed; command signing is not, until a "
+            "deployment supplies its own key."
         ),
-        "modules": ["app.multiplanetary"],
+        "modules": ["app.multiplanetary", "app.routes.multiplanetary"],
         "status": "active",
     },
     {
@@ -114,9 +116,32 @@ SUBSYSTEMS: list[dict] = [
         "description": (
             "TRL-grounded technology registry, extraction process models, "
             "ISRU plant simulation, delivery-cost economics, prospecting "
-            "planner and 8-phase program roadmap."
+            "planner and 8-phase program roadmap. Planning estimates on "
+            "hand-entered numbers, not prices or measured yields."
         ),
-        "modules": ["app.space_resources"],
+        "modules": ["app.space_resources", "app.routes.space_resources"],
+        "status": "active",
+    },
+    {
+        "id": "space_division",
+        "name": "Space Division (Constellation Ops)",
+        "description": (
+            "Walker-style fleet composition with a first-order revisit "
+            "estimate, and ground-station contact contention resolved by "
+            "priority. Fleet-sizing planning, not a coverage analysis."
+        ),
+        "modules": ["app.space_division", "app.routes.space_division"],
+        "status": "active",
+    },
+    {
+        "id": "mission_planning",
+        "name": "Mission Planning",
+        "description": (
+            "Greedy priority-ordered task scheduler over resource budgets and "
+            "contact windows, plus data-source readiness built from the "
+            "platform's own daily job outcomes."
+        ),
+        "modules": ["app.mission_planning", "app.routes.mission_planning"],
         "status": "active",
     },
 ]

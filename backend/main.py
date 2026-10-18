@@ -95,6 +95,11 @@ tags_metadata = [
     {"name": "Reports", "description": "Aggregated report exports."},
     {"name": "System", "description": "Platform-wide metadata and the capability registry."},
     {"name": "Admin", "description": "Account administration -- listing, disabling, enabling users."},
+    {"name": "Spacecraft Simulation", "description": "Stage 0 CubeSat subsystem models: coupled simulation, link budget, orbit properties. Simulated, never hardware telemetry."},
+    {"name": "Space Division", "description": "Stage 0 constellation fleet sizing and ground-segment contact contention."},
+    {"name": "Space Resources", "description": "Stage 0 ISRU technology registry, extraction yields, delivery economics, prospecting and programme roadmap. Planning estimates, not prices."},
+    {"name": "Multi-Planetary Autonomy", "description": "Stage 0 seven-layer decision stack, planetary environment constants and one-way light time. Proposals only, nothing is commanded."},
+    {"name": "Mission Planning", "description": "Stage 0 greedy task scheduling plus the platform's own data-source readiness."},
 ]
 
 app = FastAPI(
@@ -246,6 +251,11 @@ app.include_router(routes.insurance_router)
 app.include_router(routes.robotics_router)
 app.include_router(routes.onboarding_router)
 app.include_router(routes.admin_router)
+app.include_router(routes.spacecraft_router)
+app.include_router(routes.space_division_router)
+app.include_router(routes.space_resources_router)
+app.include_router(routes.multiplanetary_router)
+app.include_router(routes.mission_planning_router)
 
 
 @app.get("/")
@@ -265,6 +275,9 @@ async def root():
         "onboarding": "/onboarding/status",
         "monitoring": "PATCH /analysis/{id}/monitor",
         "apiKeys": "/auth/api-keys",
+        # The Space Division surfaces are model simulations, not the Earth
+        # product, so they are indexed as one group rather than alongside it.
+        "divisions": "/system/capabilities",
     }
 
 

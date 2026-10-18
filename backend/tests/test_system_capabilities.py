@@ -40,6 +40,8 @@ def test_capabilities_lists_all_subsystems(client):
         "spacecraft",
         "multiplanetary",
         "space_resources",
+        "space_division",
+        "mission_planning",
     }
 
 
@@ -71,3 +73,6 @@ def test_health_version_matches_app_version(client):
 def test_root_mentions_capabilities(client):
     payload = client.get("/").json()
     assert payload["capabilities"] == "/system/capabilities"
+    # The division surfaces are simulations; the index points at the register
+    # that says so rather than advertising them as products.
+    assert payload["divisions"] == "/system/capabilities"
