@@ -14,29 +14,33 @@ All commands run from `backend/`:
 
 ```powershell
 # Lint
-& "C:\Users\NEC\AppData\Local\Temp\opencode\aurora-venv\Scripts\python.exe" -m ruff check .
+& ".\.venv\Scripts\python.exe" -m ruff check .
 
 # Type check
-& "C:\Users\NEC\AppData\Local\Temp\opencode\aurora-venv\Scripts\python.exe" -m mypy app
+& ".\.venv\Scripts\python.exe" -m mypy app main.py
 
 # Tests (full suite -- demo mode provides the SQLite DB + in-memory Redis
 # substitute locally, so the Redis-dependent tests now run here too)
-& "C:\Users\NEC\AppData\Local\Temp\opencode\aurora-venv\Scripts\python.exe" -m pytest tests/ -p no:warnings
+& ".\.venv\Scripts\python.exe" -m pytest tests/ -p no:warnings
 ```
 
-Expect exactly **414 tests passing**, `ruff` and `mypy` clean.
+Expect exactly **575 tests passing**, `ruff` and `mypy` clean. The venv
+lives in `backend/.venv`; if it has been recreated elsewhere, substitute
+that path. Note that this shell can truncate pytest's summary line --
+confirm a run by its exit code, not by reading the last line of stdout.
 
-For the frontend type-check/build:
+For the frontend:
 
 ```powershell
 # from aurora-frontend/
-npm.cmd run build
+npm.cmd run build   # tsc -b && vite build
+npm.cmd run lint    # oxlint
 ```
 
 ## Environment notes
 
 - The toolchain is pinned in `backend/requirements-dev.txt` (`ruff==0.16.7`, `mypy==2.3.1`) so local results and CI results are identical. Prefer `uv` to install anything into the venv:
-  `& "C:\Users\NEC\.local\bin\uv.exe" pip install --python "C:\Users\NEC\AppData\Local\Temp\opencode\aurora-venv\Scripts\python.exe" <package>`
+  `& "C:\Users\NEC\.local\bin\uv.exe" pip install --python ".\.venv\Scripts\python.exe" <package>`
   (a pip was bootstrapped via `ensurepip` if uv is ever unavailable, but uv is the reliable path).
 - No local Postgres/Redis/Docker. As a result:
   - **Alembic migrations cannot be run locally** — they are validated in CI (`alembic upgrade head` against PostGIS 16).
