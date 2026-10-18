@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { PasswordField } from '../components/PasswordField'
 import { ApiError, api } from '../lib/api'
 
 export function ResetPasswordPage() {
@@ -71,33 +72,25 @@ export function ResetPasswordPage() {
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
-            <label htmlFor="password" className="block text-sm font-medium">
-              New password
-            </label>
-            <input
+            <PasswordField
               id="password"
-              type="password"
+              label="New password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
+              autoComplete="new-password"
               required
               minLength={8}
-              autoComplete="new-password"
-              className="mt-1 w-full rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-3 py-2 text-sm focus:border-[var(--color-orbit)] focus:outline-none"
             />
           </div>
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium">
-              Confirm new password
-            </label>
-            <input
+            <PasswordField
               id="confirmPassword"
-              type="password"
+              label="Confirm new password"
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={setConfirmPassword}
+              autoComplete="new-password"
               required
               minLength={8}
-              autoComplete="new-password"
-              className="mt-1 w-full rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-3 py-2 text-sm focus:border-[var(--color-orbit)] focus:outline-none"
             />
           </div>
 

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { PasswordField } from '../components/PasswordField'
 import { ApiError, consumeSessionExpiredFlag } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
@@ -64,25 +65,21 @@ export function LoginPage() {
             />
           </div>
           <div>
-            <div className="flex items-baseline justify-between">
-              <label htmlFor="password" className="block text-sm font-medium">
-                Password
-              </label>
-              <Link
-                to="/forgot-password"
-                className="text-xs text-[var(--color-ink-soft)] underline underline-offset-2 hover:text-[var(--color-ink)]"
-              >
-                Forgot password?
-              </Link>
-            </div>
-            <input
+            <PasswordField
               id="password"
-              type="password"
+              label="Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              onChange={setPassword}
               autoComplete="current-password"
-              className="mt-1 w-full rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-3 py-2 text-sm focus:border-[var(--color-orbit)] focus:outline-none"
+              required
+              labelAddon={
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-[var(--color-ink-soft)] underline underline-offset-2 hover:text-[var(--color-ink)]"
+                >
+                  Forgot password?
+                </Link>
+              }
             />
           </div>
 

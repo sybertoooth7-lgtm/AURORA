@@ -48,6 +48,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Edge and IE draw their own reveal/clear glyphs inside text and password
+   inputs; they land on top of our own show/hide button, so they're dropped. */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

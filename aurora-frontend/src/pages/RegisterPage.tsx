@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { PasswordField } from '../components/PasswordField'
 import { ApiError } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
@@ -74,18 +75,14 @@ export function RegisterPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium">
-              Password
-            </label>
-            <input
+            <PasswordField
               id="password"
-              type="password"
+              label="Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
+              autoComplete="new-password"
               required
               minLength={8}
-              autoComplete="new-password"
-              className="mt-1 w-full rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-3 py-2 text-sm focus:border-[var(--color-orbit)] focus:outline-none"
             />
           </div>
 
