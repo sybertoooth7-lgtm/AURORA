@@ -13,7 +13,7 @@ from app.database import area_geometry, get_db
 from app.models.alert import Alert
 from app.models.analysis import Analysis, AnalysisResult, AnalysisType
 from app.models.user import User
-from app.queue import get_analysis_queue
+from app.queue import enqueue_analysis
 from app.quota import check_and_increment_daily_quota, current_daily_quota_usage
 from app.schemas.analysis import (
     AnalysisCreate,
@@ -80,11 +80,7 @@ async def create_analysis(
     db.add(db_analysis)
     db.commit()
     db.refresh(db_analysis)
-    get_analysis_queue().enqueue(
-        run_analysis,
-        db_analysis.id,
-        job_timeout=get_settings().ANALYSIS_JOB_TIMEOUT_SECONDS,
-    )
+    enqueue_analysis(run_analysis, db_analysis.id)
     return db_analysis
 
 
@@ -414,11 +410,7 @@ async def rerun_analysis(
             minutes=analysis.monitor_interval_minutes
         )
     db.commit()
-    get_analysis_queue().enqueue(
-        run_analysis,
-        analysis.id,
-        job_timeout=get_settings().ANALYSIS_JOB_TIMEOUT_SECONDS,
-    )
+    enqueue_analysis(run_analysis, analysis.id)
     # Refresh after enqueue so the inline (demo) queue's synchronous run is
     # reflected in the response, not a stale "pending" from before it ran.
     db.refresh(analysis)

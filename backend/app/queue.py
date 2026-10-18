@@ -22,6 +22,8 @@ from app.config import get_settings
 
 ANALYSIS_QUEUE_NAME = "analysis"
 
+RQ_ENQUEUE_OPTIONS = ("job_timeout", "retry", "result_ttl", "ttl", "on_success", "on_failure")
+
 
 class _DemoRedis:
     """In-memory stand-in for the tiny Redis surface AURORA actually uses
@@ -182,9 +184,21 @@ class _InlineQueue:
         self.name = ANALYSIS_QUEUE_NAME
 
     def enqueue(self, func, *args, **kwargs):
-        job_timeout = kwargs.pop("job_timeout", None)
-        del job_timeout
+        # RQ-only enqueue options (timeout, retry policy, result TTL, job
+        # callbacks) have no meaning when the job runs right here, so they are
+        # dropped rather than passed into the function as stray kwargs.
+        for option in RQ_ENQUEUE_OPTIONS:
+            kwargs.pop(option, None)
         return func(*args, **kwargs)
+
+    @property
+    def count(self) -> int:
+        """Nothing is ever queued ahead of the caller in the inline queue."""
+        return 0
+
+    @property
+    def is_inline(self) -> bool:
+        return True
 
 
 @lru_cache
@@ -201,3 +215,51 @@ def get_analysis_queue() -> Queue:
     if get_settings().ENABLE_DEMO_MODE:
         return _InlineQueue()
     return Queue(ANALYSIS_QUEUE_NAME, connection=get_redis())
+
+
+def analysis_retry_policy():
+    """RQ retry policy for a queued analysis pass.
+
+    A transient provider/network failure should be retried without operator
+    involvement, but a permanent one (unknown pipeline, malformed area) must
+    fail immediately: retrying it just burns the same quota on the same bad
+    input. The caller-side check lives in
+    ``app.services.analysis_runner.is_retryable``; this only decides *how* the
+    retries are spaced.
+
+    Backoff is linear-per-attempt from the configured base so a rate-limited
+    provider gets breathing room rather than an immediate second hit.
+    """
+    from rq import Retry
+
+    settings = get_settings()
+    if settings.ANALYSIS_JOB_MAX_RETRIES <= 0:
+        return None
+    intervals = [
+        settings.ANALYSIS_JOB_RETRY_BACKOFF_SECONDS * (attempt + 1)
+        for attempt in range(settings.ANALYSIS_JOB_MAX_RETRIES)
+    ]
+    return Retry(max=settings.ANALYSIS_JOB_MAX_RETRIES, interval=intervals)
+
+
+def enqueue_analysis(func, analysis_id: int) -> object:
+    """Enqueue one analysis pass with the platform's shared job policy.
+
+    Every call site (manual create, re-run, monitoring tick, bulk import) gets
+    the identical timeout, retry and result-retention behaviour from one place,
+    so a new entry point cannot accidentally skip the retry policy.
+    """
+    settings = get_settings()
+    kwargs = {
+        "job_timeout": settings.ANALYSIS_JOB_TIMEOUT_SECONDS,
+        "result_ttl": settings.ANALYSIS_JOB_RESULT_TTL_SECONDS,
+    }
+    retry = analysis_retry_policy()
+    if retry is not None:
+        kwargs["retry"] = retry
+    job = get_analysis_queue().enqueue(func, analysis_id, **kwargs)
+    from app.job_metrics import record
+
+    record("enqueued")
+    return job
+

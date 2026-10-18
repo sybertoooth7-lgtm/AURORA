@@ -56,6 +56,28 @@ class SatelliteObservation:
             "simulated": self.is_simulated,
         }
 
+    @classmethod
+    def from_dict(cls, payload: dict) -> "SatelliteObservation":
+        """Rebuild an observation from its serialized form.
+
+        ``simulated`` is not a field: it stays derived from ``source`` against
+        REAL_SOURCE_IDS, so a cached or replayed payload cannot assert a
+        provenance the source id does not support.
+        """
+        return cls(
+            source=payload["source"],
+            image_id=payload["image_id"],
+            acquired_at=datetime.fromisoformat(payload["acquired_at"]),
+            cloud_coverage=payload["cloud_coverage"],
+            resolution_m=payload["resolution_m"],
+            ndvi=payload["ndvi"],
+            change_score=payload["change_score"],
+            ndwi=payload.get("ndwi"),
+            evi=payload.get("evi"),
+            bsi=payload.get("bsi"),
+            provided_bands=payload.get("provided_bands") or {},
+        )
+
 
 class SatelliteProvider:
     """Interface implemented by Sentinel, Landsat, and demo providers."""
