@@ -10,6 +10,7 @@ import {
   parseResultMetadata,
   type Alert,
   type Analysis,
+  type AnalysisHistoryResponse,
   type AnalysisResult,
 } from '../lib/types'
 
@@ -31,6 +32,7 @@ export function AreaDetailPage() {
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [results, setResults] = useState<AnalysisResult[]>([])
+  const [history, setHistory] = useState<AnalysisHistoryResponse | null>(null)
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [notFound, setNotFound] = useState(false)
   const [cadence, setCadence] = useState<number | null>(null)
@@ -40,20 +42,25 @@ export function AreaDetailPage() {
   useEffect(() => {
     setAnalysis(null)
     setResults([])
+    setHistory(null)
     setAlerts([])
     setNotFound(false)
     setCadence(null)
   }, [analysisId])
 
   const refresh = useCallback(async () => {
-    const [freshAnalysis, resultData, alertData] = await Promise.all([
+    const [freshAnalysis, resultData, alertData, historyData] = await Promise.all([
       api.getAnalysis(analysisId),
       api.getAnalysisResults(analysisId),
       api.listAlerts(),
+      // The trend is derived from the same rows as the table below, so a
+      // failure here only costs us the one-line summary, never the page.
+      api.analysisHistory(analysisId).catch(() => null),
     ])
     setAnalysis(freshAnalysis)
     setCadence(freshAnalysis.monitor_interval_minutes)
     setResults(resultData.results)
+    setHistory(historyData)
     setAlerts(alertData)
     return freshAnalysis.status
   }, [analysisId])
@@ -142,7 +149,7 @@ export function AreaDetailPage() {
             </h1>
             <p className="font-tabular mt-0.5 text-sm text-[var(--color-ink-soft)]">
               {analysis.latitude.toFixed(4)}, {analysis.longitude.toFixed(4)} &middot;{' '}
-              {analysis.radius_km}km radius
+              {analysis.radius_km.toFixed(2)}km radius
             </p>
           </div>
           <span className="font-tabular shrink-0 rounded-sm border border-[var(--color-border)] px-2 py-1 text-xs font-medium text-[var(--color-ink-soft)]">
@@ -251,6 +258,7 @@ export function AreaDetailPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
             History
           </h2>
+          {history && <TrendLine history={history} />}
           {results.length === 0 ? (
             <p className="mt-2 text-sm text-[var(--color-ink-soft)]">No results yet.</p>
           ) : (
@@ -353,6 +361,56 @@ function Reading({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs text-[var(--color-ink-soft)]">{label}</p>
       <p className="text-base font-medium">{value}</p>
+    </div>
+  )
+}
+
+const DIRECTION_LABELS: Record<string, string> = {
+  worsening: 'Worsening',
+  improving: 'Improving',
+  stable: 'Holding steady',
+  single_pass: 'Only one scored pass',
+  no_data: 'Not enough scored passes',
+}
+
+/**
+ * The backend compares the first and latest scored pass and calls anything
+ * inside +-0.05 stable, so the number travels with the word: a "stable"
+ * verdict with a 0.03 drift is a different claim than one with no drift at all.
+ */
+function TrendLine({ history }: { history: AnalysisHistoryResponse }) {
+  const label = DIRECTION_LABELS[history.direction] ?? history.direction
+  const colors = severityColor(
+    history.points[history.points.length - 1]?.severity_score ?? null,
+  )
+  const change = history.severity_change
+  const simulated = history.points.filter((point) => point.simulated).length
+
+  return (
+    <div className="mt-3 rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-3">
+      <p className="text-sm">
+        <span className="font-medium">{label}</span>
+        {change != null && (
+          <span className="font-tabular">
+            {' '}
+            &middot; severity {change > 0 ? '+' : ''}
+            {change.toFixed(2)}
+          </span>
+        )}
+        <span className="font-tabular">
+          {' '}
+          &middot; {colors.label} now
+        </span>
+      </p>
+      <p className="font-tabular mt-1 text-xs text-[var(--color-ink-soft)]">
+        {history.passes} pass{history.passes === 1 ? '' : 'es'}
+        {history.first_checked_at && history.latest_checked_at
+          ? ` between ${new Date(history.first_checked_at).toLocaleDateString()} and ${new Date(
+              history.latest_checked_at,
+            ).toLocaleDateString()}`
+          : ''}
+        {simulated > 0 ? ` · ${simulated} from simulated imagery` : ''}
+      </p>
     </div>
   )
 }

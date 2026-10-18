@@ -1,20 +1,54 @@
 import type {
   Alert,
   Analysis,
+  AnalysisHistoryResponse,
+  AnalysisListQuery,
+  AnalysisListResponse,
   AnalysisResult,
+  AnalysisSummaryResponse,
   AnalysisType,
   ApiKeyCreated,
   ApiKeyListEntry,
   ApiKeyListResponse,
+  CropAnalysisResponse,
+  CropBulkAnalysisResponse,
+  FieldBoundary,
   FlightListResponse,
   FlightSummary,
   InferResponse,
+  JobPipelineStatus,
   PipelineDescription,
   RoboticsInspectResponse,
   SimulateResponse,
   TelemetryFrame,
   User,
 } from './types'
+import type {
+  CommsDelayResponse,
+  CommsTarget,
+  ConstellationEvaluateResponse,
+  ContactRequestInput,
+  DataReadinessResponse,
+  EconomicsResponse,
+  EnvironmentDetailResponse,
+  EnvironmentListResponse,
+  ExtractionProcess,
+  ExtractionResponse,
+  GroundContactScheduleResponse,
+  LinkBudgetResponse,
+  MissionContextInput,
+  OrbitResponse,
+  ProspectingResponse,
+  RoadmapResponse,
+  ScheduleResponse,
+  SatelliteInput,
+  SiteInput,
+  SpacecraftSimulateResponse,
+  StackDecisionResponse,
+  TaskInput,
+  TechnologyDetailResponse,
+  TechnologyListResponse,
+} from './simulation'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000'
 
@@ -59,6 +93,30 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Turn a FastAPI error body into one readable line.
+ *
+ * A 422 carries a list of pydantic errors rather than a sentence, and a
+ * division endpoint rejects a lot of malformed input, so the field and the
+ * reason are worth more to a user than "Unprocessable Entity".
+ */
+function describeDetail(detail: unknown): string | null {
+  if (typeof detail === 'string') return detail
+  if (!Array.isArray(detail)) return null
+  const lines = detail
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null
+      const entry = item as { loc?: unknown; msg?: unknown }
+      const where = Array.isArray(entry.loc)
+        ? entry.loc.filter((part) => typeof part === 'string').join('.')
+        : ''
+      if (typeof entry.msg !== 'string') return null
+      return where ? `${where}: ${entry.msg}` : entry.msg
+    })
+    .filter((line): line is string => line !== null)
+  return lines.length > 0 ? lines.join('; ') : null
+}
+
 async function request<T>(
   path: string,
   options: RequestInit & { skipSessionExpiredHandling?: boolean } = {},
@@ -75,7 +133,12 @@ async function request<T>(
     let detail = response.statusText
     try {
       const body = await response.json()
-      detail = body.detail ?? detail
+      // The API's 422 handler keeps `detail` as a fixed sentence and puts the
+      // per-field problems under `errors`, so look there first or every
+      // malformed division input reads as "Request validation failed".
+      const reasons =
+        body.code === 'validation_failed' ? describeDetail(body.errors) : null
+      detail = reasons ?? describeDetail(body.detail) ?? detail
     } catch {
       // response wasn't JSON -- fall back to statusText
     }
@@ -97,6 +160,16 @@ async function request<T>(
   return (await response.json()) as T
 }
 
+function qs(params: Record<string, string | number | boolean | null | undefined>): string {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue
+    search.set(key, String(value))
+  }
+  const encoded = search.toString()
+  return encoded ? `?${encoded}` : ''
+}
+
 export const api = {
   register: (input: { email: string; username: string; password: string; full_name?: string }) =>
     request<User>('/auth/register', { method: 'POST', body: JSON.stringify(input) }),
@@ -109,7 +182,13 @@ export const api = {
 
   me: () => request<User>('/auth/me'),
 
-  listAnalyses: () => request<Analysis[]>('/analysis/'),
+  listAnalyses: (query: AnalysisListQuery = {}) =>
+    request<AnalysisListResponse>(`/analysis/${qs({ ...query })}`),
+
+  analysisSummary: () => request<AnalysisSummaryResponse>('/analysis/summary'),
+
+  analysisHistory: (id: number) =>
+    request<AnalysisHistoryResponse>(`/analysis/${id}/history`),
 
   getAnalysis: (id: number) => request<Analysis>(`/analysis/${id}`),
 
@@ -209,4 +288,137 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+
+  // Field-boundary crop analysis: the revenue product, and the only surface
+  // that takes a polygon rather than a point plus radius.
+  analyzeField: (input: {
+    field_boundary: FieldBoundary
+    use_history?: boolean
+    description?: string
+  }) => request<CropAnalysisResponse>('/crop/analyze', { method: 'POST', body: JSON.stringify(input) }),
+
+  analyzeFields: (input: {
+    fields: Array<{ label?: string | null; field_boundary: FieldBoundary }>
+    use_history?: boolean
+  }) =>
+    request<CropBulkAnalysisResponse>('/crop/analyze/bulk', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  // Operators only: 403 for a normal account.
+  jobPipelineStatus: () => request<JobPipelineStatus>('/system/jobs'),
+
+  dataReadiness: () => request<DataReadinessResponse>('/mission-planning/data-readiness'),
+
+  // ---- Spacecraft (Stage 0 simulation) ----
+  simulateSpacecraft: (input: {
+    altitude_km?: number
+    inclination_deg?: number
+    duration_s?: number
+    dt_s?: number
+    sample_points?: number
+  }) =>
+    request<SpacecraftSimulateResponse>('/spacecraft/simulate', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  orbitProperties: (input: { altitude_km?: number; inclination_deg?: number } = {}) =>
+    request<OrbitResponse>(`/spacecraft/orbit${qs({ ...input })}`),
+
+  linkBudget: (
+    input: {
+      distance_km?: number
+      frequency_mhz?: number
+      tx_power_dbm?: number
+      rx_gain_dbi?: number
+    } = {},
+  ) => request<LinkBudgetResponse>(`/spacecraft/link-budget${qs({ ...input })}`),
+
+  // ---- Space Division (Stage 0 simulation) ----
+  evaluateConstellation: (input: { name?: string; satellites: SatelliteInput[] }) =>
+    request<ConstellationEvaluateResponse>('/space-division/constellation', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  scheduleGroundContacts: (requests: ContactRequestInput[]) =>
+    request<GroundContactScheduleResponse>('/space-division/ground-contacts', {
+      method: 'POST',
+      body: JSON.stringify({ requests }),
+    }),
+
+  // ---- Mission Planning ----
+  buildSchedule: (input: {
+    tasks: TaskInput[]
+    budgets?: Array<{ name: string; capacity: number; unit?: string }>
+    contact_windows?: Array<{
+      ground_station?: string
+      start_s: number
+      end_s: number
+      max_elevation_deg?: number
+      slant_range_km?: number
+    }>
+  }) =>
+    request<ScheduleResponse>('/mission-planning/schedule', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  // ---- Multi-Planetary autonomy (Stage 0 simulation) ----
+  decideStack: (context: MissionContextInput) =>
+    request<StackDecisionResponse>('/multiplanetary/decide', {
+      method: 'POST',
+      body: JSON.stringify(context),
+    }),
+
+  listEnvironments: () => request<EnvironmentListResponse>('/multiplanetary/environments'),
+
+  getEnvironment: (name: string) =>
+    request<EnvironmentDetailResponse>(`/multiplanetary/environments/${name}`),
+
+  commsDelay: (target: CommsTarget) =>
+    request<CommsDelayResponse>(`/multiplanetary/comms-delay/${target}`),
+
+  // ---- Space Resources / ISRU (Stage 0 simulation) ----
+  listTechnologies: (
+    query: {
+      target_body?: string
+      resource_type?: string
+      min_trl?: number
+      max_trl?: number
+    } = {},
+  ) => request<TechnologyListResponse>(`/space-resources/technologies${qs({ ...query })}`),
+
+  technologyDetail: (id: string) =>
+    request<TechnologyDetailResponse>(`/space-resources/technologies/${id}`),
+
+  deliveryEconomics: (
+    resourceType: string,
+    query: { mass_kg?: number; destination?: string } = {},
+  ) =>
+    request<EconomicsResponse>(
+      `/space-resources/economics/${resourceType}${qs({ ...query })}`,
+    ),
+
+  simulateExtraction: (input: {
+    process?: ExtractionProcess
+    hours?: number
+    feedstock_kg?: number
+    power_w?: number
+    efficiency?: number
+  }) =>
+    request<ExtractionResponse>('/space-resources/extraction', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  rankProspectSites: (input: { sites: SiteInput[]; body?: string }) =>
+    request<ProspectingResponse>('/space-resources/prospecting', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  programRoadmap: () => request<RoadmapResponse>('/space-resources/roadmap'),
 }

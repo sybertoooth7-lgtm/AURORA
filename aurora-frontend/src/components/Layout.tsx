@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -7,6 +7,7 @@ import { ANALYSIS_TYPE_LABELS } from '../lib/types'
 
 export interface DashboardContext {
   areas: Analysis[]
+  areaTotal: number
   refreshAreas: () => Promise<void>
 }
 
@@ -14,28 +15,34 @@ export function useDashboardContext(): DashboardContext {
   return useOutletContext<DashboardContext>()
 }
 
+// The sidebar lists areas; the dashboard pages the full table separately.
+// This is the page the sidebar shows, newest first.
+const SIDEBAR_PAGE_SIZE = 20
+
 export function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [areas, setAreas] = useState<Analysis[]>([])
+  const [areaTotal, setAreaTotal] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [resending, setResending] = useState(false)
   const [resendNote, setResendNote] = useState<string | null>(null)
 
+  const refreshAreas = useCallback(async () => {
+    const page = await api.listAnalyses({ limit: SIDEBAR_PAGE_SIZE })
+    setAreas(page.items)
+    setAreaTotal(page.total)
+  }, [])
+
   useEffect(() => {
     let cancelled = false
-    api
-      .listAnalyses()
-      .then((data) => {
-        if (!cancelled) setAreas(data)
-      })
-      .catch(() => {
-        if (!cancelled) setLoadError('Could not load your areas.')
-      })
+    refreshAreas().catch(() => {
+      if (!cancelled) setLoadError('Could not load your areas.')
+    })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [refreshAreas])
 
   function handleLogout() {
     logout()
@@ -99,28 +106,40 @@ export function Layout() {
                     {area.description || ANALYSIS_TYPE_LABELS[area.analysis_type]}
                   </span>
                   <span className="font-tabular block truncate text-xs opacity-75">
-                    {area.latitude.toFixed(3)}, {area.longitude.toFixed(3)} &middot; {area.radius_km}km
+                    {area.latitude.toFixed(3)}, {area.longitude.toFixed(3)} &middot;{' '}
+                    {area.radius_km.toFixed(2)}km
                   </span>
                 </NavLink>
               </li>
             ))}
           </ul>
+          {areaTotal > areas.length && (
+            <p className="font-tabular px-3 pt-1 text-xs text-[var(--color-ink-soft)]">
+              {areas.length} of {areaTotal} shown &middot; see Overview for the rest
+            </p>
+          )}
 
           <p className="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
-            Fleet
+            Field operations
           </p>
           <ul className="space-y-0.5">
             <li>
-              <NavLink
-                to="/app/fleet"
-                className={({ isActive }) =>
-                  `block rounded-sm px-3 py-2 text-sm ${
-                    isActive ? 'bg-[var(--color-orbit)] text-[var(--color-paper)]' : 'hover:bg-[var(--color-paper)]'
-                  }`
-                }
-              >
-                Flights &amp; telemetry
-              </NavLink>
+              <SideLink to="/app/fields">Crop field analysis</SideLink>
+            </li>
+            <li>
+              <SideLink to="/app/fleet">Flights &amp; telemetry</SideLink>
+            </li>
+          </ul>
+
+          <p className="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+            Platform
+          </p>
+          <ul className="space-y-0.5">
+            <li>
+              <SideLink to="/app/operations">Job pipeline</SideLink>
+            </li>
+            <li>
+              <SideLink to="/app/divisions">Division simulations</SideLink>
             </li>
           </ul>
         </nav>
@@ -169,11 +188,27 @@ export function Layout() {
           <Outlet
             context={{
               areas,
-              refreshAreas: () => api.listAnalyses().then((data) => setAreas(data)),
+              areaTotal,
+              refreshAreas,
             }}
           />
         </div>
       </main>
     </div>
+  )
+}
+
+function SideLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `block rounded-sm px-3 py-2 text-sm ${
+          isActive ? 'bg-[var(--color-orbit)] text-[var(--color-paper)]' : 'hover:bg-[var(--color-paper)]'
+        }`
+      }
+    >
+      {children}
+    </NavLink>
   )
 }

@@ -149,6 +149,165 @@ export interface Alert {
   acknowledged_at: string | null
 }
 
+// Paged listing (`GET /analysis/`). `total` counts everything the filter
+// matched, not just this page, which is what makes paging honest.
+export interface AnalysisListResponse {
+  total: number
+  skip: number
+  limit: number
+  items: Analysis[]
+}
+
+export interface AnalysisListQuery {
+  skip?: number
+  limit?: number
+  status?: AnalysisStatus
+  analysis_type?: AnalysisType
+  monitored_only?: boolean
+  order?: 'newest' | 'oldest'
+}
+
+// Account roll-up (`GET /analysis/summary`).
+export interface AnalysisSummaryResponse {
+  total_analyses: number
+  by_status: Record<string, number>
+  by_analysis_type: Record<string, number>
+  monitored_areas: number
+  completed_with_findings: number
+  mean_severity: number | null
+  mean_confidence: number | null
+  unread_alerts: number
+  quota_limit_per_day: number
+  quota_used_today: number
+  quota_remaining_today: number
+  last_activity_at: string | null
+  provenance: Record<string, number>
+}
+
+// One monitored pass over an area (`GET /analysis/{id}/history`).
+export interface AnalysisHistoryPoint {
+  result_id: number
+  checked_at: string
+  severity_score: number | null
+  confidence: number | null
+  finding: string
+  provenance: string | null
+  source: string | null
+  simulated: boolean | null
+}
+
+export interface AnalysisHistoryResponse {
+  analysis_id: number
+  points: AnalysisHistoryPoint[]
+  passes: number
+  first_checked_at: string | null
+  latest_checked_at: string | null
+  severity_change: number | null
+  direction: string
+}
+
+// Field-boundary crop analysis (`POST /crop/analyze`, `/crop/analyze/bulk`).
+// A single GeoJSON ring: the backend derives the survey area from it, so the
+// UI never asks the user for a radius.
+export interface FieldBoundary {
+  type: 'Polygon'
+  coordinates: number[][][]
+}
+
+export interface CropObservation {
+  source: string
+  image_id: string
+  acquired_at: string
+  cloud_coverage: number
+  resolution_m: number
+  simulated: boolean
+}
+
+export interface CropAnalysisResponse {
+  analysis_id: number
+  boundary: FieldBoundary
+  boundary_wkt: string
+  latitude: number
+  longitude: number
+  radius_km: number
+  observation: CropObservation
+  ndvi: number
+  change_score: number
+  condition: string
+  severity: number
+  confidence: number
+  findings: string[]
+  metrics: Record<string, number>
+  model: string
+  provenance: 'real' | 'simulated'
+  report: string[]
+}
+
+export interface CropBulkItem {
+  label: string | null
+  status: 'ok' | 'failed'
+  analysis: CropAnalysisResponse | null
+  error: string | null
+}
+
+export interface CropBulkAnalysisResponse {
+  requested: number
+  succeeded: number
+  failed: number
+  real: number
+  // A count, not a flag: a batch is usually mixed and each field needs to say
+  // whether it rests on real imagery.
+  simulated: number
+  items: CropBulkItem[]
+}
+
+// Operator view (`GET /system/jobs`). Admin only.
+export interface JobSnapshot {
+  day: string
+  counters: Record<string, number>
+  queue_depth: number | null
+  success_rate: number | null
+  recent_failures: Array<{
+    analysis_id: number
+    error: string
+    attempt: number
+    at: string
+  }>
+}
+
+export interface JobPipelineStatus {
+  queue: { name: string | null; inline_execution: boolean; depth: number }
+  job_policy: {
+    timeout_seconds: number
+    max_retries: number
+    retry_backoff_seconds: number
+    result_ttl_seconds: number
+  }
+  observation_cache: { ttl_seconds: number; enabled: boolean }
+  monitoring: {
+    tick_seconds: number
+    min_interval_minutes: number
+    monitored_areas: number
+  }
+  today: JobSnapshot
+  stuck_analyses: Array<{
+    id: number
+    user_id: number
+    status: AnalysisStatus
+    analysis_type: AnalysisType
+    created_at: string | null
+  }>
+}
+
+export const JOB_COUNTER_LABELS: Record<string, string> = {
+  enqueued: 'Enqueued',
+  completed: 'Completed',
+  failed: 'Failed',
+  retried: 'Retried',
+  cache_hit: 'Cache hits',
+  cache_miss: 'Live fetches',
+}
+
 export function parseResultMetadata(result: AnalysisResult): AnalysisResultMetadata | null {
   if (!result.metadata_json) return null
   try {
