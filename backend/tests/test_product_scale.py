@@ -1,9 +1,10 @@
 """Tests for the Earth-revenue product surface added in the 0.3 scaling round.
 
 Covers the paged/filtered analysis list, the account roll-up, the monitoring
-time series, and bulk field-boundary import. Local runs use demo mode: the
-deterministic simulated provider, so provenance assertions here are about
-honest labelling rather than real imagery.
+time series, and bulk field-boundary import. The queue is pinned to inline
+execution below so these completion assertions hold in CI as well as in local
+demo runs; the deterministic simulated provider is what the provenance
+assertions are about -- honest labelling, not real imagery.
 """
 
 from datetime import UTC, datetime
@@ -13,7 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
 from app.models.user import User
-from app.queue import get_redis
+from app.queue import _InlineQueue, get_redis
 from app.schemas.crop import MAX_BULK_FIELDS
 from main import app
 
@@ -40,6 +41,20 @@ def _square(lon, lat, span=0.01):
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _inline_analysis_queue(monkeypatch):
+    """Run analysis jobs synchronously, the same way demo mode does.
+
+    These tests read back completed rows, status filters and per-pass history
+    right after creating an area. CI runs against a real Redis whose RQ queue
+    has no worker, so those jobs would stay queued and every completion
+    assertion below would fail for reasons that have nothing to do with the
+    product surface under test.
+    """
+    queue = _InlineQueue()
+    monkeypatch.setattr("app.queue.get_analysis_queue", lambda: queue)
 
 
 @pytest.fixture(autouse=True)

@@ -358,7 +358,15 @@ class TestJobsEndpoint:
         response = client.get("/system/jobs", headers=_auth_headers(client))
         assert response.status_code == 403
 
-    def test_admins_get_pipeline_state(self, client):
+    def test_admins_get_pipeline_state(self, client, monkeypatch):
+        class CountedQueue(_InlineQueue):
+            """The endpoint must surface whatever the live queue reports."""
+
+            @property
+            def count(self):
+                return 7
+
+        monkeypatch.setattr("app.routes.system.get_analysis_queue", lambda: CountedQueue())
         headers = _auth_headers(client, admin=True)
         record("enqueued", 5)
         record("completed", 4)
@@ -368,7 +376,7 @@ class TestJobsEndpoint:
         body = client.get("/system/jobs", headers=headers).json()
 
         assert body["queue"]["name"] == "analysis"
-        assert body["queue"]["depth"] == 0
+        assert body["queue"]["depth"] == 7
         assert body["today"]["counters"]["enqueued"] == 5
         assert body["today"]["success_rate"] == 0.8
         assert body["today"]["recent_failures"][0]["analysis_id"] == 9

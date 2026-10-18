@@ -57,6 +57,7 @@ npm.cmd run lint    # oxlint
 ## Conventions
 
 - No code comments unless they explain a non-obvious invariant (and referenced in ruff ignore explanations if relevant).
+- A test that asserts an analysis reached `completed` must pin `app.queue.get_analysis_queue` to `_InlineQueue` (see the autouse fixture in `tests/test_monitoring.py`). Demo mode does this itself; CI runs against a real Redis whose RQ queue has no worker, so an unpinned job sits queued forever and the assertions fail for environment reasons only.
 - SQLAlchemy models are legacy untyped `Column(...)` declarations; the Column-typing noise is scoped in `backend/pyproject.toml` under `[tool.mypy] disable_error_code` — do not fight that; add genuine fixes instead.
 - Enums stay `(str, Enum)` — serialization must not change (UP042 ignored deliberately). Empty ABC stubs are intentional interface markers (B027 ignored deliberately).
 - Schema changes go through Alembic migrations (never `create_all` autocrud).
