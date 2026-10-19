@@ -32,6 +32,17 @@ Register with `POST /auth/register`, then exchange the username and password at
 `POST /auth/token` to receive a bearer token. Analysis, alert, and report
 endpoints are scoped to the authenticated user.
 
+`POST /auth/token` reads a **JSON** body, not an `application/x-www-form-urlencoded`
+OAuth2 form post, so Swagger's own Authorize button cannot complete the flow --
+send:
+
+```json
+{"username": "...", "password": "..."}
+```
+
+A body in any other encoding is rejected with `422 validation_failed` and the
+raw body is never echoed back into the response or the server log.
+
 ## Endpoints
 
 ### Health
