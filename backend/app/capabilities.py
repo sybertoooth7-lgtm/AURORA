@@ -13,7 +13,10 @@ degrade gracefully instead of taking the whole endpoint down.
 """
 
 
-APP_VERSION = "0.2.0"
+# Fallback only -- the live endpoints pass `Settings.APP_VERSION`, which is the
+# source of truth. Keep this equal to it so an import of this module alone
+# cannot report a stale platform version.
+APP_VERSION = "0.3.0"
 
 # Static index of platform subsystems.  `modules` lists the import path(s)
 # that implement the capability; `status` reflects that the code is present
