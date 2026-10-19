@@ -1,10 +1,36 @@
 import { Link } from 'react-router-dom'
 import { EarthGlobe, type GlobePoint } from '../components/EarthGlobe'
+import { Reveal } from '../components/Reveal'
 
 // The landing page shows the planet, not anybody's areas: no points, no click
 // handlers. A module constant keeps the globe from seeing a new array
 // identity on every render.
 const NO_POINTS: GlobePoint[] = []
+
+const CAPABILITIES = [
+  { k: '10 m', v: 'the resolution NDVI is actually computed at, from the red and near-infrared bands' },
+  { k: '5 days', v: 'Sentinel-2 revisit over the same point on the ground, cloud permitting' },
+  { k: 'Cloud-masked', v: 'the scene classification layer decides which pixels count, not a guess' },
+  { k: 'Any area', v: 'mark a point, set a radius. No shapefile, no sensor install, no site visit' },
+]
+
+const STEPS = [
+  {
+    n: '01',
+    title: 'Mark an area',
+    body: 'Click a point on the globe and set a radius -- a farm block, a quarry, a catchment.',
+  },
+  {
+    n: '02',
+    title: 'AURORA checks the latest pass',
+    body: 'We pull the most recent cloud-free Sentinel-2 imagery over that area from the Copernicus Data Space Ecosystem.',
+  },
+  {
+    n: '03',
+    title: 'Get a reading, not a picture',
+    body: 'NDVI, a change score against the trailing baseline, and an alert if something crossed a threshold worth knowing about.',
+  },
+]
 
 const CHECK_TYPES = [
   {
@@ -25,158 +51,248 @@ const CHECK_TYPES = [
   },
 ]
 
-const STEPS = [
-  {
-    n: '01',
-    title: 'Mark an area',
-    body: 'Click a point on the map and set a radius -- a farm block, a quarry, a catchment.',
-  },
-  {
-    n: '02',
-    title: 'AURORA checks the latest pass',
-    body: 'We pull the most recent cloud-free Sentinel-2 imagery over that area from the Copernicus Data Space Ecosystem.',
-  },
-  {
-    n: '03',
-    title: 'Get a reading, not a picture',
-    body: 'NDVI, a change score against the trailing baseline, and an alert if something crossed a threshold worth knowing about.',
-  },
+const NAV = [
+  { href: '#capabilities', label: 'Capabilities' },
+  { href: '#how', label: 'How it works' },
+  { href: '#checks', label: 'What we check' },
+  { href: '#divisions', label: 'Divisions' },
 ]
 
 export function LandingPage() {
   return (
-    <div className="min-h-full">
-      <header className="border-b border-[var(--color-border)] px-6 py-5">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <span className="font-[var(--font-display)] text-lg font-semibold tracking-[0.16em]">
-            AURORA
-          </span>
-          <nav className="flex items-center gap-6 text-sm">
-            <Link to="/login" className="text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]">
+    <div className="night min-h-full">
+      <div className="grain" />
+
+      {/* One floating bar rather than a bare nav: the wordmark, the section
+          links and the CTA all live inside the same pill, so nothing sits
+          directly on the content as it scrolls underneath. */}
+      <header className="sticky top-0 z-20 px-4 py-4 sm:px-6">
+        <div className="pill-nav mx-auto max-w-6xl justify-between">
+          <Link to="/" className="flex items-center gap-2.5 text-snow">
+            <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-[var(--color-acid)] shadow-[0_0_14px_rgba(201,242,78,0.8)]" />
+            <span className="font-[var(--font-display)] text-base font-semibold tracking-[0.22em]">
+              AURORA
+            </span>
+          </Link>
+
+          <nav className="hidden lg:block" aria-label="Sections">
+            {NAV.map((item) => (
+              <a key={item.href} href={item.href}>
+                {item.label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to="/login"
+              className="hidden px-3 py-2 text-sm text-mist transition-colors hover:text-snow sm:block"
+            >
               Sign in
             </Link>
-            <Link
-              to="/register"
-              className="btn btn-primary px-4 py-2 font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
-            >
+            <Link to="/register" className="btn btn-acid px-4 py-2 text-sm">
               Get started
             </Link>
-          </nav>
+          </div>
         </div>
       </header>
 
       <main>
-        <section className="mx-auto max-w-3xl px-6 py-20 text-center">
-          <h1 className="font-[var(--font-display)] text-4xl font-semibold leading-tight sm:text-5xl">
-            Know what changed on your land, before you drive out to look.
-          </h1>
-          <p className="mx-auto mt-5 max-w-xl text-lg text-[var(--color-ink-soft)]">
-            AURORA checks any area against the latest satellite pass and tells you what's
-            different -- vegetation stress, land change, water coverage -- so the first sign of
-            trouble doesn't have to be a phone call.
-          </p>
-          <div className="mt-8 flex items-center justify-center gap-4">
-            <Link
-              to="/register"
-              className="btn btn-primary px-5 py-3 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
-            >
-              Start monitoring an area
-            </Link>
-            <Link
-              to="/login"
-              className="text-sm text-[var(--color-ink-soft)] underline decoration-[var(--color-border)] underline-offset-4 hover:text-[var(--color-ink)]"
-            >
-              Sign in
-            </Link>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-5xl px-6 pb-20">
-          <figure className="orbital">
+        {/* The planet is the page. The copy sits in the shade of it, the way
+            it does in the product: you are reading a report about a place,
+            and the place should be visible while you read. */}
+        <section className="relative -mt-[4.5rem] flex min-h-[92vh] items-end overflow-hidden pt-[4.5rem]">
+          {/* EarthGlobe puts `relative` on its own root, so the positioning
+              has to live on a wrapper -- a Tailwind `absolute` on the
+              component itself loses to it. */}
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-full sm:w-[70%]">
             <EarthGlobe
-              className="h-72 sm:h-96"
+              className="h-full w-full"
               points={NO_POINTS}
-              initialAltitude={1.95}
+              initialAltitude={2.15}
               fallback={
-                <div className="h-72 w-full bg-[radial-gradient(120%_90%_at_28%_18%,#16233A_0%,#05070C_62%)] sm:h-96" />
+                <div className="h-full w-full bg-[radial-gradient(120%_90%_at_72%_28%,#16233A_0%,#05070C_62%)]" />
               }
             />
-            <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4">
-              <span className="font-tabular text-[0.65rem] tracking-[0.24em] text-[#8FA0B5] uppercase">
-                Orbital view
-              </span>
-              <span className="font-tabular text-[0.65rem] text-[#8FA0B5]">
-                Illustrative rendering &middot; not survey data
-              </span>
-            </figcaption>
-          </figure>
+          </div>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,var(--color-night)_6%,rgba(5,7,12,0.72)_38%,rgba(5,7,12,0.15)_68%,transparent_100%)]"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-[linear-gradient(to_top,var(--color-night)_12%,rgba(5,7,12,0.65)_48%,transparent_100%)]"
+          />
+
+          <div className="relative z-20 mx-auto w-full max-w-6xl px-6 pb-16 sm:pb-24">
+            <p className="eyebrow text-mist">Earth observation · Nairobi</p>
+            <h1 className="mt-5 max-w-3xl font-[var(--font-display)] text-[2.6rem] leading-[1.02] font-semibold tracking-[-0.035em] text-snow sm:text-6xl lg:text-[4.25rem]">
+              Know what changed on your land, before you drive out to look.
+            </h1>
+            <p className="mt-6 max-w-md text-[0.9375rem] leading-relaxed text-mist">
+              AURORA checks any area against the latest satellite pass and tells you what's
+              different -- vegetation stress, land change, water coverage -- so the first sign of
+              trouble doesn't have to be a phone call.
+            </p>
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <Link to="/register" className="btn btn-acid px-6 py-3 text-sm">
+                Start monitoring an area
+              </Link>
+              <Link to="/login" className="btn btn-ghost px-6 py-3 text-sm">
+                Sign in
+              </Link>
+            </div>
+            <p className="font-tabular mt-14 text-[0.65rem] tracking-[0.18em] text-mist-dim uppercase">
+              Illustrative rendering · not survey data
+            </p>
+          </div>
         </section>
 
-        <section className="border-t border-[var(--color-border)] bg-[var(--color-paper-raised)] px-6 py-16">
-          <div className="mx-auto max-w-5xl">
-            <h2 className="font-[var(--font-display)] text-2xl font-semibold">How it works</h2>
-            <div className="mt-8 grid gap-8 sm:grid-cols-3">
-              {STEPS.map((step) => (
-                <div key={step.n}>
-                  <p className="font-tabular text-sm text-[var(--color-orbit)]">{step.n}</p>
-                  <h3 className="mt-2 font-medium">{step.title}</h3>
-                  <p className="mt-1 text-sm text-[var(--color-ink-soft)]">{step.body}</p>
-                </div>
+        <section id="capabilities" className="relative border-t border-hairline px-6 py-20">
+          <div className="mx-auto max-w-6xl">
+            <div className="grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+              {CAPABILITIES.map((item, index) => (
+                <Reveal key={item.k} delay={index * 90}>
+                  <p className="font-[var(--font-display)] text-3xl font-semibold tracking-[-0.03em] text-acid">
+                    {item.k}
+                  </p>
+                  <p className="mt-3 text-sm leading-relaxed text-mist">{item.v}</p>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="px-6 py-16">
-          <div className="mx-auto max-w-5xl">
-            <h2 className="font-[var(--font-display)] text-2xl font-semibold">What AURORA checks for</h2>
-            <div className="mt-8 grid gap-6 sm:grid-cols-2">
-              {CHECK_TYPES.map((item) => (
-                <div key={item.title} className="panel p-5">
-                  <h3 className="font-medium">{item.title}</h3>
-                  <p className="mt-1 text-sm text-[var(--color-ink-soft)]">{item.body}</p>
-                </div>
+        <section id="how" className="px-6 py-20">
+          <div className="mx-auto max-w-6xl">
+            <Reveal>
+              <h2 className="font-[var(--font-display)] text-4xl font-semibold tracking-[-0.03em] text-snow sm:text-5xl">
+                Three clicks, then it runs on a schedule.
+              </h2>
+            </Reveal>
+            <div className="mt-12 grid gap-5 lg:grid-cols-3">
+              {STEPS.map((step, index) => (
+                <Reveal key={step.n} delay={index * 110}>
+                  <div className="glass glass-hover h-full p-7">
+                    <p className="font-tabular text-xs tracking-[0.22em] text-mist-dim">{step.n}</p>
+                    <h3 className="mt-6 font-[var(--font-display)] text-xl font-semibold tracking-[-0.02em] text-snow">
+                      {step.title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-relaxed text-mist">{step.body}</p>
+                  </div>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="border-t border-[var(--color-border)] bg-[var(--color-paper-raised)] px-6 py-16">
+        <section id="checks" className="px-6 py-20">
+          <div className="mx-auto max-w-6xl">
+            <Reveal>
+              <h2 className="font-[var(--font-display)] text-4xl font-semibold tracking-[-0.03em] text-snow sm:text-5xl">
+                What AURORA checks for
+              </h2>
+            </Reveal>
+            <div className="mt-12 grid gap-5 sm:grid-cols-2">
+              {CHECK_TYPES.map((item, index) => (
+                <Reveal key={item.title} delay={(index % 2) * 110}>
+                  <div className="glass glass-hover h-full p-7">
+                    <h3 className="font-[var(--font-display)] text-lg font-semibold text-snow">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-mist">{item.body}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* The planning divisions are model output with no hardware behind
+            them. Saying so here, on the page that is trying to look
+            expensive, is the point of the section. */}
+        <section id="divisions" className="px-6 py-20">
+          <div className="mx-auto max-w-6xl">
+            <Reveal>
+              <div className="glass overflow-hidden">
+                <div className="grid gap-8 p-8 sm:p-12 lg:grid-cols-[1.1fr_1fr]">
+                  <div>
+                    <p className="eyebrow text-mist">Also in the console</p>
+                    <h2 className="mt-4 font-[var(--font-display)] text-3xl font-semibold tracking-[-0.03em] text-snow sm:text-4xl">
+                      Five planning divisions, labelled for what they are
+                    </h2>
+                    <p className="mt-5 max-w-md text-sm leading-relaxed text-mist">
+                      Spacecraft, constellation, mission planning, autonomy and ISRU run in the same
+                      account as the imagery. They are architecture and model code -- no hardware, no
+                      live telemetry -- and every response they return carries its provenance, its
+                      stage and its limitations in the payload itself.
+                    </p>
+                  </div>
+                  <ul className="grid content-center gap-3">
+                    {['Spacecraft design', 'Constellation analysis', 'Mission planning', 'Autonomy & GNC', 'ISRU & resources'].map(
+                      (name) => (
+                        <li
+                          key={name}
+                          className="flex items-center justify-between gap-4 rounded-full border border-hairline px-5 py-3 text-sm text-snow"
+                        >
+                          <span>{name}</span>
+                          <span className="font-tabular text-[0.65rem] tracking-[0.16em] text-mist-dim uppercase">
+                            Stage 0 · simulated
+                          </span>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        <section className="px-6 py-20">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="font-[var(--font-display)] text-2xl font-semibold">
-              Built on real Sentinel-2 data
-            </h2>
-            <p className="mx-auto mt-3 max-w-xl text-sm text-[var(--color-ink-soft)]">
-              AURORA reads directly from the Copernicus Data Space Ecosystem -- the same
-              Sentinel-2 archive used by researchers and agencies -- and reports cloud-masked
-              NDVI over the exact area you define, not a generic regional estimate.
-            </p>
+            <Reveal>
+              <h2 className="font-[var(--font-display)] text-4xl font-semibold tracking-[-0.03em] text-snow sm:text-5xl">
+                Built on real Sentinel-2 data
+              </h2>
+              <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-mist">
+                AURORA reads directly from the Copernicus Data Space Ecosystem -- the same
+                Sentinel-2 archive used by researchers and agencies -- and reports cloud-masked NDVI
+                over the exact area you define, not a generic regional estimate.
+              </p>
+              <p className="font-tabular mt-6 text-[0.65rem] tracking-[0.18em] text-mist-dim uppercase">
+                Copernicus Data Space Ecosystem · Sentinel-2 L2A
+              </p>
+            </Reveal>
           </div>
         </section>
 
-        <section className="px-6 py-16">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-[var(--font-display)] text-2xl font-semibold">
-              Add your first area in under a minute
-            </h2>
-            <p className="mt-3 text-sm text-[var(--color-ink-soft)]">
-              No credit card, no site visit. Click a point on the map and see what the latest
-              pass shows.
-            </p>
-            <Link
-              to="/register"
-              className="mt-6 inline-block btn btn-primary px-5 py-3 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
-            >
-              Create your account
-            </Link>
+        <section className="relative overflow-hidden px-6 py-28">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-full bg-[radial-gradient(60%_70%_at_50%_120%,rgba(201,242,78,0.1)_0%,transparent_65%)]"
+          />
+          <div className="relative mx-auto max-w-2xl text-center">
+            <Reveal>
+              <h2 className="font-[var(--font-display)] text-4xl font-semibold tracking-[-0.035em] text-snow sm:text-[3.25rem] sm:leading-[1.05]">
+                Add your first area in under a minute.
+              </h2>
+              <p className="mt-5 text-sm leading-relaxed text-mist">
+                No credit card, no site visit. Click a point on the globe and see what the latest
+                pass shows.
+              </p>
+              <Link to="/register" className="btn btn-acid mt-9 px-7 py-3.5 text-sm">
+                Create your account
+              </Link>
+            </Reveal>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-[var(--color-border)] px-6 py-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between text-sm text-[var(--color-ink-soft)]">
+      <footer className="border-t border-hairline px-6 py-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 text-sm text-mist-dim sm:flex-row sm:items-center sm:justify-between">
           <span>AURORA -- Space Intelligence, Nairobi</span>
-          <span className="font-tabular">Sentinel-2 / Copernicus Data Space Ecosystem</span>
+          <span className="font-tabular text-[0.7rem]">Sentinel-2 / Copernicus Data Space Ecosystem</span>
         </div>
       </footer>
     </div>

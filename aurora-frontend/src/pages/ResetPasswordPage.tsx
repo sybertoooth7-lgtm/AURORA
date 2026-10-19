@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { AuthShell, NightLink } from '../components/AuthShell'
 import { PasswordField } from '../components/PasswordField'
 import { ApiError, api } from '../lib/api'
 
@@ -15,26 +16,22 @@ export function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <div className="flex h-full items-center justify-center px-4">
-        <div className="w-full max-w-sm text-center">
-          <h1 className="font-[var(--font-display)] text-2xl font-semibold">
-            Invalid reset link
-          </h1>
-          <p className="mt-3 text-sm text-[var(--color-ink-soft)]">
-            This link is missing its reset token. Request a new one below.
-          </p>
-          <Link
-            to="/forgot-password"
-            className="mt-6 inline-block text-sm text-[var(--color-orbit)] underline underline-offset-2"
-          >
-            Request a new link
-          </Link>
-        </div>
-      </div>
+      <AuthShell
+        eyebrow="Password reset"
+        title="Invalid reset link"
+        aside={<NightLink to="/forgot-password">Request a new link</NightLink>}
+      >
+        <p className="text-sm leading-relaxed text-mist">
+          This link is missing its reset token. Request a new one below.
+        </p>
+      </AuthShell>
     )
   }
 
-  async function handleSubmit(event: FormEvent) {
+  // An arrow defined after the guard rather than a hoisted declaration:
+  // TypeScript analyses a function declaration as if it were created at the
+  // top of the scope, where `token` has not been narrowed to a string yet.
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     setError(null)
 
@@ -49,7 +46,7 @@ export function ResetPasswordPage() {
 
     setSubmitting(true)
     try {
-      await api.confirmPasswordReset(token as string, password)
+      await api.confirmPasswordReset(token, password)
       navigate('/login', { state: { passwordReset: true } })
     } catch (err) {
       setError(
@@ -63,48 +60,41 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex h-full items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <h1 className="font-[var(--font-display)] text-2xl font-semibold">Set a new password</h1>
-        <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
-          This resets your password everywhere you're currently signed in.
-        </p>
+    <AuthShell
+      eyebrow="Password reset"
+      title="Set a new password"
+      blurb="This resets your password everywhere you're currently signed in."
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <PasswordField
+          id="password"
+          label="New password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="new-password"
+          required
+          minLength={8}
+        />
+        <PasswordField
+          id="confirmPassword"
+          label="Confirm new password"
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          autoComplete="new-password"
+          required
+          minLength={8}
+        />
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <div>
-            <PasswordField
-              id="password"
-              label="New password"
-              value={password}
-              onChange={setPassword}
-              autoComplete="new-password"
-              required
-              minLength={8}
-            />
-          </div>
-          <div>
-            <PasswordField
-              id="confirmPassword"
-              label="Confirm new password"
-              value={confirmPassword}
-              onChange={setConfirmPassword}
-              autoComplete="new-password"
-              required
-              minLength={8}
-            />
-          </div>
+        {error && <p className="night-alert px-3.5 py-2.5 text-sm">{error}</p>}
 
-          {error && <p className="text-sm text-[var(--color-critical)]">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full btn btn-primary px-3 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {submitting ? 'Resetting…' : 'Reset password'}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="btn btn-acid w-full px-4 py-2.5 text-sm"
+        >
+          {submitting ? 'Resetting…' : 'Reset password'}
+        </button>
+      </form>
+    </AuthShell>
   )
 }

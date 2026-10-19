@@ -16,6 +16,10 @@ interface PasswordFieldProps {
  * Password input with a show/hide toggle. The toggle is a button of type
  * "button" on purpose -- inside these forms a default (submit) button would
  * sign the user in with half-typed input.
+ *
+ * It is styled for the night card in AuthShell, which is the only place a
+ * password is typed on this site; the input box itself comes from the
+ * `.night` rules in index.css.
  */
 export function PasswordField({
   id,
@@ -32,12 +36,12 @@ export function PasswordField({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={id} className="block text-sm font-medium">
+        <label htmlFor={id} className="block text-sm font-medium text-snow">
           {label}
         </label>
         {labelAddon}
       </div>
-      <div className="relative mt-1">
+      <div className="relative mt-1.5">
         <input
           id={id}
           type={visible ? 'text' : 'password'}
@@ -46,7 +50,7 @@ export function PasswordField({
           required={required}
           minLength={minLength}
           autoComplete={autoComplete}
-          className="w-full rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-3 py-2 pr-11 text-sm focus:border-[var(--color-orbit)] focus:outline-none"
+          className="w-full px-3.5 py-2.5 pr-11 text-sm"
         />
         <button
           type="button"
@@ -54,7 +58,7 @@ export function PasswordField({
           aria-pressed={visible}
           aria-label={visible ? 'Hide password' : 'Show password'}
           title={visible ? 'Hide password' : 'Show password'}
-          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-sm text-[var(--color-ink-soft)] transition-colors hover:text-[var(--color-ink)] focus:border-[var(--color-orbit)] focus:outline-none"
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-mist transition-colors hover:text-snow"
         >
           {visible ? <EyeOffIcon /> : <EyeIcon />}
         </button>

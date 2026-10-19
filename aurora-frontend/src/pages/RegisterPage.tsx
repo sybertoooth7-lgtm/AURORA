@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { AuthShell, Field, NightLink } from '../components/AuthShell'
 import { PasswordField } from '../components/PasswordField'
 import { ApiError } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -29,81 +30,55 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="flex h-full items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <h1 className="font-[var(--font-display)] text-2xl font-semibold">AURORA</h1>
-        <p className="mt-1 text-sm text-[var(--color-ink-soft)]">Create your account.</p>
+    <AuthShell
+      eyebrow="Start watching an area"
+      title="Create your account"
+      blurb="No card, no site visit. Mark a point on the globe and the next clear pass gets read."
+      aside={
+        <>
+          Already have an account? <NightLink to="/login">Sign in</NightLink>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field
+          id="email"
+          label="Email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          autoComplete="email"
+          required
+        />
+        <Field
+          id="username"
+          label="Username"
+          value={username}
+          onChange={setUsername}
+          autoComplete="username"
+          required
+        />
+        <Field id="fullName" label="Full name (optional)" value={fullName} onChange={setFullName} autoComplete="name" />
+        <PasswordField
+          id="password"
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="new-password"
+          required
+          minLength={8}
+        />
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="mt-1 w-full rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-3 py-2 text-sm focus:border-[var(--color-orbit)] focus:outline-none"
-            />
-          </div>
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium">
-              Username
-            </label>
-            <input
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              autoComplete="username"
-              className="mt-1 w-full rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-3 py-2 text-sm focus:border-[var(--color-orbit)] focus:outline-none"
-            />
-          </div>
-          <div>
-            <label htmlFor="fullName" className="block text-sm font-medium">
-              Full name <span className="text-[var(--color-ink-soft)]">(optional)</span>
-            </label>
-            <input
-              id="fullName"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              autoComplete="name"
-              className="mt-1 w-full rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-3 py-2 text-sm focus:border-[var(--color-orbit)] focus:outline-none"
-            />
-          </div>
-          <div>
-            <PasswordField
-              id="password"
-              label="Password"
-              value={password}
-              onChange={setPassword}
-              autoComplete="new-password"
-              required
-              minLength={8}
-            />
-          </div>
+        {error && <p className="night-alert px-3.5 py-2.5 text-sm">{error}</p>}
 
-          {error && <p className="text-sm text-[var(--color-critical)]">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full btn btn-primary px-3 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {submitting ? 'Creating account…' : 'Create account'}
-          </button>
-        </form>
-
-        <p className="mt-6 text-sm text-[var(--color-ink-soft)]">
-          Already have an account?{' '}
-          <Link to="/login" className="text-[var(--color-orbit)] underline underline-offset-2">
-            Sign in
-          </Link>
-        </p>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="btn btn-acid w-full px-4 py-2.5 text-sm"
+        >
+          {submitting ? 'Creating account…' : 'Create account'}
+        </button>
+      </form>
+    </AuthShell>
   )
 }

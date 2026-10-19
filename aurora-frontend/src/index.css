@@ -42,6 +42,22 @@
   --color-border-strong: rgba(20, 35, 31, 0.3);
   --radius-sm: 0.375rem;
   --radius-md: 0.625rem;
+
+  /* The night side.
+     The console is paper because you read numbers in it for hours. The
+     surfaces you arrive through -- landing and signing in -- are the view
+     out of a window instead, so they get their own tokens rather than an
+     inverted copy of the paper ones. One accent, and it is the acid green
+     of a nominal reading, not a rainbow. */
+  --color-night: #05070C;
+  --color-night-raised: #0B1119;
+  --color-hairline: rgba(148, 170, 196, 0.16);
+  --color-hairline-strong: rgba(148, 170, 196, 0.32);
+  --color-snow: #EDF1F6;
+  --color-mist: #9FB3C8;
+  --color-mist-dim: #6C7F93;
+  --color-acid: #C9F24E;
+  --color-acid-deep: #9FD12F;
 }
 
 @layer base {
@@ -288,6 +304,246 @@ input::-ms-clear {
   display: none;
 }
 
+/* ---------------------------------------------------------------------
+   The night layer. Everything below this comment belongs to the surfaces
+   you arrive through, and none of it reaches into the console.
+   --------------------------------------------------------------------- */
+
+/* Space is not one flat black: a faint field of fixed stars, a cool glow
+   where the sun is hitting the limb, and a shade at the bottom so the copy
+   sitting there has something to read against. All three are painted here
+   rather than in the markup so a page gets them from one class. */
+.night {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--color-night);
+  color: var(--color-snow);
+  scrollbar-color: rgba(159, 179, 200, 0.25) transparent;
+}
+
+.night::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(237, 241, 246, 0.9) 50%, transparent 51%),
+    radial-gradient(1px 1px at 27% 62%, rgba(237, 241, 246, 0.6) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 41% 27%, rgba(237, 241, 246, 0.5) 50%, transparent 51%),
+    radial-gradient(1px 1px at 58% 71%, rgba(237, 241, 246, 0.7) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 69% 14%, rgba(237, 241, 246, 0.55) 50%, transparent 51%),
+    radial-gradient(1px 1px at 78% 52%, rgba(237, 241, 246, 0.8) 50%, transparent 51%),
+    radial-gradient(1px 1px at 88% 31%, rgba(237, 241, 246, 0.45) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 94% 76%, rgba(237, 241, 246, 0.6) 50%, transparent 51%),
+    radial-gradient(1px 1px at 19% 88%, rgba(237, 241, 246, 0.4) 50%, transparent 51%),
+    radial-gradient(1px 1px at 49% 9%, rgba(237, 241, 246, 0.5) 50%, transparent 51%),
+    radial-gradient(90% 60% at 78% -10%, rgba(43, 58, 103, 0.5) 0%, transparent 62%);
+  background-repeat: no-repeat;
+}
+
+/* The glow is a separate layer because it breathes and the stars must not
+   move with it. */
+.night::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 42% at 82% 8%, rgba(201, 242, 78, 0.07) 0%, transparent 70%),
+    radial-gradient(120% 90% at 50% 120%, rgba(5, 7, 12, 0.92) 0%, transparent 60%);
+  animation: night-glow 14s ease-in-out infinite alternate;
+}
+
+@keyframes night-glow {
+  from {
+    opacity: 0.72;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Sensor noise. A page of pure vector gradients reads as a mockup; the same
+   page under a grain reads as a photograph of a screen. */
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Glass: a card you can still see the planet through. The top edge catches
+   a light and the shadow is long and soft, which is what makes it read as a
+   pane set into a frame rather than as a grey box. */
+.glass {
+  background-image: linear-gradient(180deg, rgba(237, 241, 246, 0.07) 0%, rgba(237, 241, 246, 0.02) 100%);
+  border: 1px solid var(--color-hairline);
+  border-radius: 1.25rem;
+  box-shadow:
+    inset 0 1px 0 rgba(237, 241, 246, 0.08),
+    0 40px 70px -50px rgba(0, 0, 0, 1);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+.glass-hover {
+  transition:
+    border-color 0.24s ease,
+    transform 0.24s ease,
+    box-shadow 0.24s ease;
+}
+
+.glass-hover:hover {
+  transform: translateY(-3px);
+  border-color: var(--color-hairline-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(237, 241, 246, 0.12),
+    0 50px 80px -50px rgba(0, 0, 0, 1);
+}
+
+/* The navigation is a floating pill rather than a bar bolted to the top of
+   the page, so the hero runs underneath it. The link styling is scoped to
+   the inner <nav> on purpose: the wordmark and the call-to-action live in
+   the same bar and must keep their own colours. */
+.pill-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.5rem;
+  border-radius: 999px;
+  background-color: rgba(11, 17, 25, 0.6);
+  border: 1px solid var(--color-hairline);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.pill-nav nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pill-nav nav a {
+  padding: 0.4375rem 0.875rem;
+  border-radius: 999px;
+  color: var(--color-mist);
+  font-size: 0.875rem;
+}
+
+.pill-nav nav a:hover {
+  color: var(--color-snow);
+  background-color: rgba(237, 241, 246, 0.07);
+}
+
+/* Buttons on the night side are pills, and the primary one is the only
+   bright thing in view -- so it gets used once per screen. */
+.btn-acid {
+  background-color: var(--color-acid);
+  color: #05070C;
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow:
+    0 0 0 1px rgba(201, 242, 78, 0.45),
+    0 18px 46px -18px rgba(201, 242, 78, 0.5);
+}
+
+.btn-acid:hover {
+  background-color: #D7FA68;
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(201, 242, 78, 0.6),
+    0 24px 56px -18px rgba(201, 242, 78, 0.55);
+}
+
+.btn-acid:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-ghost {
+  border: 1px solid var(--color-hairline);
+  border-radius: 999px;
+  color: var(--color-snow);
+  background-color: rgba(237, 241, 246, 0.02);
+}
+
+.btn-ghost:hover {
+  border-color: var(--color-hairline-strong);
+  background-color: rgba(237, 241, 246, 0.07);
+}
+
+/* Inputs have to be pulled back off the paper defaults, and the paper rule
+   is a chain of :not() selectors, so the override needs the same chain to
+   out-specify it. */
+.night input:not([type='checkbox']):not([type='radio']):not([type='range']),
+.night select,
+.night textarea {
+  background-color: rgba(237, 241, 246, 0.04);
+  border: 1px solid var(--color-hairline);
+  border-radius: 0.75rem;
+  color: var(--color-snow);
+}
+
+.night input:not([type='checkbox']):not([type='radio']):not([type='range'])::placeholder {
+  color: var(--color-mist-dim);
+}
+
+.night input:not([type='checkbox']):not([type='radio']):not([type='range']):hover,
+.night select:hover,
+.night textarea:hover {
+  border-color: var(--color-hairline-strong);
+}
+
+.night input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+.night select:focus,
+.night textarea:focus {
+  background-color: rgba(237, 241, 246, 0.07);
+  border-color: rgba(201, 242, 78, 0.5);
+  box-shadow: 0 0 0 3px rgba(201, 242, 78, 0.14);
+}
+
+.night :where(a, button, [tabindex]):focus-visible {
+  outline-color: var(--color-acid);
+}
+
+/* Status lines inside the night card. The paper severity colours are dark
+   enough to sit on paper and disappear on black, so the night versions keep
+   the hue and lift the lightness. */
+.night-alert {
+  border: 1px solid rgba(181, 80, 46, 0.45);
+  background-color: rgba(181, 80, 46, 0.12);
+  color: #F0B49E;
+  border-radius: 0.75rem;
+}
+
+.night-ok {
+  border: 1px solid rgba(201, 242, 78, 0.28);
+  background-color: rgba(201, 242, 78, 0.08);
+  color: #DBF59A;
+  border-radius: 0.75rem;
+}
+
+/* Scroll reveals: content arrives as you reach it instead of all at once,
+   which is the difference between a brochure and a tour. Reveal.tsx adds
+   .is-in; markup that never mounts it stays exactly where it was. */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
@@ -297,6 +553,17 @@ input::-ms-clear {
 
   button:active:not(:disabled),
   [role='button']:active:not([aria-disabled='true']) {
+    transform: none;
+  }
+
+  .night::after {
+    animation: none;
+  }
+
+  /* A reveal that never animates must still be readable, so on this setting
+     the content starts and stays exactly where it was written. */
+  .reveal {
+    opacity: 1;
     transform: none;
   }
 }

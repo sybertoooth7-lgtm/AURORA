@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { AuthShell } from '../components/AuthShell'
 import { ApiError, api } from '../lib/api'
 
 type Status = 'verifying' | 'success' | 'error'
@@ -37,48 +38,40 @@ export function VerifyEmailPage() {
   }, [token])
 
   return (
-    <div className="flex h-full items-center justify-center px-4">
-      <div className="w-full max-w-sm text-center">
-        {status === 'verifying' && (
-          <>
-            <h1 className="font-[var(--font-display)] text-2xl font-semibold">Verifying…</h1>
-            <p className="mt-3 text-sm text-[var(--color-ink-soft)]">One moment.</p>
-          </>
-        )}
+    <AuthShell
+      eyebrow="Email verification"
+      title={
+        status === 'verifying'
+          ? 'Verifying…'
+          : status === 'success'
+            ? 'Email verified'
+            : "Couldn't verify this link"
+      }
+    >
+      {status === 'verifying' && <p className="text-sm text-mist">One moment.</p>}
 
-        {status === 'success' && (
-          <>
-            <h1 className="font-[var(--font-display)] text-2xl font-semibold">Email verified</h1>
-            <p className="mt-3 text-sm text-[var(--color-ink-soft)]">
-              Thanks for confirming your email address.
-            </p>
-            <Link
-              to="/app"
-              className="mt-6 inline-block btn btn-primary px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
-            >
-              Go to dashboard
-            </Link>
-          </>
-        )}
+      {status === 'success' && (
+        <>
+          <p className="text-sm leading-relaxed text-mist">
+            Thanks for confirming your email address.
+          </p>
+          <Link to="/app" className="btn btn-acid mt-7 px-5 py-2.5 text-sm">
+            Go to dashboard
+          </Link>
+        </>
+      )}
 
-        {status === 'error' && (
-          <>
-            <h1 className="font-[var(--font-display)] text-2xl font-semibold">
-              Couldn't verify this link
-            </h1>
-            <p className="mt-3 text-sm text-[var(--color-ink-soft)]">
-              {error} It may have expired -- you can request a new one from the dashboard once
-              you're signed in.
-            </p>
-            <Link
-              to="/app"
-              className="mt-6 inline-block text-sm text-[var(--color-orbit)] underline underline-offset-2"
-            >
-              Go to dashboard
-            </Link>
-          </>
-        )}
-      </div>
-    </div>
+      {status === 'error' && (
+        <>
+          <p className="text-sm leading-relaxed text-mist">
+            {error} It may have expired -- you can request a new one from the dashboard once you're
+            signed in.
+          </p>
+          <Link to="/app" className="btn btn-ghost mt-7 px-5 py-2.5 text-sm">
+            Go to dashboard
+          </Link>
+        </>
+      )}
+    </AuthShell>
   )
 }

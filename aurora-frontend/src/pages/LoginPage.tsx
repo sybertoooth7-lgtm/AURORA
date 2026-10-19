@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { EarthGlobe } from '../components/EarthGlobe'
+import { AuthShell, Field, NightLink } from '../components/AuthShell'
 import { PasswordField } from '../components/PasswordField'
 import { ApiError, consumeSessionExpiredFlag } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -34,105 +34,63 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0">
-      {/* The planet carries the sign-in page on wide screens so the first
-          thing an operator sees is what the product looks at. It is
-          decorative here: no points, no click handlers, and the copy sits
-          over a gradient if WebGL is missing. */}
-      <section className="relative hidden flex-1 overflow-hidden bg-[#05070c] lg:block">
-        <EarthGlobe
-          className="h-full w-full"
-          points={[]}
-          initialAltitude={2.6}
-          fallback={
-            <div className="h-full w-full bg-[radial-gradient(120%_90%_at_28%_18%,#16233A_0%,#05070C_62%)]" />
+    <AuthShell
+      eyebrow="Operator access"
+      title="Sign in"
+      blurb="The pass has already flown over your area. Pick up what it saw."
+      aside={
+        <>
+          No account? <NightLink to="/register">Create one</NightLink>
+        </>
+      }
+    >
+      {justReset && (
+        <p className="night-ok mb-4 px-3.5 py-2.5 text-sm">
+          Password reset. Sign in with your new password.
+        </p>
+      )}
+      {sessionExpired && (
+        <p className="night-alert mb-4 px-3.5 py-2.5 text-sm">
+          Your session ended. Sign in again to continue.
+        </p>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field
+          id="username"
+          label="Username"
+          value={username}
+          onChange={setUsername}
+          autoComplete="username"
+          required
+        />
+        <PasswordField
+          id="password"
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+          required
+          labelAddon={
+            <Link
+              to="/forgot-password"
+              className="text-xs text-mist underline underline-offset-2 transition-colors hover:text-snow"
+            >
+              Forgot password?
+            </Link>
           }
         />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-[linear-gradient(to_top,rgba(5,7,12,0.85),transparent)] p-10 pt-24">
-          <p className="font-tabular text-[0.65rem] tracking-[0.24em] text-[#8FA0B5] uppercase">
-            Earth observation
-          </p>
-          <h2 className="mt-3 max-w-md font-[var(--font-display)] text-[1.7rem] leading-[1.2] font-semibold text-[#EDF1F6]">
-            The pass has already flown. We read it for you.
-          </h2>
-          <p className="mt-3 max-w-sm text-sm text-[#9FB3C8]">
-            Cloud-free satellite imagery over the areas you watch, scored findings, and checks that
-            run again on a schedule.
-          </p>
-        </div>
-      </section>
 
-      <section className="flex w-full items-center justify-center px-6 py-12 lg:w-[30rem] lg:shrink-0">
-        <div className="w-full max-w-sm">
-          <h1 className="font-[var(--font-display)] text-2xl font-semibold tracking-[0.16em]">
-            AURORA
-          </h1>
-          <p className="mt-1 text-sm text-[var(--color-ink-soft)]">Sign in to your account.</p>
+        {error && <p className="night-alert px-3.5 py-2.5 text-sm">{error}</p>}
 
-          {justReset && (
-            <p className="mt-4 rounded-sm border border-[var(--color-healthy)] bg-[var(--color-healthy-soft)] px-3 py-2 text-sm text-[var(--color-healthy)]">
-              Password reset. Sign in with your new password.
-            </p>
-          )}
-
-          {sessionExpired && (
-            <p className="mt-4 rounded-sm border border-[var(--color-stress)] bg-[var(--color-stress-soft)] px-3 py-2 text-sm text-[var(--color-stress)]">
-              Your session ended. Sign in again to continue.
-            </p>
-          )}
-
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium">
-                Username
-              </label>
-              <input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                autoComplete="username"
-                className="mt-1 w-full rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-3 py-2 text-sm focus:border-[var(--color-orbit)] focus:outline-none"
-              />
-            </div>
-            <div>
-              <PasswordField
-                id="password"
-                label="Password"
-                value={password}
-                onChange={setPassword}
-                autoComplete="current-password"
-                required
-                labelAddon={
-                  <Link
-                    to="/forgot-password"
-                    className="text-xs text-[var(--color-ink-soft)] underline underline-offset-2 hover:text-[var(--color-ink)]"
-                  >
-                    Forgot password?
-                  </Link>
-                }
-              />
-            </div>
-
-            {error && <p className="text-sm text-[var(--color-critical)]">{error}</p>}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn btn-primary w-full px-3 py-2 text-sm font-medium"
-            >
-              {submitting ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
-
-          <p className="mt-6 text-sm text-[var(--color-ink-soft)]">
-            No account?{' '}
-            <Link to="/register" className="text-[var(--color-orbit)] underline underline-offset-2">
-              Create one
-            </Link>
-          </p>
-        </div>
-      </section>
-    </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="btn btn-acid w-full px-4 py-2.5 text-sm"
+        >
+          {submitting ? 'Signing in…' : 'Sign in'}
+        </button>
+      </form>
+    </AuthShell>
   )
 }
