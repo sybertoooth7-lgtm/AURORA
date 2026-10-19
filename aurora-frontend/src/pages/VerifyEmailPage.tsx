@@ -64,7 +64,7 @@ export function VerifyEmailPage() {
       {status === 'error' && (
         <>
           <p className="text-sm leading-relaxed text-mist">
-            {error} It may have expired -- you can request a new one from the dashboard once you're
+            {error} It may have expired — you can request a new one from the dashboard once you're
             signed in.
           </p>
           <Link to="/app" className="btn btn-ghost mt-7 px-5 py-2.5 text-sm">

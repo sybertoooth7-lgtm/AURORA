@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
             Something went wrong
           </h1>
           <p className="mt-3 text-sm text-[var(--color-ink-soft)]">
-            The page hit an unexpected error. Your data is safe -- try reloading.
+            The page hit an unexpected error. Your data is safe — try reloading.
           </p>
           <button
             type="button"

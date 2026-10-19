@@ -1,11 +1,6 @@
 import { Link } from 'react-router-dom'
-import { EarthGlobe, type GlobePoint } from '../components/EarthGlobe'
+import { EarthLimb } from '../components/EarthLimb'
 import { Reveal } from '../components/Reveal'
-
-// The landing page shows the planet, not anybody's areas: no points, no click
-// handlers. A module constant keeps the globe from seeing a new array
-// identity on every render.
-const NO_POINTS: GlobePoint[] = []
 
 const CAPABILITIES = [
   { k: '10 m', v: 'the resolution NDVI is actually computed at, from the red and near-infrared bands' },
@@ -18,7 +13,7 @@ const STEPS = [
   {
     n: '01',
     title: 'Mark an area',
-    body: 'Click a point on the globe and set a radius -- a farm block, a quarry, a catchment.',
+    body: 'Click a point on the globe and set a radius — a farm block, a quarry, a catchment.',
   },
   {
     n: '02',
@@ -39,7 +34,7 @@ const CHECK_TYPES = [
   },
   {
     title: 'Land change',
-    body: 'Track what changed on a parcel between passes -- clearing, new construction, flooding.',
+    body: 'Track what changed on a parcel between passes — clearing, new construction, flooding.',
   },
   {
     title: 'Water monitoring',
@@ -102,18 +97,12 @@ export function LandingPage() {
             it does in the product: you are reading a report about a place,
             and the place should be visible while you read. */}
         <section className="relative -mt-[4.5rem] flex min-h-[92vh] items-end overflow-hidden pt-[4.5rem]">
-          {/* EarthGlobe puts `relative` on its own root, so the positioning
-              has to live on a wrapper -- a Tailwind `absolute` on the
-              component itself loses to it. */}
-          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-full sm:w-[70%]">
-            <EarthGlobe
-              className="h-full w-full"
-              points={NO_POINTS}
-              initialAltitude={2.15}
-              fallback={
-                <div className="h-full w-full bg-[radial-gradient(120%_90%_at_72%_28%,#16233A_0%,#05070C_62%)]" />
-              }
-            />
+          {/* The planet fills the frame and the copy sits in its shade. Full
+              bleed rather than a right-hand panel: at this aspect the whole
+              width of the render fits without cropping, so the limb arc keeps
+              its shape instead of being sliced by a box edge. */}
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <EarthLimb position="50% 26%" />
           </div>
           <div
             aria-hidden
@@ -131,7 +120,7 @@ export function LandingPage() {
             </h1>
             <p className="mt-6 max-w-md text-[0.9375rem] leading-relaxed text-mist">
               AURORA checks any area against the latest satellite pass and tells you what's
-              different -- vegetation stress, land change, water coverage -- so the first sign of
+              different — vegetation stress, land change, water coverage — so the first sign of
               trouble doesn't have to be a phone call.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-3">
@@ -223,8 +212,8 @@ export function LandingPage() {
                     </h2>
                     <p className="mt-5 max-w-md text-sm leading-relaxed text-mist">
                       Spacecraft, constellation, mission planning, autonomy and ISRU run in the same
-                      account as the imagery. They are architecture and model code -- no hardware, no
-                      live telemetry -- and every response they return carries its provenance, its
+                      account as the imagery. They are architecture and model code — no hardware, no
+                      live telemetry — and every response they return carries its provenance, its
                       stage and its limitations in the payload itself.
                     </p>
                   </div>
@@ -256,8 +245,8 @@ export function LandingPage() {
                 Built on real Sentinel-2 data
               </h2>
               <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-mist">
-                AURORA reads directly from the Copernicus Data Space Ecosystem -- the same
-                Sentinel-2 archive used by researchers and agencies -- and reports cloud-masked NDVI
+                AURORA reads directly from the Copernicus Data Space Ecosystem — the same
+                Sentinel-2 archive used by researchers and agencies — and reports cloud-masked NDVI
                 over the exact area you define, not a generic regional estimate.
               </p>
               <p className="font-tabular mt-6 text-[0.65rem] tracking-[0.18em] text-mist-dim uppercase">
@@ -291,7 +280,7 @@ export function LandingPage() {
 
       <footer className="border-t border-hairline px-6 py-10">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 text-sm text-mist-dim sm:flex-row sm:items-center sm:justify-between">
-          <span>AURORA -- Space Intelligence, Nairobi</span>
+          <span>AURORA — Space Intelligence, Nairobi</span>
           <span className="font-tabular text-[0.7rem]">Sentinel-2 / Copernicus Data Space Ecosystem</span>
         </div>
       </footer>

@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { EarthGlobe, type GlobePoint } from '../components/EarthGlobe'
-
-const NO_POINTS: GlobePoint[] = []
+import { EarthLimb } from './EarthLimb'
 
 interface AuthShellProps {
   eyebrow?: string
@@ -26,20 +24,15 @@ export function AuthShell({ eyebrow, title, blurb, children, aside }: AuthShellP
     <div className="night relative flex min-h-full items-center justify-center overflow-hidden px-4 py-16">
       <div className="grain" />
 
-      {/* Decorative: no points, no handlers. The limb is oversized and pushed
-          below the fold so what you see is a horizon, not a diagram. */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-[-25%] bottom-[-58%] h-[105%]">
-        <EarthGlobe
-          className="h-full w-full"
-          points={NO_POINTS}
-          initialAltitude={1.35}
-          fallback={<div className="h-full w-full bg-[radial-gradient(80%_60%_at_50%_100%,#16233A_0%,#05070C_70%)]" />}
-        />
+      {/* A still render rather than the live globe: nothing on this page is
+          plotted, so a horizon does not need WebGL -- and the page no longer
+          has to load the three.js chunk to draw one. The two scrims are what
+          keep the card legible over it. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <EarthLimb position="50% 30%" />
+        <div className="absolute inset-0 bg-[rgba(5,7,12,0.46)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(85%_70%_at_50%_108%,transparent_18%,rgba(5,7,12,0.88)_68%)]" />
       </div>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_70%_at_50%_115%,transparent_28%,rgba(5,7,12,0.82)_72%)]"
-      />
 
       <Link
         to="/"
