@@ -20,7 +20,6 @@
   --color-paper-raised: #F3F5F0;
   --color-ink: #14231F;
   --color-ink-soft: #4B5A54;
-  --color-border: #C9C2AE;
 
   --color-orbit: #2B3A67;
   --color-orbit-soft: #556099;
@@ -31,6 +30,240 @@
   --color-stress-soft: #F1DCCF;
   --color-critical: #8C2F1B;
   --color-critical-soft: #EFD0C6;
+
+  /* Edge treatment.
+     Borders are a translucent wash of the ink rather than a solid khaki
+     stroke, so they hold a card together without drawing the eye, and the
+     radii are one step softer than the defaults. Every surface that already
+     asks for a border or a rounded corner picks these up, which is what
+     keeps the whole product consistent instead of the screens that happened
+     to get individual attention. */
+  --color-border: rgba(20, 35, 31, 0.15);
+  --color-border-strong: rgba(20, 35, 31, 0.3);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background: rgba(85, 96, 153, 0.22);
+  }
+
+  /* One raised surface: hairline edge, paper fill, and a single deep shadow
+     that is mostly offset and almost no opacity, so it reads as lift rather
+     than as a grey box. Utilities still win, so a panel that needs its own
+     fill can ask for one. */
+  .panel {
+    background-color: var(--color-paper-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow:
+      0 1px 2px rgba(20, 35, 31, 0.04),
+      0 16px 34px -26px rgba(20, 35, 31, 0.4);
+  }
+
+  .panel-inset {
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  /* The dark window the planet is looked through. Its edge is a wash of light,
+     not the paper hairline, because a paper hairline disappears against
+     space. */
+  .orbital {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background-color: #05070C;
+    border: 1px solid rgba(20, 35, 31, 0.22);
+    box-shadow:
+      inset 0 0 0 1px rgba(143, 160, 181, 0.1),
+      0 26px 54px -32px rgba(20, 35, 31, 0.6);
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-ink-soft);
+  }
+
+  /* Buttons. The fill carries its own shadow so a primary action looks like it
+     sits above the paper, and the pressed state moves the whole control rather
+     than just fading it. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-sm);
+    line-height: 1.25;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background-color: var(--color-orbit);
+    color: var(--color-paper);
+    box-shadow:
+      0 1px 2px rgba(43, 58, 103, 0.2),
+      0 10px 20px -14px rgba(43, 58, 103, 0.7);
+  }
+
+  .btn-primary:hover {
+    background-color: #22305A;
+  }
+
+  .btn-secondary {
+    background-color: var(--color-paper-raised);
+    border: 1px solid var(--color-border);
+    color: var(--color-ink);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--color-border-strong);
+    background-color: #FAFBF7;
+  }
+
+  .btn-outline {
+    border: 1px solid var(--color-orbit);
+    color: var(--color-orbit);
+  }
+
+  .btn-outline:hover {
+    background-color: var(--color-orbit);
+    color: var(--color-paper);
+  }
+
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+    box-shadow: none;
+  }
+
+  /* Column headers are labels on an instrument, not prose: the mono face,
+     small, letterspaced, and quiet so the rows carry the weight. */
+  thead th {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-ink-soft);
+  }
+
+  /* Controls take the document type instead of a browser default, and share
+     one quiet edge. The states are declared below, outside the layer, so
+     they survive the per-element utility classes on the forms. */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+    background-color: var(--color-paper-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* Unlayered on purpose: these are interaction states, and they have to beat
+   the utility classes sitting on the same elements. Nothing here changes how
+   a control looks at rest. */
+input:not([type='checkbox']):not([type='radio']):not([type='range']),
+select,
+textarea {
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):hover,
+select:hover,
+textarea:hover {
+  border-color: var(--color-border-strong);
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+select:focus,
+textarea:focus {
+  background-color: #F7F9F3;
+  border-color: var(--color-orbit-soft);
+  box-shadow: 0 0 0 3px rgba(85, 96, 153, 0.14);
+  outline: none;
+}
+
+a,
+button,
+[role='button'] {
+  transition:
+    color 0.16s ease,
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    opacity 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease;
+}
+
+button:active:not(:disabled),
+[role='button']:active:not([aria-disabled='true']) {
+  transform: translateY(1px);
+}
+
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-orbit-soft);
+  outline-offset: 2px;
+}
+
+/* Unlayered so a button doesn't inherit only part of its motion from whichever
+   transition utility happens to be on it. */
+.btn {
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease,
+    opacity 0.16s ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(43, 58, 103, 0.16);
+}
+
+/* Table rows are quiet until you're over one; the mono column already lines
+   up, this only says which row your eye is on. */
+tbody tr {
+  transition: background-color 0.14s ease;
+}
+
+tbody tr:hover {
+  background-color: rgba(20, 35, 31, 0.035);
+}
+
+/* Scrollbars here are furniture, not content: thin, and with no track, so a
+   long area list in the sidebar reads as part of the panel. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(20, 35, 31, 0.22) transparent;
 }
 
 html, body, #root {
@@ -60,5 +293,10 @@ input::-ms-clear {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+
+  button:active:not(:disabled),
+  [role='button']:active:not([aria-disabled='true']) {
+    transform: none;
   }
 }

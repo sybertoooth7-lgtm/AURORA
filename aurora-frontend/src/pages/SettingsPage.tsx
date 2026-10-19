@@ -104,8 +104,8 @@ export function SettingsPage() {
         Your account and the machine credentials used by robots and data pipelines.
       </p>
 
-      <section className="mt-8 rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-5 py-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+      <section className="mt-8 panel px-5 py-5">
+        <h2 className="eyebrow">
           Account
         </h2>
         <dl className="mt-4 space-y-3 text-sm">
@@ -150,8 +150,8 @@ export function SettingsPage() {
         </button>
       </section>
 
-      <section className="mt-8 rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-5 py-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+      <section className="mt-8 panel px-5 py-5">
+        <h2 className="eyebrow">
           Create an API key
         </h2>
         <p className="mt-2 text-sm text-[var(--color-ink-soft)]">
@@ -186,7 +186,7 @@ export function SettingsPage() {
           <button
             type="submit"
             disabled={creating}
-            className="rounded-sm bg-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="btn btn-primary px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {creating ? 'Creating…' : 'Create key'}
           </button>
@@ -220,8 +220,8 @@ export function SettingsPage() {
         )}
       </section>
 
-      <section className="mt-8 rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-5 py-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+      <section className="mt-8 panel px-5 py-5">
+        <h2 className="eyebrow">
           Active keys
         </h2>
         {keys.length === 0 ? (

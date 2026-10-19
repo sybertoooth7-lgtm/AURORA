@@ -82,7 +82,7 @@ export function OperationsPage() {
         <button
           type="button"
           onClick={() => void load()}
-          className="rounded-sm border border-[var(--color-border)] px-3 py-1.5 text-sm"
+          className="btn btn-secondary px-3 py-1.5 text-sm"
         >
           Reload
         </button>
@@ -96,7 +96,7 @@ export function OperationsPage() {
         </div>
       )}
       {adminOnly && (
-        <p className="mt-6 rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-3 text-sm text-[var(--color-ink-soft)]">
+        <p className="mt-6 panel px-4 py-3 text-sm text-[var(--color-ink-soft)]">
           The queue view is for platform operators. Data readiness below is available to your
           account.
         </p>
@@ -106,7 +106,7 @@ export function OperationsPage() {
 
       {jobs && (
         <section className="mt-10">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h2 className="eyebrow">
             Today
           </h2>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -127,7 +127,7 @@ export function OperationsPage() {
             {jobs.today.success_rate == null ? 'no attempts yet' : `${(jobs.today.success_rate * 100).toFixed(1)}%`}
           </p>
 
-          <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h3 className="mt-6 eyebrow">
             Recent failures
           </h3>
           {jobs.today.recent_failures.length === 0 ? (
@@ -157,7 +157,7 @@ export function OperationsPage() {
             </table>
           )}
 
-          <h3 className="mt-8 text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h3 className="mt-8 eyebrow">
             Stuck analyses
           </h3>
           {jobs.stuck_analyses.length === 0 ? (
@@ -252,7 +252,7 @@ function QueueCards({ jobs }: { jobs: JobPipelineStatus }) {
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-3"
+          className="panel px-4 py-3"
         >
           <p className="text-xs text-[var(--color-ink-soft)]">{card.label}</p>
           <p className="font-tabular mt-1 truncate text-lg font-semibold">{card.value}</p>

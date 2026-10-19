@@ -1,4 +1,10 @@
 import { Link } from 'react-router-dom'
+import { EarthGlobe, type GlobePoint } from '../components/EarthGlobe'
+
+// The landing page shows the planet, not anybody's areas: no points, no click
+// handlers. A module constant keeps the globe from seeing a new array
+// identity on every render.
+const NO_POINTS: GlobePoint[] = []
 
 const CHECK_TYPES = [
   {
@@ -42,7 +48,7 @@ export function LandingPage() {
     <div className="min-h-full">
       <header className="border-b border-[var(--color-border)] px-6 py-5">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <span className="font-[var(--font-display)] text-lg font-semibold tracking-tight">
+          <span className="font-[var(--font-display)] text-lg font-semibold tracking-[0.16em]">
             AURORA
           </span>
           <nav className="flex items-center gap-6 text-sm">
@@ -51,7 +57,7 @@ export function LandingPage() {
             </Link>
             <Link
               to="/register"
-              className="rounded-sm bg-[var(--color-orbit)] px-4 py-2 font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
+              className="btn btn-primary px-4 py-2 font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
             >
               Get started
             </Link>
@@ -72,7 +78,7 @@ export function LandingPage() {
           <div className="mt-8 flex items-center justify-center gap-4">
             <Link
               to="/register"
-              className="rounded-sm bg-[var(--color-orbit)] px-5 py-3 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
+              className="btn btn-primary px-5 py-3 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
             >
               Start monitoring an area
             </Link>
@@ -83,6 +89,27 @@ export function LandingPage() {
               Sign in
             </Link>
           </div>
+        </section>
+
+        <section className="mx-auto max-w-5xl px-6 pb-20">
+          <figure className="orbital">
+            <EarthGlobe
+              className="h-72 sm:h-96"
+              points={NO_POINTS}
+              initialAltitude={1.95}
+              fallback={
+                <div className="h-72 w-full bg-[radial-gradient(120%_90%_at_28%_18%,#16233A_0%,#05070C_62%)] sm:h-96" />
+              }
+            />
+            <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4">
+              <span className="font-tabular text-[0.65rem] tracking-[0.24em] text-[#8FA0B5] uppercase">
+                Orbital view
+              </span>
+              <span className="font-tabular text-[0.65rem] text-[#8FA0B5]">
+                Illustrative rendering &middot; not survey data
+              </span>
+            </figcaption>
+          </figure>
         </section>
 
         <section className="border-t border-[var(--color-border)] bg-[var(--color-paper-raised)] px-6 py-16">
@@ -105,10 +132,7 @@ export function LandingPage() {
             <h2 className="font-[var(--font-display)] text-2xl font-semibold">What AURORA checks for</h2>
             <div className="mt-8 grid gap-6 sm:grid-cols-2">
               {CHECK_TYPES.map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-sm border border-[var(--color-border)] p-5"
-                >
+                <div key={item.title} className="panel p-5">
                   <h3 className="font-medium">{item.title}</h3>
                   <p className="mt-1 text-sm text-[var(--color-ink-soft)]">{item.body}</p>
                 </div>
@@ -141,7 +165,7 @@ export function LandingPage() {
             </p>
             <Link
               to="/register"
-              className="mt-6 inline-block rounded-sm bg-[var(--color-orbit)] px-5 py-3 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
+              className="mt-6 inline-block btn btn-primary px-5 py-3 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
             >
               Create your account
             </Link>

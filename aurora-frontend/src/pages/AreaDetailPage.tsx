@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { AreaMap } from '../components/AreaMap'
+import { EarthGlobe, type GlobePoint } from '../components/EarthGlobe'
 import { api } from '../lib/api'
 import { severityColor, alertColor } from '../lib/colors'
 import {
@@ -114,6 +115,29 @@ export function AreaDetailPage() {
     }
   }
 
+  const areaPoint = useMemo<GlobePoint[]>(() => {
+    if (!analysis) return []
+    const latest = results[results.length - 1]
+    return [
+      {
+        id: analysis.id,
+        latitude: analysis.latitude,
+        longitude: analysis.longitude,
+        label: analysis.description || ANALYSIS_TYPE_LABELS[analysis.analysis_type],
+        severity: latest?.severity_score ?? null,
+        state:
+          analysis.status === 'pending'
+            ? 'queued'
+            : analysis.status === 'processing'
+              ? 'processing'
+              : analysis.status === 'failed'
+                ? 'failed'
+                : null,
+        monitored: cadence !== null,
+      },
+    ]
+  }, [analysis, results, cadence])
+
   if (notFound) {
     return (
       <div className="px-6 py-10">
@@ -158,23 +182,53 @@ export function AreaDetailPage() {
         </div>
       </header>
 
-      <div className="h-72 shrink-0 border-b border-[var(--color-border)]">
-        <AreaMap
-          latitude={analysis.latitude}
-          longitude={analysis.longitude}
-          radiusKm={analysis.radius_km}
-          ndvi={metadata?.ndvi}
-        />
+      {/* Two scales of the same place: where it sits on the planet, and what
+          the parcel looks like from the last pass over it. */}
+      <div className="grid h-72 shrink-0 grid-cols-1 border-b border-[var(--color-border)] sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+        <figure className="relative min-w-0 overflow-hidden border-b border-[rgba(20,35,31,0.2)] bg-[#05070c] sm:border-r sm:border-b-0">
+          <EarthGlobe
+            className="h-full w-full"
+            points={areaPoint}
+            selectedId={analysis.id}
+            initialAltitude={1.9}
+            autoRotate={false}
+            fallback={
+              <div className="flex h-full w-full items-center justify-center px-4 text-center text-xs text-[#8FA0B5]">
+                {analysis.latitude.toFixed(3)}, {analysis.longitude.toFixed(3)}
+              </div>
+            }
+          />
+          <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-3">
+            <span className="font-tabular text-[0.65rem] tracking-[0.22em] text-[#8FA0B5] uppercase">
+              Where
+            </span>
+            <span className="font-tabular rounded-sm bg-[rgba(5,7,12,0.55)] px-2 py-1 text-[0.65rem] text-[#C6D2E2]">
+              {analysis.latitude.toFixed(3)}, {analysis.longitude.toFixed(3)}
+            </span>
+          </figcaption>
+        </figure>
+
+        <div className="relative min-h-0 min-w-0">
+          <AreaMap
+            latitude={analysis.latitude}
+            longitude={analysis.longitude}
+            radiusKm={analysis.radius_km}
+            ndvi={metadata?.ndvi}
+          />
+          <p className="font-tabular pointer-events-none absolute bottom-3 left-3 z-[600] rounded-sm bg-[rgba(243,245,240,0.9)] px-2 py-1 text-[0.65rem] tracking-[0.22em] text-[var(--color-ink-soft)] uppercase">
+            Parcel
+          </p>
+        </div>
       </div>
 
       <StatusStrip analysis={analysis} result={latestResult} metadata={metadata} />
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
         <section className="mt-8 first:mt-0">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h2 className="eyebrow">
             Monitoring
           </h2>
-          <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-3">
+          <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3 panel px-4 py-3">
             <div>
               <label
                 htmlFor="cadence"
@@ -217,7 +271,7 @@ export function AreaDetailPage() {
               type="button"
               onClick={handleRerun}
               disabled={runActive || rerunning}
-              className="ml-auto rounded-sm border border-[var(--color-orbit)] px-3 py-2 text-sm font-medium text-[var(--color-orbit)] transition-colors hover:bg-[var(--color-orbit)] hover:text-[var(--color-paper)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="ml-auto btn btn-outline px-3 py-2 text-sm font-medium text-[var(--color-orbit)] transition-colors hover:bg-[var(--color-orbit)] hover:text-[var(--color-paper)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {rerunning ? 'Running…' : runActive ? 'Already running' : 'Re-run now'}
             </button>
@@ -225,7 +279,7 @@ export function AreaDetailPage() {
         </section>
 
         <section className="mt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h2 className="eyebrow">
             Alerts
           </h2>
           {relevantAlerts.length === 0 ? (
@@ -255,7 +309,7 @@ export function AreaDetailPage() {
         </section>
 
         <section className="mt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h2 className="eyebrow">
             History
           </h2>
           {history && <TrendLine history={history} />}
@@ -387,7 +441,7 @@ function TrendLine({ history }: { history: AnalysisHistoryResponse }) {
   const simulated = history.points.filter((point) => point.simulated).length
 
   return (
-    <div className="mt-3 rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-3">
+    <div className="mt-3 panel px-4 py-3">
       <p className="text-sm">
         <span className="font-medium">{label}</span>
         {change != null && (

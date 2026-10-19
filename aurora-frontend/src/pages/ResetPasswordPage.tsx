@@ -99,7 +99,7 @@ export function ResetPasswordPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-sm bg-[var(--color-orbit)] px-3 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="w-full btn btn-primary px-3 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {submitting ? 'Resetting…' : 'Reset password'}
           </button>

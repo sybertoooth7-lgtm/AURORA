@@ -118,7 +118,7 @@ export function FieldAnalysisPage() {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h2 className="eyebrow">
             Boundary
           </h2>
           <div className="mt-3 h-80 overflow-hidden rounded-sm border border-[var(--color-border)]">
@@ -129,7 +129,7 @@ export function FieldAnalysisPage() {
               type="button"
               onClick={undoVertex}
               disabled={vertices.length === 0}
-              className="rounded-sm border border-[var(--color-border)] px-3 py-1.5 text-sm disabled:opacity-40"
+              className="btn btn-secondary px-3 py-1.5 text-sm disabled:opacity-40"
             >
               Remove vertex
             </button>
@@ -137,7 +137,7 @@ export function FieldAnalysisPage() {
               type="button"
               onClick={() => setVertices([])}
               disabled={vertices.length === 0}
-              className="rounded-sm border border-[var(--color-border)] px-3 py-1.5 text-sm disabled:opacity-40"
+              className="btn btn-secondary px-3 py-1.5 text-sm disabled:opacity-40"
             >
               Clear
             </button>
@@ -173,7 +173,7 @@ export function FieldAnalysisPage() {
               type="button"
               onClick={runSingle}
               disabled={running !== null}
-              className="rounded-sm bg-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="btn btn-primary px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {running === 'single' ? 'Analysing…' : 'Analyse this field'}
             </button>
@@ -181,7 +181,7 @@ export function FieldAnalysisPage() {
               type="button"
               onClick={queueCurrentField}
               disabled={running !== null}
-              className="rounded-sm border border-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-orbit)] transition-colors hover:bg-[var(--color-orbit)] hover:text-[var(--color-paper)] disabled:opacity-50"
+              className="btn btn-outline px-4 py-2 text-sm font-medium text-[var(--color-orbit)] transition-colors hover:bg-[var(--color-orbit)] hover:text-[var(--color-paper)] disabled:opacity-50"
             >
               Add to batch
             </button>
@@ -195,7 +195,7 @@ export function FieldAnalysisPage() {
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h2 className="eyebrow">
             Batch ({batch.length}/{MAX_BATCH_FIELDS})
           </h2>
           {batch.length === 0 ? (
@@ -223,7 +223,7 @@ export function FieldAnalysisPage() {
               type="button"
               onClick={runBatch}
               disabled={running !== null || batch.length === 0}
-              className="rounded-sm bg-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="btn btn-primary px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {running === 'batch' ? 'Running…' : `Run batch (${batch.length})`}
             </button>
@@ -234,7 +234,7 @@ export function FieldAnalysisPage() {
                 setBulk(null)
               }}
               disabled={batch.length === 0}
-              className="rounded-sm border border-[var(--color-border)] px-4 py-2 text-sm disabled:opacity-40"
+              className="btn btn-secondary px-4 py-2 text-sm disabled:opacity-40"
             >
               Clear batch
             </button>
@@ -257,13 +257,13 @@ function FieldReport({ result }: { result: CropAnalysisResponse }) {
   return (
     <section className="mt-10">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+        <h2 className="eyebrow">
           Report
         </h2>
         <ProvenanceBadge provenance={result.provenance} />
       </div>
 
-      <div className="mt-3 rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-4">
+      <div className="mt-3 panel px-4 py-4">
         <div className="flex flex-wrap items-center gap-4">
           <p
             className="rounded-sm px-3 py-1 text-sm font-semibold"
@@ -314,7 +314,7 @@ function BulkReport({ bulk }: { bulk: CropBulkAnalysisResponse }) {
   return (
     <section className="mt-10">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+        <h2 className="eyebrow">
           Batch results
         </h2>
         <p className="font-tabular text-xs text-[var(--color-ink-soft)]">

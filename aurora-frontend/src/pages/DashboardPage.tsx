@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { EarthGlobe, type GlobePoint } from '../components/EarthGlobe'
 import { useDashboardContext } from '../components/Layout'
 import { api } from '../lib/api'
 import {
@@ -39,7 +40,8 @@ function formatDate(value: string | null): string {
 }
 
 export function DashboardPage() {
-  const { areaTotal, refreshAreas } = useDashboardContext()
+  const { areas, areaTotal, refreshAreas } = useDashboardContext()
+  const navigate = useNavigate()
   const [summary, setSummary] = useState<AnalysisSummaryResponse | null>(null)
   const [page, setPage] = useState<Analysis[]>([])
   const [status, setStatus] = useState<AnalysisStatus | ''>('')
@@ -93,6 +95,26 @@ export function DashboardPage() {
   const lastPage = Math.max(0, Math.ceil(pageTotal / PAGE_SIZE) - 1)
   const pageIndex = Math.floor(skip / PAGE_SIZE)
 
+  const globePoints = useMemo<GlobePoint[]>(
+    () =>
+      areas.map((area) => ({
+        id: area.id,
+        latitude: area.latitude,
+        longitude: area.longitude,
+        label: area.description || ANALYSIS_TYPE_LABELS[area.analysis_type],
+        state:
+          area.status === 'pending'
+            ? 'queued'
+            : area.status === 'processing'
+              ? 'processing'
+              : area.status === 'failed'
+                ? 'failed'
+                : null,
+        monitored: area.monitor_interval_minutes !== null,
+      })),
+    [areas],
+  )
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
       <header className="flex items-end justify-between">
@@ -104,7 +126,7 @@ export function DashboardPage() {
         </div>
         <Link
           to="/app/areas/new"
-          className="rounded-sm bg-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
+          className="btn btn-primary px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
         >
           + New area
         </Link>
@@ -112,61 +134,106 @@ export function DashboardPage() {
 
       {loadError && <p className="mt-6 text-sm text-[var(--color-stress)]">{loadError}</p>}
 
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Kpi
-          label="Areas tracked"
-          value={String(summary?.total_analyses ?? areaTotal)}
-          detail={`${summary?.monitored_areas ?? 0} monitored`}
-        />
-        <Kpi label="Checks in flight" value={String(inFlight)} detail="queued or processing" />
-        <Kpi
-          label="Open alerts"
-          value={String(summary?.unread_alerts ?? 0)}
-          detail="not yet acknowledged"
-        />
-        <Kpi
-          label="Checks left today"
-          value={summary ? String(summary.quota_remaining_today) : '—'}
-          detail={
-            summary
-              ? `of ${summary.quota_limit_per_day} satellite fetches`
-              : 'satellite fetch quota'
-          }
-        />
-      </div>
+      <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <figure className="orbital">
+          <EarthGlobe
+            className="h-[21rem] sm:h-[26rem]"
+            points={globePoints}
+            initialAltitude={2.05}
+            onSelect={(id) => navigate(`/app/areas/${id}`)}
+            fallback={
+              <div className="flex h-[21rem] items-center justify-center px-6 text-center text-sm text-[#9FB3C8] sm:h-[26rem]">
+                This browser cannot render the 3D view. The table below lists the same areas.
+              </div>
+            }
+          />
+          <figcaption className="pointer-events-none absolute inset-0 flex flex-col justify-between p-4">
+            <div className="flex items-start justify-between gap-3">
+              <span className="font-tabular text-[0.65rem] tracking-[0.2em] text-[#9FB3C8] uppercase">
+                Orbital view
+              </span>
+              <span className="font-tabular text-[0.65rem] text-[#9FB3C8]">
+                {globePoints.length} {globePoints.length === 1 ? 'area' : 'areas'} plotted
+              </span>
+            </div>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <ul className="font-tabular flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.65rem] text-[#9FB3C8]">
+                <li className="flex items-center gap-1.5">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#4F7942]" />
+                  healthy
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#B5502E]" />
+                  stressed
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#8C2F1B]" />
+                  critical
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#556099]" />
+                  awaiting check
+                </li>
+                <li>ring = monitored</li>
+              </ul>
+              <p className="font-tabular rounded-sm border border-[#1c2733] bg-[#0a0f16]/85 px-2 py-1 text-[0.65rem] text-[#9FB3C8]">
+                {realFindings} real / {simulatedFindings} simulated
+              </p>
+            </div>
+          </figcaption>
+        </figure>
 
-      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Kpi
-          label="Mean severity"
-          value={summary?.mean_severity != null ? summary.mean_severity.toFixed(2) : '—'}
-          detail={`${summary?.completed_with_findings ?? 0} findings scored`}
-        />
-        <Kpi
-          label="Mean confidence"
-          value={summary?.mean_confidence != null ? summary.mean_confidence.toFixed(2) : '—'}
-          detail="across scored findings"
-        />
-        <Kpi
-          label="Last activity"
-          value={formatDate(summary?.last_activity_at ?? null)}
-          detail="most recent check"
-        />
-        <div className="rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-3">
-          <p className="text-xs text-[var(--color-ink-soft)]">Data behind the findings</p>
-          <p className="font-tabular mt-1 text-sm font-medium">
-            {realFindings} real / {simulatedFindings} simulated
-          </p>
-          <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]">
-            {simulatedFindings > 0
-              ? 'Simulated findings come from the demo provider and are labelled as such.'
-              : 'Every finding rests on real satellite data.'}
-          </p>
+        <div className="grid grid-cols-2 content-start gap-3">
+          <Kpi
+            label="Areas tracked"
+            value={String(summary?.total_analyses ?? areaTotal)}
+            detail={`${summary?.monitored_areas ?? 0} monitored`}
+          />
+          <Kpi label="Checks in flight" value={String(inFlight)} detail="queued or processing" />
+          <Kpi
+            label="Open alerts"
+            value={String(summary?.unread_alerts ?? 0)}
+            detail="not yet acknowledged"
+          />
+          <Kpi
+            label="Checks left today"
+            value={summary ? String(summary.quota_remaining_today) : '—'}
+            detail={
+              summary ? `of ${summary.quota_limit_per_day} satellite fetches` : 'satellite fetch quota'
+            }
+          />
+          <Kpi
+            label="Mean severity"
+            value={summary?.mean_severity != null ? summary.mean_severity.toFixed(2) : '—'}
+            detail={`${summary?.completed_with_findings ?? 0} findings scored`}
+          />
+          <Kpi
+            label="Mean confidence"
+            value={summary?.mean_confidence != null ? summary.mean_confidence.toFixed(2) : '—'}
+            detail="across scored findings"
+          />
+          <Kpi
+            label="Last activity"
+            value={formatDate(summary?.last_activity_at ?? null)}
+            detail="most recent check"
+          />
+          <div className="panel px-4 py-3">
+            <p className="text-xs text-[var(--color-ink-soft)]">Data behind the findings</p>
+            <p className="font-tabular mt-1 text-sm font-medium">
+              {realFindings} real / {simulatedFindings} simulated
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]">
+              {simulatedFindings > 0
+                ? 'Simulated findings come from the demo provider and are labelled as such.'
+                : 'Every finding rests on real satellite data.'}
+            </p>
+          </div>
         </div>
       </div>
 
       <section className="mt-10">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h2 className="eyebrow">
             Areas
           </h2>
           <div className="flex flex-wrap items-center gap-3">
@@ -215,7 +282,7 @@ export function DashboardPage() {
             {(!summary || summary.total_analyses === 0) && (
               <Link
                 to="/app/areas/new"
-                className="mt-6 inline-block rounded-sm border border-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-orbit)] transition-colors hover:bg-[var(--color-orbit)] hover:text-[var(--color-paper)]"
+                className="mt-6 inline-block btn btn-outline px-4 py-2 text-sm font-medium text-[var(--color-orbit)] transition-colors hover:bg-[var(--color-orbit)] hover:text-[var(--color-paper)]"
               >
                 Add your first area
               </Link>
@@ -314,7 +381,7 @@ export function DashboardPage() {
 
 function Kpi({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-3">
+    <div className="panel px-4 py-3">
       <p className="text-xs text-[var(--color-ink-soft)]">{label}</p>
       <p className="font-tabular mt-1 truncate text-lg font-semibold">{value}</p>
       <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]">{detail}</p>

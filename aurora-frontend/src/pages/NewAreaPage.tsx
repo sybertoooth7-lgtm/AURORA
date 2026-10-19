@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EarthGlobe, type GlobePoint } from '../components/EarthGlobe'
 import { useDashboardContext } from '../components/Layout'
 import { LocationPicker } from '../components/LocationPicker'
 import { ApiError, api } from '../lib/api'
@@ -42,6 +43,11 @@ export function NewAreaPage() {
     [],
   )
 
+  const targetPoint = useMemo<GlobePoint[]>(
+    () => [{ id: 'target', latitude: pickerLat, longitude: pickerLon, label: 'Target area' }],
+    [pickerLat, pickerLon],
+  )
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
@@ -81,11 +87,11 @@ export function NewAreaPage() {
     <div className="mx-auto max-w-4xl px-6 py-10">
       <h1 className="font-[var(--font-display)] text-2xl font-semibold">New area</h1>
       <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
-        Click the map to place the area, or type coordinates directly. AURORA will check the most
+        Click the planet to place the area, or type coordinates directly. AURORA will check the most
         recent cloud-free satellite pass over it.
       </p>
 
-      <div className="mt-8 grid gap-8 md:grid-cols-2">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="description" className="block text-sm font-medium">
@@ -166,19 +172,51 @@ export function NewAreaPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-sm bg-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="btn btn-primary px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {submitting ? 'Submitting…' : 'Start monitoring'}
           </button>
         </form>
 
-        <div className="h-80 overflow-hidden rounded-sm border border-[var(--color-border)] md:h-full md:min-h-80">
-          <LocationPicker
-            latitude={pickerLat}
-            longitude={pickerLon}
-            radiusKm={pickerRadius}
-            onChange={handleMapChange}
-          />
+        <div className="space-y-4">
+          <figure className="orbital">
+            <EarthGlobe
+              className="h-64 sm:h-72"
+              points={targetPoint}
+              selectedId="target"
+              onPickLocation={handleMapChange}
+              autoRotate={false}
+              initialAltitude={1.9}
+              fallback={
+                <div className="flex h-64 items-center justify-center px-6 text-center text-sm text-[#8FA0B5] sm:h-72">
+                  Drag the survey map below to place the area.
+                </div>
+              }
+            />
+            <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-3">
+              <span className="font-tabular text-[0.65rem] tracking-[0.22em] text-[#8FA0B5] uppercase">
+                Orbital view
+              </span>
+              <span className="font-tabular rounded-sm bg-[rgba(5,7,12,0.55)] px-2 py-1 text-[0.7rem] text-[#C6D2E2]">
+                {pickerLat.toFixed(3)}, {pickerLon.toFixed(3)}
+              </span>
+            </figcaption>
+          </figure>
+
+          <div>
+            <p className="text-xs text-[var(--color-ink-soft)]">
+              Survey view &middot; click or drag the pin to fine-tune; the circle is the search
+              radius.
+            </p>
+            <div className="mt-1 h-56 overflow-hidden rounded-md border border-[var(--color-border)] md:h-56 md:min-h-0">
+              <LocationPicker
+                latitude={pickerLat}
+                longitude={pickerLon}
+                radiusKm={pickerRadius}
+                onChange={handleMapChange}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

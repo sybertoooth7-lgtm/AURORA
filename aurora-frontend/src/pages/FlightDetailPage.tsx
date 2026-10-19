@@ -61,7 +61,7 @@ function ChartCard({
   unit: string
 }) {
   return (
-    <div className="rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 pb-3 pt-4">
+    <div className="panel px-4 pb-3 pt-4">
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-medium">{title}</p>
         <p className="font-tabular text-sm text-[var(--color-ink-soft)]">
@@ -218,8 +218,8 @@ export function FlightDetailPage() {
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <section className="rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+            <section className="panel px-4 py-4">
+              <h2 className="eyebrow">
                 Fault log
               </h2>
               {faults.length === 0 ? (
@@ -236,8 +236,8 @@ export function FlightDetailPage() {
               )}
             </section>
 
-            <section className="rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+            <section className="panel px-4 py-4">
+              <h2 className="eyebrow">
                 Post-flight satellite inspection
               </h2>
               <form onSubmit={handleInspect} className="mt-3 space-y-3">
@@ -277,7 +277,7 @@ export function FlightDetailPage() {
                 <button
                   type="submit"
                   disabled={inspecting}
-                  className="rounded-sm bg-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                  className="btn btn-primary px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   {inspecting ? 'Inspecting…' : 'Run satellite inspection'}
                 </button>
@@ -321,7 +321,7 @@ export function FlightDetailPage() {
 
 function Kpi({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-3">
+    <div className="panel px-4 py-3">
       <p className="text-xs text-[var(--color-ink-soft)]">{label}</p>
       <p className="font-tabular mt-1 truncate text-lg font-semibold">{value}</p>
       <p className="mt-0.5 truncate text-xs text-[var(--color-ink-soft)]">{detail}</p>

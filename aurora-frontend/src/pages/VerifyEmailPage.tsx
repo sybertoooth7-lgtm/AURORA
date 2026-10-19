@@ -54,7 +54,7 @@ export function VerifyEmailPage() {
             </p>
             <Link
               to="/app"
-              className="mt-6 inline-block rounded-sm bg-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
+              className="mt-6 inline-block btn btn-primary px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90"
             >
               Go to dashboard
             </Link>

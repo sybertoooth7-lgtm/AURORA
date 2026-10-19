@@ -57,6 +57,9 @@ npm.cmd run lint    # oxlint
 ## Conventions
 
 - No code comments unless they explain a non-obvious invariant (and referenced in ruff ignore explanations if relevant).
+- Frontend surfaces use the shared classes defined in `aurora-frontend/src/index.css` -- `panel`, `eyebrow`, `orbital`, and `btn` with `btn-primary` / `btn-secondary` / `btn-outline` -- rather than hand-assembling border/background/radius utilities. The raw utilities still work; they just don't move when a token does, which is how a screen ends up looking like a different product.
+- `EarthGlobe.tsx` imports `globe.gl` dynamically because three.js is a ~1.9MB chunk. Never make that import static, always pass `fallback`, and keep the planet out of any screen that has to render a table on a slow connection.
+- The textures in `aurora-frontend/src/assets/earth/` are NASA Blue Marble / SRTM renders, not mission imagery. Anything that shows them must say so where a reader could mistake it for data (the landing page's `Illustrative rendering · not survey data` caption is the pattern) -- same rule as provenance on a result.
 - A test that asserts an analysis reached `completed` must pin `app.queue.get_analysis_queue` to `_InlineQueue` (see the autouse fixture in `tests/test_monitoring.py`). Demo mode does this itself; CI runs against a real Redis whose RQ queue has no worker, so an unpinned job sits queued forever and the assertions fail for environment reasons only.
 - SQLAlchemy models are legacy untyped `Column(...)` declarations; the Column-typing noise is scoped in `backend/pyproject.toml` under `[tool.mypy] disable_error_code` — do not fight that; add genuine fixes instead.
 - Enums stay `(str, Enum)` — serialization must not change (UP042 ignored deliberately). Empty ABC stubs are intentional interface markers (B027 ignored deliberately).

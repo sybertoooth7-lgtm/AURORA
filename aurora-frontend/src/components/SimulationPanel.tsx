@@ -19,10 +19,10 @@ export function SimulationPanel({
   children: ReactNode
 }) {
   return (
-    <section className="rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)]">
+    <section className="panel">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-4 py-3">
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide">{title}</h3>
+          <h3 className="eyebrow text-[var(--color-ink)]">{title}</h3>
           {description && <p className="mt-1 text-sm text-[var(--color-ink-soft)]">{description}</p>}
         </div>
         {envelope && <ProvenanceBadge provenance={envelope.provenance} stage={envelope.stage} />}

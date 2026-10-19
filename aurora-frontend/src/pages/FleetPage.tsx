@@ -100,8 +100,8 @@ export function FleetPage() {
         </p>
       </header>
 
-      <section className="mt-8 rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+      <section className="mt-8 panel p-5">
+        <h2 className="eyebrow">
           Spawn a simulated flight
         </h2>
         <form onSubmit={handleSimulate} className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -150,7 +150,7 @@ export function FleetPage() {
             <button
               type="submit"
               disabled={simulating}
-              className="mt-2 rounded-sm bg-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="mt-2 btn btn-primary px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {simulating ? 'Spawning…' : 'Spawn simulated flight'}
             </button>
@@ -159,7 +159,7 @@ export function FleetPage() {
       </section>
 
       <section className="mt-10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+        <h2 className="eyebrow">
           Flights
         </h2>
         {loading ? (

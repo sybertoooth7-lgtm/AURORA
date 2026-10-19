@@ -137,7 +137,7 @@ function RunButton({
       type="button"
       onClick={onClick}
       disabled={running}
-      className="rounded-sm bg-[var(--color-orbit)] px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
+      className="btn btn-primary px-4 py-2 text-sm font-medium text-[var(--color-paper)] transition-opacity hover:opacity-90 disabled:opacity-50"
     >
       {running ? 'Running…' : label}
     </button>
