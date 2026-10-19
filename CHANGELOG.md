@@ -2,9 +2,9 @@
 
 All notable changes to the AURORA platform. Dates are when the change landed on `main`.
 
-## Unreleased
+## [0.3.0] - 2026-10-20
 
-0.3.0 "Platform growth" — the account, the queue and the silent divisions: an operator can now read their own history, see why a job did not finish, and reach every division of the company as a planning tool that says so on the page. `APP_VERSION` is already at `0.3.0` so the release number travels with the code; this heading becomes `## [0.3.0]` when the branch merges.
+0.3.0 "Platform growth" — the account, the queue and the silent divisions: an operator can now read their own history, see why a job did not finish, and reach every division of the company as a planning tool that says so on the page. `APP_VERSION` is at `0.3.0`, so the release number travels with the code. Landed on `main` as the merge of PR #2 (`691c263`).
 
 ### Added
 - **Account roll-up and paged listings** — `GET /analysis/` is filtered and paginated with a real total (a short page no longer looks like a short history), `GET /analysis/summary` reports quota headroom and the real-vs-simulated provenance split, each area gained a monitoring time series across passes, and bulk field-boundary import reserves quota for the whole batch before spending any of it.
