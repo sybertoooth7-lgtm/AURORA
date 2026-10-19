@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # Platform version (single source of truth for /, /health and the API
     # metadata -- bump it here, never in three places).
-    APP_VERSION: str = "0.2.0"
+    APP_VERSION: str = "0.3.0"
 
     # Security
     SECRET_KEY: str = DEFAULT_SECRET_KEY
@@ -110,6 +110,24 @@ class Settings(BaseSettings):
     # for the login-lockout counters and the logout token blocklist below.
     REDIS_URL: str = "redis://localhost:6379/0"
     ANALYSIS_JOB_TIMEOUT_SECONDS: int = 180
+    # Transient provider/network failures are worth another attempt; a missing
+    # pipeline or a malformed area is not, so retries are capped and only fire
+    # on the transient class (see app.services.analysis_runner). Backoff grows
+    # per attempt so a saturated provider is not re-hit immediately.
+    ANALYSIS_JOB_MAX_RETRIES: int = 2
+    ANALYSIS_JOB_RETRY_BACKOFF_SECONDS: int = 30
+    # How long a finished/failed job's return value is kept in Redis. Bounded
+    # because an unbounded result TTL grows memory with traffic forever.
+    ANALYSIS_JOB_RESULT_TTL_SECONDS: int = 3600
+
+    # Observation cache. A real Sentinel Hub Statistical API request is paid
+    # for out of the Copernicus free-tier processing-unit budget, so repeated
+    # reads of the same area (dashboard polls, bulk imports that overlap)
+    # should share one upstream fetch. TTL is deliberately short: a stale NDVI
+    # is worse than a duplicated request, and imagery itself only revisits on
+    # a satellite cadence measured in minutes at best. 0 disables caching.
+    OBSERVATION_CACHE_TTL_SECONDS: int = 900
+
 
     # Environment
     ENVIRONMENT: str = "development"

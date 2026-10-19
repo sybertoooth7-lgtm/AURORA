@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { AreaMap } from '../components/AreaMap'
+import { EarthGlobe, type GlobePoint } from '../components/EarthGlobe'
 import { api } from '../lib/api'
 import { severityColor, alertColor } from '../lib/colors'
 import {
@@ -10,6 +11,7 @@ import {
   parseResultMetadata,
   type Alert,
   type Analysis,
+  type AnalysisHistoryResponse,
   type AnalysisResult,
 } from '../lib/types'
 
@@ -31,6 +33,7 @@ export function AreaDetailPage() {
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [results, setResults] = useState<AnalysisResult[]>([])
+  const [history, setHistory] = useState<AnalysisHistoryResponse | null>(null)
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [notFound, setNotFound] = useState(false)
   const [cadence, setCadence] = useState<number | null>(null)
@@ -40,20 +43,25 @@ export function AreaDetailPage() {
   useEffect(() => {
     setAnalysis(null)
     setResults([])
+    setHistory(null)
     setAlerts([])
     setNotFound(false)
     setCadence(null)
   }, [analysisId])
 
   const refresh = useCallback(async () => {
-    const [freshAnalysis, resultData, alertData] = await Promise.all([
+    const [freshAnalysis, resultData, alertData, historyData] = await Promise.all([
       api.getAnalysis(analysisId),
       api.getAnalysisResults(analysisId),
       api.listAlerts(),
+      // The trend is derived from the same rows as the table below, so a
+      // failure here only costs us the one-line summary, never the page.
+      api.analysisHistory(analysisId).catch(() => null),
     ])
     setAnalysis(freshAnalysis)
     setCadence(freshAnalysis.monitor_interval_minutes)
     setResults(resultData.results)
+    setHistory(historyData)
     setAlerts(alertData)
     return freshAnalysis.status
   }, [analysisId])
@@ -107,6 +115,29 @@ export function AreaDetailPage() {
     }
   }
 
+  const areaPoint = useMemo<GlobePoint[]>(() => {
+    if (!analysis) return []
+    const latest = results[results.length - 1]
+    return [
+      {
+        id: analysis.id,
+        latitude: analysis.latitude,
+        longitude: analysis.longitude,
+        label: analysis.description || ANALYSIS_TYPE_LABELS[analysis.analysis_type],
+        severity: latest?.severity_score ?? null,
+        state:
+          analysis.status === 'pending'
+            ? 'queued'
+            : analysis.status === 'processing'
+              ? 'processing'
+              : analysis.status === 'failed'
+                ? 'failed'
+                : null,
+        monitored: cadence !== null,
+      },
+    ]
+  }, [analysis, results, cadence])
+
   if (notFound) {
     return (
       <div className="px-6 py-10">
@@ -142,7 +173,7 @@ export function AreaDetailPage() {
             </h1>
             <p className="font-tabular mt-0.5 text-sm text-[var(--color-ink-soft)]">
               {analysis.latitude.toFixed(4)}, {analysis.longitude.toFixed(4)} &middot;{' '}
-              {analysis.radius_km}km radius
+              {analysis.radius_km.toFixed(2)}km radius
             </p>
           </div>
           <span className="font-tabular shrink-0 rounded-sm border border-[var(--color-border)] px-2 py-1 text-xs font-medium text-[var(--color-ink-soft)]">
@@ -151,23 +182,53 @@ export function AreaDetailPage() {
         </div>
       </header>
 
-      <div className="h-72 shrink-0 border-b border-[var(--color-border)]">
-        <AreaMap
-          latitude={analysis.latitude}
-          longitude={analysis.longitude}
-          radiusKm={analysis.radius_km}
-          ndvi={metadata?.ndvi}
-        />
+      {/* Two scales of the same place: where it sits on the planet, and what
+          the parcel looks like from the last pass over it. */}
+      <div className="grid h-72 shrink-0 grid-cols-1 border-b border-[var(--color-border)] sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+        <figure className="relative min-w-0 overflow-hidden border-b border-[rgba(20,35,31,0.2)] bg-[#05070c] sm:border-r sm:border-b-0">
+          <EarthGlobe
+            className="h-full w-full"
+            points={areaPoint}
+            selectedId={analysis.id}
+            initialAltitude={1.9}
+            autoRotate={false}
+            fallback={
+              <div className="flex h-full w-full items-center justify-center px-4 text-center text-xs text-[#8FA0B5]">
+                {analysis.latitude.toFixed(3)}, {analysis.longitude.toFixed(3)}
+              </div>
+            }
+          />
+          <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-3">
+            <span className="font-tabular text-[0.65rem] tracking-[0.22em] text-[#8FA0B5] uppercase">
+              Where
+            </span>
+            <span className="font-tabular rounded-sm bg-[rgba(5,7,12,0.55)] px-2 py-1 text-[0.65rem] text-[#C6D2E2]">
+              {analysis.latitude.toFixed(3)}, {analysis.longitude.toFixed(3)}
+            </span>
+          </figcaption>
+        </figure>
+
+        <div className="relative min-h-0 min-w-0">
+          <AreaMap
+            latitude={analysis.latitude}
+            longitude={analysis.longitude}
+            radiusKm={analysis.radius_km}
+            ndvi={metadata?.ndvi}
+          />
+          <p className="font-tabular pointer-events-none absolute bottom-3 left-3 z-[600] rounded-sm bg-[rgba(243,245,240,0.9)] px-2 py-1 text-[0.65rem] tracking-[0.22em] text-[var(--color-ink-soft)] uppercase">
+            Parcel
+          </p>
+        </div>
       </div>
 
       <StatusStrip analysis={analysis} result={latestResult} metadata={metadata} />
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
         <section className="mt-8 first:mt-0">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h2 className="eyebrow">
             Monitoring
           </h2>
-          <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-sm border border-[var(--color-border)] bg-[var(--color-paper-raised)] px-4 py-3">
+          <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3 panel px-4 py-3">
             <div>
               <label
                 htmlFor="cadence"
@@ -210,7 +271,7 @@ export function AreaDetailPage() {
               type="button"
               onClick={handleRerun}
               disabled={runActive || rerunning}
-              className="ml-auto rounded-sm border border-[var(--color-orbit)] px-3 py-2 text-sm font-medium text-[var(--color-orbit)] transition-colors hover:bg-[var(--color-orbit)] hover:text-[var(--color-paper)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="ml-auto btn btn-outline px-3 py-2 text-sm font-medium text-[var(--color-orbit)] transition-colors hover:bg-[var(--color-orbit)] hover:text-[var(--color-paper)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {rerunning ? 'Running…' : runActive ? 'Already running' : 'Re-run now'}
             </button>
@@ -218,7 +279,7 @@ export function AreaDetailPage() {
         </section>
 
         <section className="mt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h2 className="eyebrow">
             Alerts
           </h2>
           {relevantAlerts.length === 0 ? (
@@ -248,9 +309,10 @@ export function AreaDetailPage() {
         </section>
 
         <section className="mt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
+          <h2 className="eyebrow">
             History
           </h2>
+          {history && <TrendLine history={history} />}
           {results.length === 0 ? (
             <p className="mt-2 text-sm text-[var(--color-ink-soft)]">No results yet.</p>
           ) : (
@@ -353,6 +415,56 @@ function Reading({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs text-[var(--color-ink-soft)]">{label}</p>
       <p className="text-base font-medium">{value}</p>
+    </div>
+  )
+}
+
+const DIRECTION_LABELS: Record<string, string> = {
+  worsening: 'Worsening',
+  improving: 'Improving',
+  stable: 'Holding steady',
+  single_pass: 'Only one scored pass',
+  no_data: 'Not enough scored passes',
+}
+
+/**
+ * The backend compares the first and latest scored pass and calls anything
+ * inside +-0.05 stable, so the number travels with the word: a "stable"
+ * verdict with a 0.03 drift is a different claim than one with no drift at all.
+ */
+function TrendLine({ history }: { history: AnalysisHistoryResponse }) {
+  const label = DIRECTION_LABELS[history.direction] ?? history.direction
+  const colors = severityColor(
+    history.points[history.points.length - 1]?.severity_score ?? null,
+  )
+  const change = history.severity_change
+  const simulated = history.points.filter((point) => point.simulated).length
+
+  return (
+    <div className="mt-3 panel px-4 py-3">
+      <p className="text-sm">
+        <span className="font-medium">{label}</span>
+        {change != null && (
+          <span className="font-tabular">
+            {' '}
+            &middot; severity {change > 0 ? '+' : ''}
+            {change.toFixed(2)}
+          </span>
+        )}
+        <span className="font-tabular">
+          {' '}
+          &middot; {colors.label} now
+        </span>
+      </p>
+      <p className="font-tabular mt-1 text-xs text-[var(--color-ink-soft)]">
+        {history.passes} pass{history.passes === 1 ? '' : 'es'}
+        {history.first_checked_at && history.latest_checked_at
+          ? ` between ${new Date(history.first_checked_at).toLocaleDateString()} and ${new Date(
+              history.latest_checked_at,
+            ).toLocaleDateString()}`
+          : ''}
+        {simulated > 0 ? ` · ${simulated} from simulated imagery` : ''}
+      </p>
     </div>
   )
 }

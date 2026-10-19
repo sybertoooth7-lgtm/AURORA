@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     AURORA PLATFORM v0.2.0                   │
+│                     AURORA PLATFORM v0.3.0                   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐    │
@@ -46,7 +46,7 @@ AURORA evolves as modular, independently-testable subsystems.  The
 ```json
 {
   "platform": "AURORA",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "subsystems": [
     {"id": "satellite",              "modules": ["app.satellite"],              "status": "active"},
     {"id": "ai",                     "modules": ["app.ai"],                     "status": "active"},

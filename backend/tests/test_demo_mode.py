@@ -216,7 +216,9 @@ def test_demo_mode_serves_the_full_platform(demo_server):
         # All four persisted runs appear in the user's analysis list.
         analyses = client.get("/analysis/", headers=auth)
         assert analyses.status_code == 200
-        types = {entry["analysis_type"] for entry in analyses.json()}
+        page = analyses.json()
+        assert page["total"] == len(page["items"])
+        types = {entry["analysis_type"] for entry in page["items"]}
         assert {"vegetation_stress", "insurance_index", "robotics_inspection"} <= types
 
         # The async job path also completes inline (demo queue = synchronous).

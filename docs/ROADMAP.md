@@ -18,8 +18,9 @@
 
 ### Q3 2026
 - [ ] First paying customer
-- [ ] Web dashboard development
+- [x] Web dashboard development (React + Vite, `/app` workspace: areas, analyses, operations fleet, divisions, settings)
 - [x] Earth-revenue integration prototype (parametric agriculture insurance, robotics field inspection, user onboarding flow) — AURORA-2
+- [x] Platform growth release (paged listings, account roll-up, job observability, 3D orbital view, spacecraft/constellation/multi-planetary/space-resources/mission-planning published as labelled Stage 0 simulation) — AURORA-3
 - [ ] Seed funding round
 - [ ] Team expansion to 8-12 people
 

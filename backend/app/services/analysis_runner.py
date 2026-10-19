@@ -11,8 +11,10 @@ from datetime import UTC, datetime
 
 from app.ai import get_pipeline
 from app.ai.registry import UnknownPipelineError
+from app.cache import cached_fetch_latest
 from app.database import SessionLocal, area_geometry
 from app.email import send_alert_email
+from app.job_metrics import record, record_failure
 from app.logging_conf import get_logger
 from app.models.alert import Alert
 from app.models.analysis import Analysis, AnalysisResult
@@ -20,6 +22,27 @@ from app.models.user import User
 from app.satellite.providers import get_satellite_provider
 
 logger = get_logger(__name__)
+
+
+def is_retryable(exc: BaseException) -> bool:
+    """Whether an analysis failure is worth another attempt.
+
+    Retrying is not free: each pass spends real Sentinel Hub processing units.
+    A pipeline that is not registered, or a request the platform itself
+    rejected, fails identically on every attempt -- retrying it burns quota on
+    the same bad input. Provider/network failures are the class that genuinely
+    benefits, so everything not known-permanent is retried.
+    """
+    return not isinstance(exc, (UnknownPipelineError, ValueError, KeyError))
+
+
+def _current_rq_job():
+    """The RQ job executing this call, or None when run inline (tests/demo)."""
+    try:
+        from rq import get_current_job
+    except ImportError:  # pragma: no cover - rq is a hard dependency
+        return None
+    return get_current_job()
 
 
 def _polygon_wkt(latitude: float, longitude: float, radius_km: float) -> str:
@@ -69,8 +92,8 @@ def _execute_pipeline(analysis: Analysis):
     """Resolve + run the pipeline for an analysis, returning (result, observation, history)."""
     pipeline = get_pipeline(analysis.analysis_type)
     provider = get_satellite_provider()
-    observation = provider.fetch_latest(
-        analysis.latitude, analysis.longitude, analysis.radius_km
+    observation = cached_fetch_latest(
+        provider, analysis.latitude, analysis.longitude, analysis.radius_km
     )
     history = None
     if pipeline.supports_history():
@@ -137,6 +160,7 @@ def run_analysis(analysis_id: int) -> None:
         analysis.status = "completed"
         analysis.completed_at = datetime.now(UTC)
         db.commit()
+        record("completed")
 
         logger.info(
             "Analysis completed",
@@ -153,6 +177,20 @@ def run_analysis(analysis_id: int) -> None:
     except Exception as exc:  # noqa: BLE001 - worker boundary: surface everything
         db.rollback()
         error_type = "pipeline" if isinstance(exc, UnknownPipelineError) else "provider"
+        job = _current_rq_job()
+        retryable = is_retryable(exc)
+        will_retry = bool(retryable and job is not None and getattr(job, "should_retry", False))
+
+        if not retryable and job is not None:
+            # A known-permanent failure must not spend its remaining retries:
+            # each one is another paid Sentinel Hub request for the same bad
+            # input. RQ consults should_retry after the exception propagates.
+            job.retries_left = 0
+
+        attempt = 1 + int(getattr(job, "number_of_retries", 0) or 0) if job is not None else 1
+        record("retried" if will_retry else "failed")
+        record_failure(analysis_id, str(exc) or type(exc).__name__, attempt)
+
         logger.error(
             "Analysis failed",
             exc_info=exc,
@@ -160,6 +198,9 @@ def run_analysis(analysis_id: int) -> None:
                 "analysis_id": analysis_id,
                 "error_type": error_type,
                 "error": str(exc),
+                "retryable": retryable,
+                "will_retry": will_retry,
+                "attempt": attempt,
             },
         )
         analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()

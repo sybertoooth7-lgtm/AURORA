@@ -95,6 +95,11 @@ tags_metadata = [
     {"name": "Reports", "description": "Aggregated report exports."},
     {"name": "System", "description": "Platform-wide metadata and the capability registry."},
     {"name": "Admin", "description": "Account administration -- listing, disabling, enabling users."},
+    {"name": "Spacecraft Simulation", "description": "Stage 0 CubeSat subsystem models: coupled simulation, link budget, orbit properties. Simulated, never hardware telemetry."},
+    {"name": "Space Division", "description": "Stage 0 constellation fleet sizing and ground-segment contact contention."},
+    {"name": "Space Resources", "description": "Stage 0 ISRU technology registry, extraction yields, delivery economics, prospecting and programme roadmap. Planning estimates, not prices."},
+    {"name": "Multi-Planetary Autonomy", "description": "Stage 0 seven-layer decision stack, planetary environment constants and one-way light time. Proposals only, nothing is commanded."},
+    {"name": "Mission Planning", "description": "Stage 0 greedy task scheduling plus the platform's own data-source readiness."},
 ]
 
 app = FastAPI(
@@ -188,30 +193,39 @@ async def aurora_error_handler(request: Request, exc: AuroraError):
     return JSONResponse(status_code=exc.status_code, content=exc.to_response())
 
 
+def _sanitize_validation_errors(errs: list[dict]) -> list[dict]:
+    """Pydantic error dicts may carry exception objects in ``ctx`` and the raw
+    request body in ``input``; the first is converted to a string and the
+    second dropped. Without this a body that failed to parse was not
+    serialisable (the 422 became a 500 with no CORS headers), and with it
+    kept but logged the body -- usually an unencrypted credential -- would
+    reach every log sink downstream.
+    """
+    clean = []
+    for err in errs:
+        sanitized = dict(err)
+        if "ctx" in sanitized:
+            sanitized["ctx"] = {
+                k: str(v) if isinstance(v, BaseException) else v
+                for k, v in sanitized["ctx"].items()
+            }
+        if isinstance(sanitized.get("input"), bytes | bytearray | memoryview):
+            sanitized["input"] = None
+        clean.append(sanitized)
+    return clean
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError):
-    logger.warning("validation_error", extra_keys={"path": request.url.path, "errors": exc.errors()})
-
-    def _sanitize(errs):
-        """Pydantic error dicts may carry exception objects in ``ctx``; convert
-        them to strings so the JSON response is always serializable."""
-        clean = []
-        for err in errs:
-            sanitized = dict(err)
-            if "ctx" in sanitized:
-                sanitized["ctx"] = {
-                    k: str(v) if isinstance(v, BaseException) else v
-                    for k, v in sanitized["ctx"].items()
-                }
-            clean.append(sanitized)
-        return clean
+    errors = _sanitize_validation_errors(exc.errors())
+    logger.warning("validation_error", extra_keys={"path": request.url.path, "errors": errors})
 
     return JSONResponse(
         status_code=422,
         content={
             "detail": "Request validation failed",
             "code": "validation_failed",
-            "errors": _sanitize(exc.errors()),
+            "errors": errors,
         },
     )
 
@@ -246,6 +260,11 @@ app.include_router(routes.insurance_router)
 app.include_router(routes.robotics_router)
 app.include_router(routes.onboarding_router)
 app.include_router(routes.admin_router)
+app.include_router(routes.spacecraft_router)
+app.include_router(routes.space_division_router)
+app.include_router(routes.space_resources_router)
+app.include_router(routes.multiplanetary_router)
+app.include_router(routes.mission_planning_router)
 
 
 @app.get("/")
@@ -265,6 +284,9 @@ async def root():
         "onboarding": "/onboarding/status",
         "monitoring": "PATCH /analysis/{id}/monitor",
         "apiKeys": "/auth/api-keys",
+        # The Space Division surfaces are model simulations, not the Earth
+        # product, so they are indexed as one group rather than alongside it.
+        "divisions": "/system/capabilities",
     }
 
 

@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 MAX_RING_VERTICES = 250
+MAX_BULK_FIELDS = 25
 
 
 class FieldBoundary(BaseModel):
@@ -90,3 +91,51 @@ class CropAnalysisResponse(BaseModel):
     model: str
     provenance: Literal["real", "simulated"]
     report: list[str]
+
+
+class BulkField(BaseModel):
+    """One field in a bulk request.
+
+    ``label`` exists because a batch of unnamed polygons is unreadable once
+    results come back -- it is echoed straight into each result item.
+    """
+
+    label: str | None = Field(default=None, max_length=200)
+    field_boundary: FieldBoundary
+
+
+class CropBulkAnalysisRequest(BaseModel):
+    """Analyse several field boundaries in one request.
+
+    The batch is capped so one submission cannot quietly spend the whole
+    account's daily Sentinel processing-unit budget in a single call.
+    """
+
+    fields: list[BulkField] = Field(min_length=1, max_length=MAX_BULK_FIELDS)
+    use_history: bool = True
+
+
+class CropBulkItem(BaseModel):
+    """Per-field outcome -- a failed field reports why instead of failing the batch."""
+
+    label: str | None
+    status: Literal["ok", "failed"]
+    analysis: CropAnalysisResponse | None = None
+    error: str | None = None
+
+
+class CropBulkAnalysisResponse(BaseModel):
+    """Summary of a bulk run, with provenance counted per field.
+
+    ``simulated`` is a count, not a single flag: a batch is usually mixed, and
+    a caller comparing fields across a farm needs to know which of them rest on
+    real imagery.
+    """
+
+    requested: int
+    succeeded: int
+    failed: int
+    real: int
+    simulated: int
+    items: list[CropBulkItem]
+

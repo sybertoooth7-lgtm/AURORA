@@ -122,8 +122,9 @@ def _inline_analysis_queue(monkeypatch):
     from app.queue import _InlineQueue
 
     queue = _InlineQueue()
-    monkeypatch.setattr("app.routes.analysis.get_analysis_queue", lambda: queue)
-    monkeypatch.setattr("app.monitoring.get_analysis_queue", lambda: queue)
+    # Both callers reach the queue through app.queue.enqueue_analysis, so
+    # patching the accessor there covers every enqueue path in one place.
+    monkeypatch.setattr("app.queue.get_analysis_queue", lambda: queue)
 
 
 @pytest.fixture(autouse=True)

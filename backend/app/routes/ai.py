@@ -27,6 +27,7 @@ from app.ai.repository import (
     serialize_model,
     set_status,
 )
+from app.cache import cached_fetch_latest
 from app.config import get_settings
 from app.database import area_geometry, get_db
 from app.exceptions import (
@@ -79,7 +80,7 @@ def _fetch_observation(
     provider = get_satellite_provider()
     pipeline_timeout = get_settings().AI_INFER_SYNC_TIMEOUT_SECONDS
 
-    observation = provider.fetch_latest(latitude, longitude, radius_km)
+    observation = cached_fetch_latest(provider, latitude, longitude, radius_km)
     if use_history and pipeline.supports_history():
         history = provider.fetch_history(
             latitude, longitude, radius_km, limit=get_settings().AI_HISTORY_LIMIT

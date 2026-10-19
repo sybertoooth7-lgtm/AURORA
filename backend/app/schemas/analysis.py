@@ -75,3 +75,57 @@ class AnalysisResultResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AnalysisListResponse(BaseModel):
+    """One page of analyses plus the total the filter matched.
+
+    `total` counts every row matching the filters (not just this page), which
+    is what lets a dashboard render pagination without pulling the whole
+    history.
+    """
+    total: int
+    skip: int
+    limit: int
+    items: list[AnalysisResponse]
+
+
+class AnalysisHistoryPoint(BaseModel):
+    """One monitored pass over an area, oldest first."""
+    result_id: int
+    checked_at: datetime
+    severity_score: float | None
+    confidence: float | None
+    finding: str
+    provenance: str | None
+    source: str | None
+    simulated: bool | None
+
+
+class AnalysisHistoryResponse(BaseModel):
+    """Time series of results for an area, plus a trend summary."""
+    analysis_id: int
+    points: list[AnalysisHistoryPoint]
+    passes: int
+    first_checked_at: datetime | None
+    latest_checked_at: datetime | None
+    severity_change: float | None
+    direction: str
+
+
+class AnalysisSummaryResponse(BaseModel):
+    """Account-level dashboard roll-up over every area the user owns."""
+    total_analyses: int
+    by_status: dict[str, int]
+    by_analysis_type: dict[str, int]
+    monitored_areas: int
+    completed_with_findings: int
+    mean_severity: float | None
+    mean_confidence: float | None
+    unread_alerts: int
+    quota_limit_per_day: int
+    quota_used_today: int
+    quota_remaining_today: int
+    last_activity_at: datetime | None
+    provenance: dict[str, int]
+

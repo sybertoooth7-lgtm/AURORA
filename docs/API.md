@@ -5,10 +5,13 @@
 AURORA Backend API provides endpoints for:
 - Health checks
 - Satellite data analysis
-- Analysis management
-- Alert handling
-- Robotics control (future)
-- Mission planning (future)
+- Analysis management (filtered listings, account roll-up, monitoring history)
+- Field-boundary crop analysis
+- Alerts and reports
+- Parametric agriculture insurance and robotics field services
+- The spacecraft, constellation, autonomy, space-resource and mission-planning
+  divisions, as **Stage 0 simulation** (see the envelope each response carries)
+- Robot control (future)
 
 ## Base URL
 
@@ -29,6 +32,17 @@ Register with `POST /auth/register`, then exchange the username and password at
 `POST /auth/token` to receive a bearer token. Analysis, alert, and report
 endpoints are scoped to the authenticated user.
 
+`POST /auth/token` reads a **JSON** body, not an `application/x-www-form-urlencoded`
+OAuth2 form post, so Swagger's own Authorize button cannot complete the flow --
+send:
+
+```json
+{"username": "...", "password": "..."}
+```
+
+A body in any other encoding is rejected with `422 validation_failed` and the
+raw body is never echoed back into the response or the server log.
+
 ## Endpoints
 
 ### Health
@@ -45,9 +59,11 @@ GET /health/
 {
   "status": "healthy",
   "service": "AURORA Backend",
-  "version": "0.1.0"
+  "version": "0.3.0"
 }
 ```
+
+`version` is `Settings.APP_VERSION`, so it tracks the deployment rather than this page.
 
 #### Readiness Check
 
@@ -376,8 +392,11 @@ see it.
 
 ```http
 POST /robotics/flights/{flight_id}/telemetry   # ingest one MQTT-style frame (auth)
+GET  /robotics/flights                          # all flights, newest first (auth)
 GET  /robotics/flights/{flight_id}              # flight summary + health (auth)
+GET  /robotics/flights/{flight_id}/telemetry    # paginated frames (auth)
 POST /robotics/inspect                          # post-flight NDVI inspection report (auth)
+POST /robotics/simulate                         # deterministic orbit survey, flagged is_simulated (auth)
 ```
 
 Telemetry frames are stored in an in-memory, bounded, per-process store.
@@ -401,6 +420,109 @@ credentials have not yet been set up.
 
 ---
 
+### Analysis listings, roll-up and monitoring
+
+```http
+GET   /analysis/                    # filtered + paged list with a total (auth)
+GET   /analysis/summary             # account roll-up + quota headroom (auth)
+GET   /analysis/{id}/history        # every monitored pass, oldest first (auth)
+PATCH /analysis/{id}/monitor        # set/clear the monitoring interval (auth)
+POST  /analysis/{id}/re-run         # queue a fresh pass over the same area (auth)
+```
+
+`GET /analysis/` takes `skip`, `limit` (1-200), `status`, `analysis_type`,
+`monitored_only`, `since`, `until` and `order` (`newest` | `oldest`), and always
+returns `{total, skip, limit, items}` -- a short page is no longer ambiguous
+with a short account. `GET /analysis/summary` is one grouped query per figure
+rather than a per-area loop, and its `provenance` block states how many
+findings came from real satellite data versus the simulated demo provider.
+
+---
+
+### Field-boundary crop analysis
+
+```http
+POST /crop/analyze         # one GeoJSON field polygon (verified users)
+POST /crop/analyze/bulk    # several boundaries, quota reserved up front
+```
+
+Both accept a `field_boundary` GeoJSON polygon (single closed ring, 3-250
+vertices) and never a bare lat/lon plus radius; the survey area is derived
+server-side and the boundary is persisted so dashboards and alerts read the
+same geometry. Bulk import reserves the daily quota for the whole batch before
+spending any of it and reports failures per field, so one unreadable boundary
+does not discard the rest.
+
+---
+
+### System
+
+```http
+GET /system/capabilities   # public index of subsystems, pipelines, sources
+GET /system/jobs           # queue throughput + stuck analysis rows (admin only)
+```
+
+`/system/jobs` exists because queue counters cannot distinguish a broken worker
+from an idle one: a job lost to a crash leaves its row `pending` forever. It
+reports the Redis-side counters, daily job metrics and the rows that never came
+back out.
+
+---
+
+### Stage 0 division simulations
+
+```http
+POST /spacecraft/simulate              GET  /spacecraft/link-budget      GET  /spacecraft/orbit
+POST /space-division/constellation     POST /space-division/ground-contacts
+POST /multiplanetary/decide            GET  /multiplanetary/environments  GET  /multiplanetary/environments/{name}
+GET  /multiplanetary/comms-delay/{target}
+GET  /space-resources/technologies     GET  /space-resources/technologies/{tech_id}
+GET  /space-resources/economics/{resource_type}
+POST /space-resources/extraction       POST /space-resources/prospecting  GET  /space-resources/roadmap
+POST /mission-planning/schedule        GET  /mission-planning/data-readiness
+```
+
+All are authenticated. They are the spacecraft, constellation, autonomy, ISRU
+and mission-planning engines behind the Earth-observation product --
+deterministic, offline model code with no hardware and no live telemetry in
+front of it, so each response carries the honesty envelope rather than relying
+on this paragraph:
+
+```json
+{
+  "provenance": "simulated",
+  "stage": "stage_0_simulation",
+  "model_limitations": ["...what this specific model leaves out..."]
+}
+```
+
+A number from these endpoints is a planning output, not a measurement, and
+cannot be forwarded as one. Two exceptions are deliberate.
+`GET /mission-planning/data-readiness` reports the platform's own job outcomes
+and is flagged `real`, with its inference spelled out in `basis`. Constellation
+**command signing** is not exposed at all, because it HMACs with a built-in
+default key -- an endpoint that appears to sign commands with a shared constant
+would overstate what is in place.
+
+---
+
+### Machine credentials and verification
+
+```http
+POST /auth/api-keys              GET  /auth/api-keys       POST /auth/api-keys/{id}/revoke
+POST /auth/verify-email/confirm  POST /auth/verify-email/resend
+```
+
+API keys are `aur_`-prefixed, SHA-256-hashed at rest, shown once at creation and
+revocable; they use the same `Authorization: Bearer` header as JWTs and are
+routed by prefix before the database is touched. Email verification is enforced
+on capability-gated writes (new analyses, crop analysis, AI inference, insurance
+checks, robotics inspect/simulate, onboarding first-analysis), which return
+`403 email_unverified` until the address is confirmed; reads and the
+verification flow stay open.
+
+---
+
 ### Interactive Documentation
 
 - **Swagger UI**: http://localhost:8000/docs
@@ -408,5 +530,5 @@ credentials have not yet been set up.
 
 ---
 
-**API Version**: 0.2.0  
-**Last Updated**: 2026-09-11
+**API Version**: `0.3.0` (source of truth: `Settings.APP_VERSION` in `backend/app/config.py`; read it live from `GET /system/capabilities` or `GET /health`)  
+**Last Updated**: 2026-10-19

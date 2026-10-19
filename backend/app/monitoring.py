@@ -22,7 +22,7 @@ from app.database import SessionLocal
 from app.logging_conf import get_logger
 from app.models.analysis import Analysis
 from app.models.user import User
-from app.queue import get_analysis_queue, get_redis
+from app.queue import enqueue_analysis, get_redis
 from app.services.analysis_runner import run_analysis
 
 logger = get_logger(__name__)
@@ -88,11 +88,7 @@ class MonitoringScheduler:
                     analysis.status = "pending"
                     analysis.next_check_at = now + cadence
                     db.commit()
-                    get_analysis_queue().enqueue(
-                        run_analysis,
-                        analysis.id,
-                        job_timeout=settings.ANALYSIS_JOB_TIMEOUT_SECONDS,
-                    )
+                    enqueue_analysis(run_analysis, analysis.id)
                     logger.info(
                         "monitoring check scheduled",
                         extra_keys={"analysis_id": analysis.id},

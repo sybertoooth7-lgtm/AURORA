@@ -15,16 +15,22 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.ai.registry import UnknownPipelineError
+from app.config import get_settings
 from app.database import get_db
-from app.exceptions import PipelineUnavailableError, SatelliteDataUnavailableError
+from app.exceptions import AuroraError, PipelineUnavailableError, SatelliteDataUnavailableError
 from app.logging_conf import get_logger
 from app.models.analysis import AnalysisType
 from app.models.user import User
+from app.quota import check_and_increment_daily_quota, reserve_daily_quota
 from app.routes.ai import _fetch_observation, _persist_analysis_result
 from app.schemas.crop import (
     CropAnalysisRequest,
     CropAnalysisResponse,
+    CropBulkAnalysisRequest,
+    CropBulkAnalysisResponse,
+    CropBulkItem,
     CropObservationResponse,
+    FieldBoundary,
 )
 from app.security import require_verified
 
@@ -109,9 +115,28 @@ def analyze_field_boundary(
     the vegetation pipeline, persists the run (dashboard/alerts see it too),
     and returns a report with the observation provenance made explicit.
     """
-    centroid_lon, centroid_lat, radius_km, boundary_wkt = _survey_area(
-        request.field_boundary.coordinates
+    check_and_increment_daily_quota(
+        current_user.id, "analyses", get_settings().MAX_ANALYSES_PER_USER_PER_DAY
     )
+    return _analyze_one(
+        db, current_user, request.field_boundary, request.use_history, request.description
+    )
+
+
+def _analyze_one(
+    db: Session,
+    current_user: User,
+    boundary: FieldBoundary,
+    use_history: bool,
+    description: str | None,
+) -> CropAnalysisResponse:
+    """Derive the survey area, run NDVI, persist, and build the report.
+
+    Shared by the single-field and bulk endpoints so both keep identical
+    provenance and persistence behaviour -- the bulk path must not become a
+    second, weaker implementation of the same analysis.
+    """
+    centroid_lon, centroid_lat, radius_km, boundary_wkt = _survey_area(boundary.coordinates)
 
     try:
         result, observation = _fetch_observation(
@@ -119,7 +144,7 @@ def analyze_field_boundary(
             centroid_lat,
             centroid_lon,
             radius_km,
-            request.use_history,
+            use_history,
         )
     except UnknownPipelineError as exc:
         raise PipelineUnavailableError(str(exc)) from exc
@@ -137,7 +162,7 @@ def analyze_field_boundary(
             "latitude": centroid_lat,
             "longitude": centroid_lon,
             "radius_km": radius_km,
-            "description": request.description
+            "description": description
             or "Crop analysis over field boundary polygon (NDVI)",
         },
         result,
@@ -169,7 +194,7 @@ def analyze_field_boundary(
 
     return CropAnalysisResponse(
         analysis_id=analysis_id,
-        boundary=request.field_boundary,
+        boundary=boundary,
         boundary_wkt=boundary_wkt,
         latitude=centroid_lat,
         longitude=centroid_lon,
@@ -193,3 +218,73 @@ def analyze_field_boundary(
         provenance=result.provenance.value,
         report=report,
     )
+
+
+@router.post("/analyze/bulk", response_model=CropBulkAnalysisResponse, status_code=201)
+def analyze_field_boundaries(
+    request: CropBulkAnalysisRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_verified),
+):
+    """Analyse several field boundaries in one round trip.
+
+    The whole batch is charged against the daily quota up front, before any
+    satellite work starts, so a submission larger than the remaining budget is
+    refused outright rather than partially spending it.
+
+    Each field is processed independently and a failure is reported per field
+    instead of aborting the batch: one unreadable boundary in a 20-field import
+    should not discard the 19 good results (or the quota already spent on
+    them).
+    """
+    settings = get_settings()
+    reserve_daily_quota(
+        current_user.id, "analyses", settings.MAX_ANALYSES_PER_USER_PER_DAY, len(request.fields)
+    )
+
+    items: list[CropBulkItem] = []
+    real = simulated = 0
+    for field in request.fields:
+        try:
+            analysis = _analyze_one(
+                db, current_user, field.field_boundary, request.use_history, None
+            )
+        except (AuroraError, HTTPException) as exc:
+            detail = exc.detail if isinstance(exc, HTTPException) else str(exc)
+            items.append({"label": field.label, "status": "failed", "error": str(detail)})
+            continue
+        except Exception as exc:  # noqa: BLE001 - per-field isolation is the point
+            logger.exception(
+                "Bulk crop analysis failed for one field",
+                extra_keys={"user_id": current_user.id, "label": field.label},
+            )
+            items.append({"label": field.label, "status": "failed", "error": str(exc)})
+            continue
+
+        if analysis.provenance == "real":
+            real += 1
+        else:
+            simulated += 1
+        items.append({"label": field.label, "status": "ok", "analysis": analysis})
+
+    succeeded = real + simulated
+    logger.info(
+        "Bulk crop analysis completed",
+        extra_keys={
+            "user_id": current_user.id,
+            "requested": len(request.fields),
+            "succeeded": succeeded,
+            "failed": len(items) - succeeded,
+            "real": real,
+            "simulated": simulated,
+        },
+    )
+    return {
+        "requested": len(request.fields),
+        "succeeded": succeeded,
+        "failed": len(items) - succeeded,
+        "real": real,
+        "simulated": simulated,
+        "items": items,
+    }
+

@@ -2,7 +2,7 @@
 
 import enum
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -33,6 +33,15 @@ class Analysis(Base):
     """Analysis job/request"""
     __tablename__ = "analyses"
 
+    # Every listing, roll-up and scheduler query is scoped to one owner and
+    # filtered/ordered by these columns; without them each request scans the
+    # whole analyses table.
+    __table_args__ = (
+        Index("ix_analyses_user_created", "user_id", "created_at"),
+        Index("ix_analyses_user_status", "user_id", "status"),
+        Index("ix_analyses_next_check_at", "next_check_at"),
+    )
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     analysis_type = Column(SQLEnum(AnalysisType), nullable=False)
@@ -59,6 +68,10 @@ class Analysis(Base):
 class AnalysisResult(Base):
     """Analysis results"""
     __tablename__ = "analysis_results"
+
+    # Results are always fetched per analysis (results list, monitoring
+    # history, account roll-up join), so the FK needs its own index.
+    __table_args__ = (Index("ix_analysis_results_analysis_created", "analysis_id", "created_at"),)
 
     id = Column(Integer, primary_key=True, index=True)
     analysis_id = Column(Integer, ForeignKey("analyses.id"), nullable=False)
