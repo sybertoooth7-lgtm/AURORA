@@ -5,6 +5,21 @@ import { ApiError, api } from '../lib/api'
 
 type Status = 'verifying' | 'success' | 'error'
 
+// The token is single-use. React StrictMode runs effects twice in development,
+// and a second confirm would spend an already-consumed token and report a
+// failure after the first request succeeded. Cache the in-flight promise per
+// token so every mount observes the same outcome.
+const confirmations = new Map<string, Promise<void>>()
+
+function confirmOnce(token: string): Promise<void> {
+  let pending = confirmations.get(token)
+  if (!pending) {
+    pending = api.confirmEmailVerification(token)
+    confirmations.set(token, pending)
+  }
+  return pending
+}
+
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
@@ -18,8 +33,7 @@ export function VerifyEmailPage() {
       return
     }
     let cancelled = false
-    api
-      .confirmEmailVerification(token)
+    confirmOnce(token)
       .then(() => {
         if (!cancelled) setStatus('success')
       })

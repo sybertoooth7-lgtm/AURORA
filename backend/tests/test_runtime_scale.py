@@ -295,3 +295,17 @@ class TestRuntimeResilience:
         )
         assert response.status_code == 200
         assert response.headers.get("content-encoding") == "gzip"
+
+    def test_preflight_allows_both_loopback_spellings(self, client):
+        # localhost and 127.0.0.1 are different origins to a browser, and the
+        # dev server is reachable on both -- a preflight from either must pass.
+        for origin in ("http://localhost:5173", "http://127.0.0.1:5173"):
+            response = client.options(
+                "/auth/token",
+                headers={
+                    "Origin": origin,
+                    "Access-Control-Request-Method": "POST",
+                },
+            )
+            assert response.status_code == 200
+            assert response.headers["access-control-allow-origin"] == origin

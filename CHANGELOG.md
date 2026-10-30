@@ -21,6 +21,8 @@ All notable changes to the AURORA platform. Dates are when the change landed on 
 ### Fixed
 - A slow query could pin a pooled connection indefinitely; a bounded `statement_timeout` now fails that one request instead.
 - `GET /alerts` returned the whole inbox in one response and the area page assumed one call held every alert.
+- The default CORS origins now include `http://127.0.0.1:5173` and `http://127.0.0.1:3000` as well as the `localhost` spellings. Browsers treat the two names as different origins, so opening the dev server on `127.0.0.1` made every API call fail with an opaque network error.
+- The verify-email page confirmed the same single-use token twice under React StrictMode's double-mounted effect, so a successful verification still rendered "Couldn't verify this link". Confirmations are now deduplicated per token in the page.
 
 ## [0.3.0] - 2026-10-20
 
