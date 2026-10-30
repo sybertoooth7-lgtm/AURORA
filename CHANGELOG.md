@@ -2,6 +2,26 @@
 
 All notable changes to the AURORA platform. Dates are when the change landed on `main`.
 
+## [0.4.0] - 2026-10-30
+
+0.4.0 "Many workers" — the API now survives being run as several processes behind a load balancer: shared flight state lives outside the process, reads are bounded and indexed, and a slow query or a Redis outage degrades one request instead of the service. `APP_VERSION` is at `0.4.0`.
+
+### Added
+- **Flight telemetry is shared, not per-process** (`app/robotics/flight.py`) — `RedisFlightStore` keeps the sorted-set index and each flight's bounded frame list in Redis (TTL `ROBOTICS_FLIGHT_TTL_SECONDS`), so `/robotics/flights` and the inspection report see the same flight whichever worker served the request. Demo mode keeps the in-memory store, and `tests/test_runtime_scale.py` runs the Redis path against `_DemoRedis`.
+- **Alert inbox is paged and scoped** — `GET /alerts` takes `skip`/`limit` (max 200) plus `analysis_id` and returns a real total, backed by the composite indexes `ix_alerts_user_read_created` / `ix_alerts_user_result` (migration `f4b5c6d7e8a9`, replacing the single-column `ix_alerts_user_read` whose leading column it preserves).
+- **Dashboard provenance roll-up runs in SQL** — `GET /analysis/summary` groups the real-vs-simulated split in one query (SQLite `json_*`, Postgres `pg_input_is_valid` + `jsonb_extract_path_text`) instead of parsing every result's metadata in Python; rows with absent or unparseable provenance count as `unknown` rather than disappearing, and the streamed fallback stays for a dialect that rejects the query.
+- **Connection and response controls** — `pool_size`/`max_overflow`/`pool_timeout`/`pool_recycle`/`pool_use_lifo`, `pool_pre_ping`, a server-side `DB_STATEMENT_TIMEOUT_MS` and a `DB_APPLICATION_NAME` on the engine; responses above `GZIP_MINIMUM_SIZE_BYTES` are gzipped outside CORS so error responses keep their headers.
+- **Deployment shape** — the container runs `uvicorn --workers $API_WORKERS` with `--proxy-headers`/`--forwarded-allow-ips`; compose services drop fixed container names and `--reload`, gain `restart: unless-stopped`, stop grace periods and a `/health/ready` healthcheck, so scaling `api`/`worker` becomes a replica count.
+
+### Changed
+- **Rate limiting and login lockout fail open when Redis is unreachable** — a cache outage logs a warning and lets the request through instead of turning into a 500 on every endpoint. Availability is the deliberate trade; the alternative is an outage amplifier.
+- The console loads per route (`React.lazy` + `Suspense`), so the initial bundle no longer carries every division page; leaflet and globe.gl stay separate chunks and the landing page stays eager.
+- `AGENTS.md` records the new 595-test baseline, `backend/README.md` gained a horizontal-scaling section, and `backend-env.example` documents the new knobs.
+
+### Fixed
+- A slow query could pin a pooled connection indefinitely; a bounded `statement_timeout` now fails that one request instead.
+- `GET /alerts` returned the whole inbox in one response and the area page assumed one call held every alert.
+
 ## [0.3.0] - 2026-10-20
 
 0.3.0 "Platform growth" — the account, the queue and the silent divisions: an operator can now read their own history, see why a job did not finish, and reach every division of the company as a planning tool that says so on the page. `APP_VERSION` is at `0.3.0`, so the release number travels with the code. Landed on `main` as the merge of PR #2 (`691c263`).

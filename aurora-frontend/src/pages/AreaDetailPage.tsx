@@ -53,7 +53,7 @@ export function AreaDetailPage() {
     const [freshAnalysis, resultData, alertData, historyData] = await Promise.all([
       api.getAnalysis(analysisId),
       api.getAnalysisResults(analysisId),
-      api.listAlerts(),
+      api.listAlerts({ analysisId, limit: 200 }),
       // The trend is derived from the same rows as the table below, so a
       // failure here only costs us the one-line summary, never the page.
       api.analysisHistory(analysisId).catch(() => null),
@@ -62,7 +62,7 @@ export function AreaDetailPage() {
     setCadence(freshAnalysis.monitor_interval_minutes)
     setResults(resultData.results)
     setHistory(historyData)
-    setAlerts(alertData)
+    setAlerts(alertData.items)
     return freshAnalysis.status
   }, [analysisId])
 

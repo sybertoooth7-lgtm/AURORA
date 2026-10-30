@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app import routes
@@ -164,6 +165,10 @@ async def rate_limit(request: Request, call_next):
 
     return await call_next(request)
 
+
+# Compress large JSON bodies before they leave the process. Added before CORS
+# so CORS is the outermost layer and still stamps headers on error responses.
+app.add_middleware(GZipMiddleware, minimum_size=settings.GZIP_MINIMUM_SIZE_BYTES)
 
 # CORS middleware
 app.add_middleware(

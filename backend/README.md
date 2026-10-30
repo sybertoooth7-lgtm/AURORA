@@ -358,6 +358,26 @@ mypy app
 
 ## 🌍 Deployment
 
+### Horizontal scaling
+
+The API is safe to run as multiple uvicorn workers and/or replicas behind a load balancer:
+
+- **Workers** — the container runs `uvicorn --workers $API_WORKERS --proxy-headers
+  --forwarded-allow-ips $FORWARDED_ALLOW_IPS`; set `API_WORKERS` per container and
+  scale containers independently. `FORWARDED_ALLOW_IPS` must list only your proxy.
+- **Connections** — keep `API_WORKERS * (DB_POOL_SIZE + DB_MAX_OVERFLOW)` (plus the
+  same figure for every worker container) under Postgres `max_connections`. A
+  server-side `DB_STATEMENT_TIMEOUT_MS` prevents one slow query from pinning a pooled
+  connection; `pool_pre_ping` and `pool_recycle` survive restarts and idle timeouts.
+- **Shared state** — active-flight telemetry lives in Redis (indexed sorted set +
+  bounded per-flight list with `ROBOTICS_FLIGHT_TTL_SECONDS`), so every worker sees
+  the same flights. Demo mode keeps the in-memory store.
+- **Reads** — alert listings are paged and scoped (`skip`/`limit`/`analysis_id`),
+  the dashboard provenance roll-up is computed in SQL, and responses above
+  `GZIP_MINIMUM_SIZE_BYTES` are gzipped.
+- **Redis outages** — rate limiting and login lockout fail open rather than turning
+  an outage into a 500 for every request.
+
 ### Production Checklist
 - [ ] Update SECRET_KEY in .env
 - [ ] Set ENVIRONMENT=production

@@ -16,7 +16,10 @@ general/auth-endpoint per-IP request throttle in main.py.
 import time
 import uuid
 
+from app.logging_conf import get_logger
 from app.queue import get_redis
+
+logger = get_logger(__name__)
 
 
 def is_rate_limited(key: str, limit: int, window_seconds: int) -> bool:
@@ -27,6 +30,11 @@ def is_rate_limited(key: str, limit: int, window_seconds: int) -> bool:
     Atomic via a Redis transaction (MULTI/EXEC), so concurrent requests
     from the same key across different API processes can't race past
     the limit.
+
+    A Redis outage fails *open*: the API stays available, and the account
+    lockout and token blocklist that share this Redis already stop working
+    at the same moment, so failing closed here would add an outage without
+    adding a security boundary.
     """
     redis = get_redis()
     now_ms = time.time() * 1000
@@ -36,11 +44,15 @@ def is_rate_limited(key: str, limit: int, window_seconds: int) -> bool:
     # member (sorted set members are deduplicated by value).
     member = f"{now_ms}:{uuid.uuid4().hex}"
 
-    pipe = redis.pipeline(transaction=True)
-    pipe.zremrangebyscore(key, 0, window_start_ms)  # drop entries outside the window
-    pipe.zadd(key, {member: now_ms})
-    pipe.zcard(key)
-    pipe.expire(key, window_seconds + 1)  # self-cleans if this key goes quiet
-    _, _, count, _ = pipe.execute()
+    try:
+        pipe = redis.pipeline(transaction=True)
+        pipe.zremrangebyscore(key, 0, window_start_ms)  # drop entries outside the window
+        pipe.zadd(key, {member: now_ms})
+        pipe.zcard(key)
+        pipe.expire(key, window_seconds + 1)  # self-cleans if this key goes quiet
+        _, _, count, _ = pipe.execute()
+    except Exception:  # noqa: BLE001 - availability beats a throttle on an outage
+        logger.warning("rate limiter unavailable; allowing request", exc_info=True)
+        return False
 
     return count > limit

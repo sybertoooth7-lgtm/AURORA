@@ -1,5 +1,6 @@
 import type {
   Alert,
+  AlertListResponse,
   Analysis,
   AnalysisHistoryResponse,
   AnalysisListQuery,
@@ -212,8 +213,22 @@ export const api = {
   rerunAnalysis: (id: number) =>
     request<Analysis>(`/analysis/${id}/re-run`, { method: 'POST' }),
 
-  listAlerts: (unreadOnly = false) =>
-    request<Alert[]>(`/alerts${unreadOnly ? '?unread_only=true' : ''}`),
+  listAlerts: (
+    params: {
+      unreadOnly?: boolean
+      analysisId?: number
+      skip?: number
+      limit?: number
+    } = {},
+  ) => {
+    const query = new URLSearchParams()
+    if (params.unreadOnly) query.set('unread_only', 'true')
+    if (params.analysisId != null) query.set('analysis_id', String(params.analysisId))
+    if (params.skip != null) query.set('skip', String(params.skip))
+    if (params.limit != null) query.set('limit', String(params.limit))
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    return request<AlertListResponse>(`/alerts${suffix}`)
+  },
 
   acknowledgeAlert: (id: number) =>
     request<Alert>(`/alerts/${id}/acknowledge`, { method: 'POST' }),

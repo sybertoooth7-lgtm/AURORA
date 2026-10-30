@@ -343,7 +343,11 @@ class TestSchemaIndexes:
             "ix_analyses_next_check_at",
         } <= names(Analysis)
         assert "ix_analysis_results_analysis_created" in names(AnalysisResult)
-        assert {"ix_alerts_user_created", "ix_alerts_user_read"} <= names(Alert)
+        assert {
+            "ix_alerts_user_created",
+            "ix_alerts_user_read_created",
+            "ix_alerts_user_result",
+        } <= names(Alert)
 
     @pytest.mark.skipif(not demo_mode(), reason="schema is migrated by CI, not create_all")
     def test_indexes_are_physically_created(self):

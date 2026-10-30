@@ -149,6 +149,15 @@ export interface Alert {
   acknowledged_at: string | null
 }
 
+// Paged alert inbox (`GET /alerts`). `total` counts everything the filters
+// matched, so a short page is distinguishable from a short history.
+export interface AlertListResponse {
+  total: number
+  skip: number
+  limit: number
+  items: Alert[]
+}
+
 // Paged listing (`GET /analysis/`). `total` counts everything the filter
 // matched, not just this page, which is what makes paging honest.
 export interface AnalysisListResponse {

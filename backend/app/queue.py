@@ -33,6 +33,8 @@ class _DemoRedis:
     def __init__(self) -> None:
         self._data: dict[bytes, tuple[bytes, float | None]] = {}
         self._zsets: dict[bytes, dict[bytes, float]] = {}
+        self._lists: dict[bytes, list[bytes]] = {}
+        self._list_expiry: dict[bytes, float] = {}
 
     def _encode(self, value) -> bytes:
         return value if isinstance(value, bytes) else str(value).encode()
@@ -40,10 +42,19 @@ class _DemoRedis:
     def _prune(self) -> None:
         now = time.monotonic()
         self._data = {k: v for k, v in self._data.items() if v[1] is None or v[1] > now}
+        expired_lists = [key for key, deadline in self._list_expiry.items() if deadline <= now]
+        for key in expired_lists:
+            self._lists.pop(key, None)
+            self._list_expiry.pop(key, None)
 
     def exists(self, *keys) -> int:
         self._prune()
-        return sum(1 for k in keys if self._encode(k) in self._data)
+        encoded = [self._encode(k) for k in keys]
+        return sum(
+            1
+            for k in encoded
+            if k in self._data or k in self._zsets or k in self._lists
+        )
 
     def get(self, key):
         self._prune()
@@ -72,18 +83,25 @@ class _DemoRedis:
         return current + amount
 
     def expire(self, key, time_) -> bool:
+        self._prune()
         encoded = self._encode(key)
-        if encoded not in self._data:
-            return False
-        self._data[encoded] = (self._data[encoded][0], time.monotonic() + time_)
-        return True
+        if encoded in self._data:
+            self._data[encoded] = (self._data[encoded][0], time.monotonic() + time_)
+            return True
+        if encoded in self._lists:
+            self._list_expiry[encoded] = time.monotonic() + time_
+            return True
+        return False
 
     def delete(self, *keys) -> int:
+        self._prune()
         removed = 0
         for k in keys:
             encoded = self._encode(k)
             removed += self._data.pop(encoded, None) is not None
             removed += self._zsets.pop(encoded, None) is not None
+            removed += self._lists.pop(encoded, None) is not None
+            self._list_expiry.pop(encoded, None)
         return removed
 
     def getdel(self, key):
@@ -97,28 +115,46 @@ class _DemoRedis:
             prefix = pattern[:-1].encode()
             matched = [k for k in self._data if k.startswith(prefix)]
             matched += [k for k in self._zsets if k.startswith(prefix)]
+            matched += [k for k in self._lists if k.startswith(prefix)]
             return matched
         return []
 
     def flushdb(self) -> bool:
         self._data.clear()
         self._zsets.clear()
+        self._lists.clear()
+        self._list_expiry.clear()
         return True
 
     def ping(self) -> bool:
         return True
 
     # Sorted-set surface used by the Redis-backed rate limiter
-    # (app.rate_limiter) via a single pipeline.
-    def zadd(self, key, mapping) -> int:
+    # (app.rate_limiter) and the shared flight index (app.robotics.flight).
+    def zadd(self, key, mapping, nx: bool = False) -> int:
         store = self._zsets.setdefault(self._encode(key), {})
         added = 0
         for member, score in mapping.items():
             encoded_member = self._encode(member)
-            if encoded_member not in store:
+            if encoded_member in store:
+                if nx:
+                    continue
+            else:
                 added += 1
             store[encoded_member] = float(score)
         return added
+
+    def zscore(self, key, member):
+        store = self._zsets.get(self._encode(key), {})
+        return store.get(self._encode(member))
+
+    def zrange(self, key, start: int, end: int) -> list[bytes]:
+        store = self._zsets.get(self._encode(key), {})
+        ordered = sorted(store, key=lambda member: store[member])
+        length = len(ordered)
+        start_index = max(length + start, 0) if start < 0 else start
+        end_index = length + end if end < 0 else end
+        return ordered[start_index : end_index + 1]
 
     def zremrangebyscore(self, key, min_, max_) -> int:
         store = self._zsets.get(self._encode(key))
@@ -134,6 +170,38 @@ class _DemoRedis:
 
     def zcard(self, key) -> int:
         return len(self._zsets.get(self._encode(key), {}))
+
+    # List surface used by the shared robotics flight store.
+    def rpush(self, key, *values) -> int:
+        self._prune()
+        store = self._lists.setdefault(self._encode(key), [])
+        store.extend(self._encode(value) for value in values)
+        return len(store)
+
+    def lrange(self, key, start: int, end: int) -> list[bytes]:
+        self._prune()
+        store = self._lists.get(self._encode(key), [])
+        length = len(store)
+        start_index = max(length + start, 0) if start < 0 else start
+        end_index = length + end if end < 0 else end
+        return list(store[start_index : end_index + 1])
+
+    def ltrim(self, key, start: int, end: int) -> bool:
+        self._prune()
+        encoded = self._encode(key)
+        store = self._lists.get(encoded)
+        if store is None:
+            return False
+        length = len(store)
+        start_index = max(length + start, 0) if start < 0 else start
+        end_index = length + end if end < 0 else end
+        kept = store[start_index : end_index + 1]
+        if kept:
+            self._lists[encoded] = kept
+        else:
+            self._lists.pop(encoded, None)
+            self._list_expiry.pop(encoded, None)
+        return True
 
     def pipeline(self, transaction=True):
         return _DemoPipeline(self)

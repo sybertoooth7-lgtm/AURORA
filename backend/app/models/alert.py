@@ -11,10 +11,13 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     # Alerts are listed per owner, newest first, and unread-only from both the
-    # dashboard badge and the account roll-up.
+    # dashboard badge and the account roll-up. The composite read index keeps
+    # the unread inbox ordered without a sort; the result index serves the
+    # per-area filter (join on analysis_results).
     __table_args__ = (
         Index("ix_alerts_user_created", "user_id", "created_at"),
-        Index("ix_alerts_user_read", "user_id", "is_read"),
+        Index("ix_alerts_user_read_created", "user_id", "is_read", "created_at"),
+        Index("ix_alerts_user_result", "user_id", "analysis_result_id"),
     )
 
     id = Column(Integer, primary_key=True, index=True)

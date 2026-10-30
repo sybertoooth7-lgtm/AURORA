@@ -1,22 +1,64 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Layout } from './components/Layout'
 import { AuthProvider, useAuth } from './lib/auth'
-import { AreaDetailPage } from './pages/AreaDetailPage'
-import { DashboardPage } from './pages/DashboardPage'
-import { DivisionsPage } from './pages/DivisionsPage'
-import { FieldAnalysisPage } from './pages/FieldAnalysisPage'
-import { FleetPage } from './pages/FleetPage'
-import { FlightDetailPage } from './pages/FlightDetailPage'
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LandingPage } from './pages/LandingPage'
-import { LoginPage } from './pages/LoginPage'
-import { NewAreaPage } from './pages/NewAreaPage'
-import { OperationsPage } from './pages/OperationsPage'
-import { RegisterPage } from './pages/RegisterPage'
-import { ResetPasswordPage } from './pages/ResetPasswordPage'
-import { SettingsPage } from './pages/SettingsPage'
-import { VerifyEmailPage } from './pages/VerifyEmailPage'
+
+// The landing page is the public entry and stays eager. Everything behind it
+// is split by route: the console pulls in Leaflet (map screens) and the fleet
+// charts, and none of that should be downloaded to read the landing page or
+// to sign in.
+const AreaDetailPage = lazy(() =>
+  import('./pages/AreaDetailPage').then((module) => ({ default: module.AreaDetailPage })),
+)
+const DashboardPage = lazy(() =>
+  import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })),
+)
+const DivisionsPage = lazy(() =>
+  import('./pages/DivisionsPage').then((module) => ({ default: module.DivisionsPage })),
+)
+const FieldAnalysisPage = lazy(() =>
+  import('./pages/FieldAnalysisPage').then((module) => ({ default: module.FieldAnalysisPage })),
+)
+const FleetPage = lazy(() =>
+  import('./pages/FleetPage').then((module) => ({ default: module.FleetPage })),
+)
+const FlightDetailPage = lazy(() =>
+  import('./pages/FlightDetailPage').then((module) => ({ default: module.FlightDetailPage })),
+)
+const ForgotPasswordPage = lazy(() =>
+  import('./pages/ForgotPasswordPage').then((module) => ({ default: module.ForgotPasswordPage })),
+)
+const LoginPage = lazy(() =>
+  import('./pages/LoginPage').then((module) => ({ default: module.LoginPage })),
+)
+const NewAreaPage = lazy(() =>
+  import('./pages/NewAreaPage').then((module) => ({ default: module.NewAreaPage })),
+)
+const OperationsPage = lazy(() =>
+  import('./pages/OperationsPage').then((module) => ({ default: module.OperationsPage })),
+)
+const RegisterPage = lazy(() =>
+  import('./pages/RegisterPage').then((module) => ({ default: module.RegisterPage })),
+)
+const ResetPasswordPage = lazy(() =>
+  import('./pages/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })),
+)
+const SettingsPage = lazy(() =>
+  import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })),
+)
+const VerifyEmailPage = lazy(() =>
+  import('./pages/VerifyEmailPage').then((module) => ({ default: module.VerifyEmailPage })),
+)
+
+function RouteFallback() {
+  return (
+    <div className="px-6 py-10">
+      <p className="text-sm text-[var(--color-ink-soft)]">Loading…</p>
+    </div>
+  )
+}
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
@@ -60,7 +102,9 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <Suspense fallback={<RouteFallback />}>
+            <AppRoutes />
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>

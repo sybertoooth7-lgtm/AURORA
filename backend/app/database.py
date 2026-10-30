@@ -33,11 +33,22 @@ if demo_mode():
         poolclass=StaticPool,
     )
 else:
+    connect_args: dict[str, object] = {
+        "connect_timeout": 10,
+        "application_name": settings.DB_APPLICATION_NAME,
+    }
+    if settings.DB_STATEMENT_TIMEOUT_MS > 0:
+        connect_args["options"] = f"-c statement_timeout={settings.DB_STATEMENT_TIMEOUT_MS}"
     engine = create_engine(
         settings.DATABASE_URL,
         echo=settings.SQLALCHEMY_ECHO,
         pool_pre_ping=True,
-        connect_args={"connect_timeout": 10},
+        pool_size=settings.DB_POOL_SIZE,
+        max_overflow=settings.DB_MAX_OVERFLOW,
+        pool_timeout=settings.DB_POOL_TIMEOUT_SECONDS,
+        pool_recycle=settings.DB_POOL_RECYCLE_SECONDS,
+        pool_use_lifo=settings.DB_POOL_USE_LIFO,
+        connect_args=connect_args,
     )
 
 # Session factory

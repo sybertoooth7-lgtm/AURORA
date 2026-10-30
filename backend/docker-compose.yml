@@ -33,10 +33,15 @@ services:
 
   api:
     build: .
-    container_name: aurora_api
     # command: overrides the Dockerfile CMD, so it needs its own
-    # "migrate, then serve" step too.
-    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    # "migrate, then serve" step too. No --reload: a reloader watches a dev
+    # tree and cannot fan out across several worker processes.
+    #
+    # API_WORKERS is the in-container process count. To run several API
+    # containers instead, put a load balancer in front and stop publishing
+    # 8000 directly; the shared flight store and rate limiter live in Redis,
+    # so replicas can serve any request.
+    command: sh -c "alembic upgrade head && exec uvicorn main:app --host 0.0.0.0 --port 8000 --workers ${API_WORKERS:-4} --proxy-headers --forwarded-allow-ips=${FORWARDED_ALLOW_IPS:-127.0.0.1}"
     ports:
       - "8000:8000"
     environment:
@@ -44,30 +49,44 @@ services:
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: development
       DEBUG: "True"
+      API_WORKERS: ${API_WORKERS:-4}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+      # Keep API_WORKERS * (pool + overflow) below Postgres max_connections.
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
     volumes:
       - .:/app
+    restart: unless-stopped
+    # Drain in-flight requests on deploy instead of dropping connections.
+    stop_grace_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
 
   worker:
     build: .
-    container_name: aurora_worker
+    # No published port and no fixed container name, so the RQ consumers
+    # scale horizontally: `docker compose up -d --scale worker=4`.
     command: python worker.py
     environment:
       DATABASE_URL: postgresql+psycopg://aurora_user:aurora_password@postgres:5432/aurora_db
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: development
       DEBUG: "True"
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
     volumes:
       - .:/app
+    restart: unless-stopped
+    stop_grace_period: 60s
     depends_on:
       postgres:
         condition: service_healthy

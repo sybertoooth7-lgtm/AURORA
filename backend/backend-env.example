@@ -75,5 +75,36 @@ INSURANCE_MAX_SUM_INSURED_USD=50000000.0
 ONBOARDING_SENTINEL_SETUP_URL=https://shapps.dataspace.copernicus.eu/dashboard/
 
 # Robotics field services (AURORA-2)
-# Max telemetry frames kept per in-memory flight before eviction.
+# Max telemetry frames kept per flight (the shared Redis list in production,
+# the in-memory store in demo mode).
 ROBOTICS_FLIGHT_RETENTION_FRAMES=1000
+# Production flights are shared through Redis and expire after this long.
+# One day keeps the flight index bounded on a long-running deployment.
+ROBOTICS_FLIGHT_TTL_SECONDS=86400
+
+# --- Scaling -------------------------------------------------------------
+# uvicorn worker processes per API container. Demo mode (in-memory SQLite)
+# requires exactly 1: each worker would otherwise create its own database.
+API_WORKERS=4
+
+# Trust X-Forwarded-For only from your load balancer / ingress addresses.
+# Behind a trusted proxy set this to its IPs (or "*" if the proxy is the only
+# way in). Leaving it at localhost while directly exposed keeps clients from
+# spoofing their address to dodge the per-IP rate limit.
+FORWARDED_ALLOW_IPS=127.0.0.1
+
+# Per-process DB pool. Keep
+# API_WORKERS * (DB_POOL_SIZE + DB_MAX_OVERFLOW) below Postgres max_connections.
+DB_POOL_SIZE=5
+DB_MAX_OVERFLOW=5
+DB_POOL_TIMEOUT_SECONDS=30
+DB_POOL_RECYCLE_SECONDS=1800
+DB_POOL_USE_LIFO=True
+# Server-side cap so one slow query cannot pin a pooled connection forever.
+# 0 disables it.
+DB_STATEMENT_TIMEOUT_MS=30000
+DB_APPLICATION_NAME=aurora-api
+
+# Gzip responses at or above this size (bytes). 0 still compresses everything.
+GZIP_MINIMUM_SIZE_BYTES=1024
+

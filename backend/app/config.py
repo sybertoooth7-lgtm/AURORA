@@ -21,6 +21,24 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+psycopg://localhost/aurora_db"
     SQLALCHEMY_ECHO: bool = False
 
+    # Connection pool. The API and every worker process hold their own pool,
+    # so keep `processes * (DB_POOL_SIZE + DB_MAX_OVERFLOW)` below the
+    # database's max_connections. The defaults leave room for four API
+    # workers (40 connections), several RQ workers and an operator session
+    # inside Postgres's default 100. `pool_use_lifo` hands the most recently
+    # returned connection out first, which keeps idle connections from being
+    # kept warm for no reason on a busy-replica deployment.
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 5
+    DB_POOL_TIMEOUT_SECONDS: int = 30
+    DB_POOL_RECYCLE_SECONDS: int = 1800
+    DB_POOL_USE_LIFO: bool = True
+    # A single slow query must not pin a pooled connection indefinitely --
+    # with a bounded pool, a handful of those starves every other request.
+    # 0 disables the server-side timeout.
+    DB_STATEMENT_TIMEOUT_MS: int = 30_000
+    DB_APPLICATION_NAME: str = "aurora-api"
+
     # Demo mode: run the whole platform with zero external infrastructure
     # (in-memory SQLite + in-memory Redis substitute + inline job execution).
     # Real pipeline logic and the demo satellite provider are unchanged; data
@@ -32,10 +50,14 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     API_RELOAD: bool = True
     API_WORKERS: int = 4
+    # Responses above this size are gzipped. Listings and telemetry pages are
+    # large JSON documents, and compression is the cheapest bandwidth
+    # reduction when replicas are serving remote clients.
+    GZIP_MINIMUM_SIZE_BYTES: int = 1024
 
     # Platform version (single source of truth for /, /health and the API
     # metadata -- bump it here, never in three places).
-    APP_VERSION: str = "0.3.0"
+    APP_VERSION: str = "0.4.0"
 
     # Security
     SECRET_KEY: str = DEFAULT_SECRET_KEY
@@ -183,6 +205,10 @@ class Settings(BaseSettings):
     # flight telemetry store is in-memory per process (see app.robotics.flight)
     # -- this bounds how many frames each flight keeps before eviction.
     ROBOTICS_FLIGHT_RETENTION_FRAMES: int = 1000
+    # In production the flight store is shared through Redis so every API
+    # worker/replica sees the same frames. Keys expire after this long, which
+    # also bounds the flight index on a long-running deployment.
+    ROBOTICS_FLIGHT_TTL_SECONDS: int = 86_400
 
     # Continuous monitoring: scheduled re-checks of areas that have a cadence
     # set (PATCH /analysis/{id}/monitor). The scheduler is a daemon thread in
