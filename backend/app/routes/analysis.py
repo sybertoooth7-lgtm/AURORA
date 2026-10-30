@@ -184,12 +184,10 @@ def _provenance_counts(db: Session, user_id: int) -> dict[str, int]:
             # the cast for every account on the instance.
             as_json = cast(AnalysisResult.metadata_json, JSONB)
             valid = func.pg_input_is_valid(AnalysisResult.metadata_json, "jsonb")
-            provenance = case(
-                (valid, func.jsonb_extract_path_text(as_json, "provenance"))
-            )
-            simulated = case(
-                (valid, func.jsonb_extract_path_text(as_json, "simulated"))
-            )
+            # `->>` rather than jsonb_extract_path_text: the latter's path is
+            # VARIADIC text[], which a scalar bind parameter cannot satisfy.
+            provenance = case((valid, as_json["provenance"].astext))
+            simulated = case((valid, as_json["simulated"].astext))
         else:
             return _provenance_counts_in_python(db, user_id)
 
