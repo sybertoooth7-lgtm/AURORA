@@ -2,6 +2,19 @@
 
 All notable changes to the AURORA platform. Dates are when the change landed on `main`.
 
+## [0.5.0] - 2026-11-01
+
+0.5.0 "FRIDAY" — the console gained a conversational assistant. It answers in plain language from the caller's own rows and nothing else: no model is guessing, every number is read from the account, and it cannot start, change or delete anything. `APP_VERSION` is at `0.5.0`.
+
+### Added
+- **FRIDAY console assistant** (`POST /assistant/ask`, tag "Assistant") — deterministic keyword routing over a bounded snapshot of the caller's areas, alerts, flights and quota (`app/assistant.py`); replies carry `facts`, `links` and `suggestions` the UI renders as chips. Openers such as "hello" and "what can you do" are static copy, not model output. Per-account sliding-window limit `ASSISTANT_RATE_LIMIT_PER_MINUTE` (default 30/min) keeps a client loop from using it as a free account scanner.
+- **Grounding boundaries are enforced, not just prompted** — asking about another account's area id answers "I couldn't find area #N in your account"; action requests ("delete my areas") return a read-only refusal; a flights or quota store outage is reported as unavailable instead of being guessed at. `tests/test_assistant.py` asserts each of these.
+- **Shared provenance roll-up** (`app/provenance.py`) — the real-vs-simulated split used by `/analysis/summary` is now one module the assistant also reads, so the dashboard and the assistant cannot drift on what counts as simulated. Rows with absent or unparseable provenance still count as `unknown`.
+- **Holo-core dock** (`AssistantDock.tsx`, `VoxelCore.tsx`) — a canvas-rendered 98-voxel cube (original art, not the watermarked reference stock) that assembles, rotates and shimmers; a still frame under `prefers-reduced-motion`. Replies scroll to their own first line rather than pinning to the bottom, opt-in voice reads answers through `speechSynthesis` (never the microphone), and Escape or the close button dismisses the dock. Sits at `z-index` 1200 so Leaflet panes stay underneath it.
+
+### Changed
+- `AGENTS.md` records the new 614-test baseline.
+
 ## [0.4.0] - 2026-10-30
 
 0.4.0 "Many workers" — the API now survives being run as several processes behind a load balancer: shared flight state lives outside the process, reads are bounded and indexed, and a slow query or a Redis outage degrades one request instead of the service. `APP_VERSION` is at `0.4.0`.

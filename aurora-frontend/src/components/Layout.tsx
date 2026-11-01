@@ -4,6 +4,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import type { Analysis } from '../lib/types'
 import { ANALYSIS_TYPE_LABELS } from '../lib/types'
+import { AssistantDock } from './AssistantDock'
 
 export interface DashboardContext {
   areas: Analysis[]
@@ -191,6 +192,8 @@ export function Layout() {
           />
         </div>
       </main>
+
+      <AssistantDock />
     </div>
   )
 }

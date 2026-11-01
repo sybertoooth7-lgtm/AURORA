@@ -24,7 +24,7 @@ All commands run from `backend/`:
 & ".\.venv\Scripts\python.exe" -m pytest tests/ -p no:warnings
 ```
 
-Expect exactly **596 tests passing**, `ruff` and `mypy` clean. The venv
+Expect exactly **614 tests passing**, `ruff` and `mypy` clean. The venv
 lives in `backend/.venv`; if it has been recreated elsewhere, substitute
 that path. Note that this shell can truncate pytest's summary line --
 confirm a run by its exit code, not by reading the last line of stdout.

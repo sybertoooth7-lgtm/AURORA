@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     # Platform version (single source of truth for /, /health and the API
     # metadata -- bump it here, never in three places).
-    APP_VERSION: str = "0.4.0"
+    APP_VERSION: str = "0.5.0"
 
     # Security
     SECRET_KEY: str = DEFAULT_SECRET_KEY
@@ -186,6 +186,11 @@ class Settings(BaseSettings):
     # (or one bug in a client retry loop) can burn through the whole
     # account's quota and take real satellite data down for everyone.
     MAX_ANALYSES_PER_USER_PER_DAY: int = 50
+
+    # Console assistant (grounded, read-only questions about the caller's own
+    # areas/alerts/flights/quota). Generous for a human typing, tight enough
+    # that a client loop can't use it as a free scanner over account history.
+    ASSISTANT_RATE_LIMIT_PER_MINUTE: int = 30
 
     # AI pipelines
     # Number of historical observations fetched for history-aware pipelines

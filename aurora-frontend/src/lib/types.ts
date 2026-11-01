@@ -158,6 +158,28 @@ export interface AlertListResponse {
   items: Alert[]
 }
 
+// Console assistant (`POST /assistant/ask`). Every reply is built from the
+// caller's own rows; `facts` are the figures it cites, `links` the pages that
+// show the same data, `suggestions` follow-ups the assistant can answer.
+export interface AssistantFact {
+  label: string
+  value: string
+}
+
+export interface AssistantLink {
+  label: string
+  href: string
+}
+
+export interface AssistantReply {
+  intent: string
+  answer: string
+  facts: AssistantFact[]
+  suggestions: string[]
+  links: AssistantLink[]
+  generated_at: string
+}
+
 // Paged listing (`GET /analysis/`). `total` counts everything the filter
 // matched, not just this page, which is what makes paging honest.
 export interface AnalysisListResponse {

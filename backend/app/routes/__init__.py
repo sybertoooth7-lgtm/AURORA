@@ -5,6 +5,7 @@ from .ai import router as ai_router
 from .alerts import router as alerts_router
 from .analysis import router as analysis_router
 from .api_keys import router as api_keys_router
+from .assistant import router as assistant_router
 from .auth import router as auth_router
 from .crop import router as crop_router
 from .health import router as health_router
@@ -27,6 +28,7 @@ __all__ = [
     "auth_router",
     "api_keys_router",
     "alerts_router",
+    "assistant_router",
     "reports_router",
     "ai_router",
     "crop_router",
