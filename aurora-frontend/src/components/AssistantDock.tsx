@@ -199,7 +199,16 @@ export function AssistantDock() {
 
   useEffect(() => {
     if (!open) return
-    const frame = window.setTimeout(() => inputRef.current?.focus(), 40)
+    const frame = window.setTimeout(() => {
+      inputRef.current?.focus()
+      // The panel mounts closed, so scrollTop starts at 0; reopening should
+      // resume at the newest answer, not replay the whole transcript.
+      const host = scrollRef.current
+      const anchor = lastAssistantRef.current
+      if (host) {
+        host.scrollTop = anchor ? anchor.offsetTop - host.offsetTop - 6 : host.scrollHeight
+      }
+    }, 40)
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
     }
