@@ -12,6 +12,8 @@ import type {
   ApiKeyListEntry,
   ApiKeyListResponse,
   AssistantReply,
+  AssistantRoleKey,
+  AssistantRoleList,
   CropAnalysisResponse,
   CropBulkAnalysisResponse,
   FieldBoundary,
@@ -234,10 +236,12 @@ export const api = {
   acknowledgeAlert: (id: number) =>
     request<Alert>(`/alerts/${id}/acknowledge`, { method: 'POST' }),
 
-  askAssistant: (message: string) =>
+  assistantRoles: () => request<AssistantRoleList>('/assistant/roles'),
+
+  askAssistant: (message: string, role: AssistantRoleKey = 'operator') =>
     request<AssistantReply>('/assistant/ask', {
       method: 'POST',
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, role }),
     }),
 
   listPipelines: () => request<PipelineDescription[]>('/ai/pipelines'),

@@ -2,6 +2,19 @@
 
 All notable changes to the AURORA platform. Dates are when the change landed on `main`.
 
+## [0.6.0] - 2026-11-03
+
+0.6.0 "Lenses" — FRIDAY now runs an explicit four-stage pipeline and can be assigned a role. The lens changes framing and follow-ups; every figure still comes from the caller's own rows. `APP_VERSION` is at `0.6.0`.
+
+### Added
+- **Four-stage pipeline with a visible trace** (`app/assistant.py`) — understand → research → compose → verify, returned in every reply as `steps`. The verify stage re-reads the draft: a claim to have written something, a link outside the console, or an answer with no figures is replaced by an honest refusal and the step is marked `blocked`. User-supplied area labels are stripped before the scan, so an area named like a write claim cannot trip the guard.
+- **Role lenses** (`operator`, `agronomist`, `analyst`, `responder`) — `POST /assistant/ask` accepts `role`; an inline assignment such as "as an agronomist" overrides it and the reply echoes the lens actually used. A lens changes lead framing, the order of a briefing, and the suggested follow-ups — never the counts. `GET /assistant/roles` is the single source for the selector.
+- **Briefing intent** — "give me a briefing", "deep dive" or "what needs attention" runs a wider bounded read (up to 8 recent areas, still two roll-ups) and orders areas by unread alerts, then severity, then role relevance. The overview still reads five rows.
+- **Dock lens selector and reasoning disclosure** (`AssistantDock.tsx`) — the role list is fetched from the API with a built-in fallback, and every answer exposes its four stages in a collapsible trace.
+
+### Changed
+- `AGENTS.md` records the new 626-test baseline.
+
 ## [0.5.0] - 2026-11-01
 
 0.5.0 "FRIDAY" — the console gained a conversational assistant. It answers in plain language from the caller's own rows and nothing else: no model is guessing, every number is read from the account, and it cannot start, change or delete anything. `APP_VERSION` is at `0.5.0`.

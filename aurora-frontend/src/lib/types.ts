@@ -161,6 +161,7 @@ export interface AlertListResponse {
 // Console assistant (`POST /assistant/ask`). Every reply is built from the
 // caller's own rows; `facts` are the figures it cites, `links` the pages that
 // show the same data, `suggestions` follow-ups the assistant can answer.
+// `role` is the lens used and `steps` the pipeline stages it ran.
 export interface AssistantFact {
   label: string
   value: string
@@ -171,13 +172,33 @@ export interface AssistantLink {
   href: string
 }
 
+export type AssistantRoleKey = 'operator' | 'agronomist' | 'analyst' | 'responder'
+
+export interface AssistantRole {
+  key: AssistantRoleKey
+  label: string
+  focus: string
+}
+
+export interface AssistantStep {
+  name: string
+  detail: string
+  status: 'ok' | 'blocked'
+}
+
 export interface AssistantReply {
   intent: string
+  role: AssistantRole
+  steps: AssistantStep[]
   answer: string
   facts: AssistantFact[]
   suggestions: string[]
   links: AssistantLink[]
   generated_at: string
+}
+
+export interface AssistantRoleList {
+  roles: AssistantRole[]
 }
 
 // Paged listing (`GET /analysis/`). `total` counts everything the filter

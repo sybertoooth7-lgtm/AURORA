@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import type { AssistantReply } from '../lib/types'
+import type { AssistantReply, AssistantRole, AssistantRoleKey } from '../lib/types'
 import { VoxelCore } from './VoxelCore'
 
 /**
@@ -11,20 +11,32 @@ import { VoxelCore } from './VoxelCore'
  * the caller's own rows and never invents a figure of its own. The opening
  * message is static copy, not a model greeting. Voice is opt-in and only
  * reads the answer aloud; nothing is sent by microphone.
+ *
+ * The lens selector picks the role the answer is composed in; each reply also
+ * shows the pipeline stages the backend ran so the reasoning is inspectable.
  */
 
 const SUGGESTIONS = [
+  'Give me a briefing',
   'Give me an overview',
   'Show my unread alerts',
   "How's the fleet?",
   'Is my data real or simulated?',
   "What's my quota?",
-  'List my areas',
+]
+
+// Only used if /assistant/roles cannot be reached; the API is the source of
+// truth for the list and its labels.
+const FALLBACK_ROLES: AssistantRole[] = [
+  { key: 'operator', label: 'Operator', focus: 'fleet, monitoring schedules and readiness' },
+  { key: 'agronomist', label: 'Agronomist', focus: 'vegetation, water and climate findings' },
+  { key: 'analyst', label: 'Analyst', focus: 'provenance, anomalies and land change' },
+  { key: 'responder', label: 'Responder', focus: 'unread alerts and incident areas' },
 ]
 
 const OPENING =
-  "Online. I'm FRIDAY, the console assistant. I read your areas, alerts, flights and quota " +
-  'live — ask in plain language.'
+  "Online. I'm FRIDAY, the console assistant. Pick a lens and ask in plain language — " +
+  'I research your areas, alerts, flights and quota live, then show the steps I took.'
 
 interface Turn {
   key: number
@@ -83,6 +95,43 @@ function TurnMessage({
         </dl>
       )}
 
+      {turn.reply && turn.reply.steps.length > 0 && (
+        <details className="mt-2.5 border-t border-[rgba(148,170,196,0.14)] pt-2">
+          <summary className="cursor-pointer text-[0.58rem] tracking-[0.14em] uppercase text-[var(--color-mist-dim)] hover:text-[var(--color-mist)]">
+            Reasoning · {turn.reply.steps.length} steps · {turn.reply.role.label}
+            {turn.reply.steps.some((step) => step.status === 'blocked')
+              ? ' · check blocked'
+              : ''}
+          </summary>
+          <ol className="mt-2 space-y-1.5">
+            {turn.reply.steps.map((step, index) => (
+              <li
+                key={`${step.name}-${index}`}
+                className="flex gap-2 text-[0.68rem] leading-snug"
+              >
+                <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border border-[rgba(148,170,196,0.28)] font-[var(--font-mono)] text-[0.55rem] text-[var(--color-mist-dim)]">
+                  {index + 1}
+                </span>
+                <span className="min-w-0">
+                  <span className="font-[var(--font-mono)] text-[0.58rem] tracking-[0.1em] uppercase text-[var(--color-mist-dim)]">
+                    {step.name}
+                  </span>{' '}
+                  <span
+                    className={
+                      step.status === 'blocked'
+                        ? 'text-[#F0B49E]'
+                        : 'text-[var(--color-mist)]'
+                    }
+                  >
+                    {step.detail}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
+
       {turn.reply && turn.reply.links.length > 0 && (
         <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5 border-t border-[rgba(148,170,196,0.14)] pt-2">
           {turn.reply.links.map((link) => (
@@ -122,12 +171,29 @@ export function AssistantDock() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [voice, setVoice] = useState(false)
+  const [role, setRole] = useState<AssistantRoleKey>('operator')
+  const [roles, setRoles] = useState<AssistantRole[]>(FALLBACK_ROLES)
 
   const nextKey = useRef(1)
   const scrollRef = useRef<HTMLDivElement>(null)
   const lastAssistantRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const voiceRef = useRef(false)
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .assistantRoles()
+      .then((body) => {
+        if (!cancelled) setRoles(body.roles)
+      })
+      .catch(() => {
+        // Keep the built-in list; the backend still validates the key it gets.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     voiceRef.current = voice
@@ -166,7 +232,7 @@ export function AssistantDock() {
       ])
       setPending(true)
       try {
-        const reply = await api.askAssistant(message)
+        const reply = await api.askAssistant(message, role)
         setTurns((previous) => [
           ...previous,
           { key: nextKey.current++, role: 'assistant', text: reply.answer, reply },
@@ -178,7 +244,7 @@ export function AssistantDock() {
         setPending(false)
       }
     },
-    [draft, pending, speak],
+    [draft, pending, role, speak],
   )
 
   // When a new reply lands, show it from its first line rather than pinning
@@ -219,6 +285,10 @@ export function AssistantDock() {
     }
   }, [open])
 
+  const activeRole = useMemo(
+    () => roles.find((entry) => entry.key === role) ?? FALLBACK_ROLES[0],
+    [roles, role],
+  )
   const lastUserMessage = useMemo(
     () => [...turns].reverse().find((turn) => turn.role === 'user')?.text ?? '',
     [turns],
@@ -269,6 +339,33 @@ export function AssistantDock() {
               ×
             </button>
           </header>
+
+          <div className="flex items-center gap-2 border-b border-[rgba(148,170,196,0.12)] bg-[rgba(255,255,255,0.02)] px-3.5 py-1.5">
+            <label
+              htmlFor="friday-lens"
+              className="text-[0.58rem] tracking-[0.16em] uppercase text-[var(--color-mist-dim)]"
+            >
+              Lens
+            </label>
+            <select
+              id="friday-lens"
+              value={role}
+              onChange={(event) => setRole(event.target.value as AssistantRoleKey)}
+              className="rounded-[3px] border border-[rgba(148,170,196,0.28)] bg-[var(--color-night)] px-1.5 py-0.5 text-xs text-[var(--color-snow)]"
+            >
+              {roles.map((entry) => (
+                <option key={entry.key} value={entry.key}>
+                  {entry.label}
+                </option>
+              ))}
+            </select>
+            <span
+              className="min-w-0 flex-1 truncate text-[0.62rem] text-[var(--color-mist-dim)]"
+              title={activeRole?.focus}
+            >
+              {activeRole?.focus}
+            </span>
+          </div>
 
           <div
             ref={scrollRef}

@@ -7,11 +7,24 @@ flight or a payout. A plausible-sounding hallucination is the one failure
 mode an operations console must not have; free-form questions outside the
 known intents get an honest "I can't read that" instead.
 
-Routing is keyword-based and deterministic, so the same question always
-gets the same answer and the whole thing is testable without a provider.
-Replies carry the figures they were built from (``facts``), deep links to
-the page showing the same data (``links``) and follow-up questions the
-assistant can actually answer (``suggestions``).
+Each question runs through four deterministic stages, reported back in the
+reply as ``steps``:
+
+1. **Understand** -- normalise the wording, resolve the intent, the area it
+   names and the role lens (from the request or from "as an agronomist").
+2. **Research** -- read only what that intent needs, in a bounded number of
+   queries. A briefing runs a wider pass over the most recent areas.
+3. **Compose** -- answer in the selected role's framing, citing the figures
+   it was built from (``facts``), deep links (``links``) and follow-ups the
+   assistant can actually answer (``suggestions``).
+4. **Verify** -- re-read the draft against the grounding contract: no claimed
+   writes, no links outside the console, no data-free answers. A draft that
+   fails is replaced with an honest refusal and the step is marked blocked.
+
+Roles are lenses, not datasets: operator, agronomist, analyst and responder
+change what an answer leads with and which questions are suggested, never
+the counts behind it. Routing stays keyword-based and deterministic, so the
+same question in the same role always gets the same answer.
 """
 
 import re
@@ -30,7 +43,14 @@ from app.models.user import User
 from app.provenance import count_by_provenance
 from app.quota import current_daily_quota_usage
 from app.robotics.flight import flight_store
-from app.schemas.assistant import AssistantFact, AssistantLink, AssistantReply
+from app.schemas.assistant import (
+    AssistantFact,
+    AssistantLink,
+    AssistantReply,
+    AssistantRole,
+    AssistantRoleKey,
+    AssistantStep,
+)
 
 logger = get_logger(__name__)
 
@@ -69,14 +89,76 @@ TYPE_KEYWORDS = {
 # Areas scanned when matching a question to one of the caller's areas by name.
 NAME_SEARCH_LIMIT = 500
 
+# A briefing reads wider than the five-row overview but stays bounded.
+BRIEFING_AREA_LIMIT = 8
+
 SUGGESTIONS_GENERAL = [
+    "Give me a briefing",
     "Give me an overview",
     "Show my unread alerts",
     "How's the fleet?",
     "Is my data real or simulated?",
     "What's my quota?",
-    "List my areas",
 ]
+
+
+@dataclass(frozen=True)
+class Role:
+    """A lens over the same data. Framing changes; figures never do."""
+
+    key: AssistantRoleKey
+    label: str
+    focus: str
+    priority_types: tuple[str, ...]
+    suggestions: tuple[str, ...]
+
+
+# Insertion order is the order the console offers them in.
+ROLES: dict[str, Role] = {
+    "operator": Role(
+        key="operator",
+        label="Operator",
+        focus="fleet, monitoring schedules and day-to-day readiness",
+        priority_types=("robotics_inspection", "infrastructure_monitoring"),
+        suggestions=("How's the fleet?", "List my areas", "What's my quota?"),
+    ),
+    "agronomist": Role(
+        key="agronomist",
+        label="Agronomist",
+        focus="vegetation, water and climate findings across your fields",
+        priority_types=("vegetation_stress", "water_monitoring", "climate_impact"),
+        suggestions=("List vegetation areas", "List water areas", "Show my unread alerts"),
+    ),
+    "analyst": Role(
+        key="analyst",
+        label="Analyst",
+        focus="data provenance, anomalies and land change",
+        priority_types=("anomaly_detection", "land_change", "insurance_index"),
+        suggestions=(
+            "Is my data real or simulated?",
+            "List anomaly areas",
+            "What's my quota?",
+        ),
+    ),
+    "responder": Role(
+        key="responder",
+        label="Responder",
+        focus="unread alerts, incident areas and fleet attention",
+        priority_types=("wildfire_risk", "flood_monitoring", "anomaly_detection"),
+        suggestions=("Show my unread alerts", "How's the fleet?", "Give me an overview"),
+    ),
+}
+
+DEFAULT_ROLE = "operator"
+
+# Phrasings that assign a role inside the message itself. An explicit inline
+# assignment wins over the selector, and the reply always echoes the lens used.
+ROLE_ALIASES: dict[str, tuple[str, ...]] = {
+    "operator": ("operator", "ops", "operations"),
+    "agronomist": ("agronomist", "agronomy", "grower", "farmer"),
+    "analyst": ("analyst", "risk analyst", "data analyst"),
+    "responder": ("responder", "incident responder", "first responder"),
+}
 
 
 @dataclass
@@ -196,6 +278,33 @@ def _area_snapshots(
             )
         )
     return snapshots
+
+
+def _research_areas(
+    db: Session, user_id: int, role: Role, limit: int = BRIEFING_AREA_LIMIT
+) -> list[AreaSnapshot]:
+    """The wider read a briefing runs: recent areas plus their latest findings.
+
+    Still bounded (one page of rows, two roll-up queries), but deeper than the
+    five-row overview. Attention order is unread alerts, then severity, with
+    the role's own analysis types breaking ties.
+    """
+    rows = (
+        db.query(Analysis)
+        .filter(Analysis.user_id == user_id)
+        .order_by(Analysis.created_at.desc(), Analysis.id.desc())
+        .limit(limit)
+        .all()
+    )
+    areas = _area_snapshots(db, rows)
+    return sorted(
+        areas,
+        key=lambda area: (
+            -area.unread_alerts,
+            -(area.latest_severity or 0.0),
+            0 if area.analysis_type in role.priority_types else 1,
+        ),
+    )
 
 
 def build_snapshot(db: Session, user: User) -> Snapshot:
@@ -352,6 +461,26 @@ def _type_match(text: str) -> str | None:
     return None
 
 
+def _role_from_text(text: str) -> str | None:
+    """Pick up an assignment like "as an agronomist" or "responder mode"."""
+    for key, aliases in ROLE_ALIASES.items():
+        for alias in aliases:
+            escaped = re.escape(alias)
+            patterns = (
+                rf"\b(?:as|act as|in the role of|role of)\s+(?:a\s+|an\s+)?{escaped}\b",
+                rf"\b{escaped}\s+(?:role|mode|lens)\b",
+            )
+            if any(re.search(pattern, text) for pattern in patterns):
+                return key
+    return None
+
+
+def resolve_role(requested: str | None, text: str) -> Role:
+    """Inline assignment first, then the request's role, then the default."""
+    inline = _role_from_text(text)
+    return ROLES.get(inline or requested or DEFAULT_ROLE) or ROLES[DEFAULT_ROLE]
+
+
 ACTION_WORDS = (
     "delete",
     "remove",
@@ -416,7 +545,25 @@ def _route(text: str, area_id: int | None) -> str:
         return "quota"
     if _has(text, ("verify", "verified", "verification", "confirmed")):
         return "verification"
-    if _has(text, ("overview", "status", "summary", "briefing", "dashboard")) or _has(
+    if _has(
+        text,
+        (
+            "briefing",
+            "brief me",
+            "deep dive",
+            "deep research",
+            "research",
+            "investigate",
+            "priorities",
+            "prioritise",
+            "prioritize",
+            "where should i focus",
+            "what should i look at",
+            "what needs attention",
+        ),
+    ):
+        return "briefing"
+    if _has(text, ("overview", "status", "summary", "dashboard")) or _has(
         text, ("how are things", "how is my account", "what s happening", "whats happening")
     ):
         return "overview"
@@ -424,6 +571,11 @@ def _route(text: str, area_id: int | None) -> str:
         text, ("what can you do", "how do i use", "how do i create", "what do you know")
     ):
         return "help"
+    if _has(text, ("roles", "personas")) or (
+        _has(text, ("role", "lens"))
+        and _has(text, ("what", "which", "list", "show", "available", "switch", "can you"))
+    ):
+        return "roles"
     if _has(text, ("who are you", "what are you", "your name", "who is this")):
         return "identity"
     if _is_greeting(text):
@@ -501,11 +653,57 @@ def _links(*pairs: tuple[str, str]) -> list[AssistantLink]:
     return [AssistantLink(label=label, href=href) for label, href in pairs]
 
 
-def _overview(snapshot: Snapshot):
+def _role_note(snapshot: Snapshot, role: Role) -> str:
+    """One grounded sentence in the selected role's frame."""
+    types = snapshot.by_type
+    if role.key == "agronomist":
+        vegetation = types.get("vegetation_stress", 0)
+        water = types.get("water_monitoring", 0)
+        climate = types.get("climate_impact", 0)
+        total = vegetation + water + climate
+        if total == 0:
+            return "Agronomist lens: no vegetation, water or climate areas yet."
+        return (
+            f"Agronomist lens: {vegetation} vegetation, {water} water and {climate} "
+            f"climate {_plural(total, 'area')} on file."
+        )
+    if role.key == "analyst":
+        real = snapshot.provenance.get("real", 0)
+        simulated = snapshot.provenance.get("simulated", 0)
+        anomalies = types.get("anomaly_detection", 0)
+        change = types.get("land_change", 0)
+        return (
+            f"Analyst lens: {real} real and {simulated} simulated results; "
+            f"{anomalies} anomaly and {change} land-change "
+            f"{_plural(anomalies + change, 'area')}."
+        )
+    if role.key == "responder":
+        if snapshot.unread_alerts == 0:
+            return "Responder lens: no unread alerts on any area."
+        critical = snapshot.alerts_by_type.get("critical", 0)
+        warning = snapshot.alerts_by_type.get("warning", 0)
+        return (
+            f"Responder lens: {snapshot.unread_alerts} unread "
+            f"({critical} critical, {warning} warning) across your areas."
+        )
+    if snapshot.flights_error:
+        fleet = "the flight store is unreachable"
+    else:
+        fleet = (
+            f"{len(snapshot.flights)} "
+            f"{_plural(len(snapshot.flights), 'flight')} reporting telemetry"
+        )
+    return (
+        f"Operator lens: {snapshot.monitored} "
+        f"{_plural(snapshot.monitored, 'area')} on a monitoring schedule; {fleet}."
+    )
+
+
+def _overview(snapshot: Snapshot, role: Role):
     if snapshot.total_areas == 0:
         return (
             "You don't have any areas yet. Create one with + New area and I'll read its "
-            "findings, alerts and data provenance back to you here.",
+            f"findings, alerts and data provenance back to you here. {_role_note(snapshot, role)}",
             _facts(
                 ("Areas", "0"),
                 ("Unread alerts", str(snapshot.unread_alerts)),
@@ -528,6 +726,7 @@ def _overview(snapshot: Snapshot):
         parts.append(
             f"{snapshot.monitored} {_plural(snapshot.monitored, 'is', 'are')} on a monitoring schedule."
         )
+    parts.append(_role_note(snapshot, role))
     if snapshot.unread_alerts:
         parts.append(
             f"{snapshot.unread_alerts} unread {_plural(snapshot.unread_alerts, 'alert')} in the inbox."
@@ -555,6 +754,83 @@ def _overview(snapshot: Snapshot):
         _facts(*facts),
         SUGGESTIONS_GENERAL,
         _links(("Overview", "/app"), ("Operations", "/app/operations")),
+    )
+
+
+def _briefing(snapshot: Snapshot, role: Role, researched: list[AreaSnapshot]):
+    """The deeper research pass: role-ordered findings across recent areas."""
+    if snapshot.total_areas == 0:
+        return (
+            "There's nothing to brief yet — you don't have any areas. Create one with + New "
+            "area and I'll research its findings, alerts and data provenance here.",
+            _facts(("Areas", "0"), ("Areas reviewed", "0")),
+            ["What can you do?", "How's the fleet?"],
+            _links(("New area", "/app/areas/new"), ("Overview", "/app")),
+        )
+
+    reviewed = len(researched)
+    parts = [
+        f"{role.label} briefing across {reviewed} of {snapshot.total_areas} "
+        f"{_plural(snapshot.total_areas, 'area')} (most recent first).",
+        f"{_spread(snapshot.by_status)}; {snapshot.monitored} on a monitoring schedule.",
+    ]
+
+    attention = [area for area in researched if area.unread_alerts]
+    if attention:
+        parts.append("Attention first:")
+        for area in attention[:5]:
+            line = (
+                f"• {area.label} (#{area.id}) — {area.unread_alerts} unread "
+                f"{_plural(area.unread_alerts, 'alert')}"
+            )
+            if area.latest_severity is not None:
+                line += f", latest severity {area.latest_severity:.2f}"
+            parts.append(line)
+    else:
+        parts.append("No area has unread alerts.")
+
+    parts.append("Latest findings:")
+    parts.extend(_area_line(area) for area in researched)
+    parts.append(_role_note(snapshot, role))
+    parts.append(_provenance_sentence(snapshot.provenance))
+    parts.append(_quota_sentence(snapshot))
+
+    if snapshot.flights_error:
+        parts.append(
+            "Flight telemetry is unreachable right now, so I won't guess at fleet status."
+        )
+    elif snapshot.flights:
+        needing_attention = sum(
+            1
+            for flight in snapshot.flights
+            if flight["flight_health"]["status"] in {"caution", "critical"}
+        )
+        parts.append(
+            f"{len(snapshot.flights)} {_plural(len(snapshot.flights), 'flight')} reporting; "
+            + ("all healthy." if not needing_attention else f"{needing_attention} need attention.")
+        )
+    else:
+        parts.append("No flights are reporting telemetry right now.")
+
+    facts = [
+        ("Role", role.label),
+        ("Areas reviewed", f"{reviewed} of {snapshot.total_areas}"),
+        ("Unread alerts", str(snapshot.unread_alerts)),
+        ("Real results", str(snapshot.provenance.get("real", 0))),
+        ("Simulated results", str(snapshot.provenance.get("simulated", 0))),
+    ]
+    if snapshot.quota_used is not None:
+        facts.append(
+            ("Quota left today", str(max(snapshot.quota_limit - snapshot.quota_used, 0)))
+        )
+    links = [("Overview", "/app")] + [
+        (f"Open {area.label}", f"/app/areas/{area.id}") for area in researched[:4]
+    ]
+    return (
+        "\n".join(parts),
+        _facts(*facts),
+        ["Give me an overview", "Show my unread alerts"],
+        _links(*links),
     )
 
 
@@ -865,14 +1141,34 @@ def _areas(db: Session, snapshot: Snapshot, text: str):
 
 def _help():
     return (
-        "I read your account live and answer in plain language. I can: summarise your areas, "
-        "list unread alerts, check the flight fleet, explain whether findings are real or "
-        "simulated, report today's analysis quota, describe a specific area by name or number, "
-        "and explain parametric insurance checks. I only read — I can't launch, change or "
-        "delete anything.",
-        _facts(("Mode", "read-only"), ("Data", "your account, live")),
+        "I read your account live and answer in plain language. I can: research a briefing "
+        "across your most recent areas, summarise your areas, list unread alerts, check the "
+        "flight fleet, explain whether findings are real or simulated, report today's analysis "
+        "quota, describe a specific area by name or number, and explain parametric insurance "
+        "checks. I work in four role lenses — operator, agronomist, analyst and responder — "
+        "and I only read: I can't launch, change or delete anything.",
+        _facts(
+            ("Mode", "read-only"),
+            ("Data", "your account, live"),
+            ("Role lenses", str(len(ROLES))),
+        ),
         SUGGESTIONS_GENERAL,
         _links(("Overview", "/app"), ("Settings", "/app/settings")),
+    )
+
+
+def _roles(role: Role):
+    lines = [
+        "I can work in four role lenses. Assign one with the Lens selector, or say "
+        "'as an agronomist'. A lens changes what I lead with and the questions I suggest; "
+        "the figures still come only from your own rows."
+    ]
+    lines.extend(f"• {entry.label} — {entry.focus}." for entry in ROLES.values())
+    return (
+        "\n".join(lines),
+        _facts(("Roles", str(len(ROLES))), ("Current lens", role.label)),
+        ["Give me a briefing", "What can you do?"],
+        _links(("Overview", "/app")),
     )
 
 
@@ -881,14 +1177,15 @@ def _identity():
         "I'm FRIDAY, the AURORA console assistant. I'm a deterministic assistant built into "
         "this console — there's no language model behind me. Every figure I give you is read "
         "from your own rows in the same request, which is why I can't make up a finding, a "
-        "flight or a payout.",
+        "flight or a payout. I run four stages — understand, research, compose, verify — and "
+        "can work as an operator, agronomist, analyst or responder.",
         _facts(("Identity", "FRIDAY (AURORA console)"), ("Answers from", "your live account data")),
         SUGGESTIONS_GENERAL,
         _links(("Overview", "/app")),
     )
 
 
-def _greeting_reply(snapshot: Snapshot):
+def _greeting_reply(snapshot: Snapshot, role: Role):
     if snapshot.unread_alerts:
         state = (
             f"You have {snapshot.unread_alerts} unread "
@@ -897,7 +1194,8 @@ def _greeting_reply(snapshot: Snapshot):
     else:
         state = "No unread alerts right now."
     return (
-        f"Online. I'm FRIDAY — I read your areas, alerts, flights and quota live. {state}",
+        f"Online. I'm FRIDAY — I read your areas, alerts, flights and quota live, "
+        f"currently through the {role.label.lower()} lens. {state}",
         _facts(
             ("Areas", str(snapshot.total_areas)),
             ("Unread alerts", str(snapshot.unread_alerts)),
@@ -949,15 +1247,113 @@ def _fallback(text: str):
     )
 
 
-def answer_question(db: Session, user: User, message: str) -> AssistantReply:
-    """Route one question to a grounded answer. Pure read path, no writes."""
+# Phrases a grounded reply must never contain. User-supplied labels are
+# stripped before this scan, so an area legitimately named "I deleted the
+# fence" cannot trip the guard that stops the assistant claiming a write.
+WRITE_CLAIMS = (
+    "i created",
+    "i deleted",
+    "i launched",
+    "i started",
+    "i scheduled",
+    "i updated",
+    "i cancelled",
+    "i canceled",
+    "i removed",
+    "i stopped",
+    "has been created",
+    "has been deleted",
+    "has been launched",
+)
+
+NO_FACT_INTENTS = {"thanks"}
+
+
+def _verify(
+    intent: str,
+    answer: str,
+    facts: list[AssistantFact],
+    links: list[AssistantLink],
+    labels: set[str],
+) -> str | None:
+    """Re-read a draft against the grounding contract; return a failure or None."""
+    text = answer.lower()
+    for label in labels:
+        if label:
+            text = text.replace(label.lower(), " area ")
+    for claim in WRITE_CLAIMS:
+        if claim in text:
+            return f"the draft claimed a write ('{claim}')"
+    for link in links:
+        if not link.href.startswith("/app"):
+            return "a link pointed outside the console"
+    if intent not in NO_FACT_INTENTS and not facts:
+        return "the draft cited no figures"
+    if not answer.strip():
+        return "the draft was empty"
+    return None
+
+
+def _with_role_suggestions(role: Role, base: list[str]) -> list[str]:
+    merged = list(role.suggestions)
+    for suggestion in base:
+        if suggestion not in merged:
+            merged.append(suggestion)
+    return merged[:6]
+
+
+def _understand_step(
+    intent: str, area_id: int | None, role: Role, inline: bool
+) -> AssistantStep:
+    target = f"area #{area_id}" if area_id is not None else "your account"
+    lens = f"{role.label} lens" + (" from your wording" if inline else "")
+    return AssistantStep(
+        name="Understand",
+        detail=f"Read as {intent.replace('_', ' ')}, about {target}, through the {lens}.",
+    )
+
+
+def _research_step(snapshot: Snapshot, intent: str, reviewed: int) -> AssistantStep:
+    if intent == "briefing":
+        detail = (
+            f"Ran the deeper pass over the {reviewed} most recent areas, their latest "
+            "findings, unread alerts, quota and fleet."
+        )
+    else:
+        quota = "quota unavailable" if snapshot.quota_used is None else "today's quota"
+        flights = (
+            "the flight store unreachable"
+            if snapshot.flights_error
+            else f"{len(snapshot.flights)} reporting flights"
+        )
+        detail = (
+            f"Read {snapshot.total_areas} areas, {snapshot.unread_alerts} unread alerts, "
+            f"{flights} and {quota} from your account."
+        )
+    return AssistantStep(name="Research", detail=detail)
+
+
+def answer_question(
+    db: Session, user: User, message: str, role_key: str = DEFAULT_ROLE
+) -> AssistantReply:
+    """Run one question through understand -> research -> compose -> verify."""
     text = _normalize(message)
+    inline_role = _role_from_text(text)
+    role = resolve_role(role_key, text)
     snapshot = build_snapshot(db, user)
     area_id = _match_area_id(snapshot, text)
     intent = _route(text, area_id)
 
-    if intent == "overview":
-        answer, facts, suggestions, links = _overview(snapshot)
+    researched = _research_areas(db, user.id, role) if intent == "briefing" else []
+    steps = [
+        _understand_step(intent, area_id, role, inline_role is not None),
+        _research_step(snapshot, intent, len(researched)),
+    ]
+
+    if intent == "briefing":
+        answer, facts, suggestions, links = _briefing(snapshot, role, researched)
+    elif intent == "overview":
+        answer, facts, suggestions, links = _overview(snapshot, role)
     elif intent == "alerts":
         answer, facts, suggestions, links = _alerts(snapshot)
     elif intent == "flights":
@@ -976,18 +1372,63 @@ def answer_question(db: Session, user: User, message: str) -> AssistantReply:
         answer, facts, suggestions, links = _areas(db, snapshot, text)
     elif intent == "help":
         answer, facts, suggestions, links = _help()
+    elif intent == "roles":
+        answer, facts, suggestions, links = _roles(role)
     elif intent == "identity":
         answer, facts, suggestions, links = _identity()
     elif intent == "greeting":
-        answer, facts, suggestions, links = _greeting_reply(snapshot)
+        answer, facts, suggestions, links = _greeting_reply(snapshot, role)
     elif intent == "thanks":
         answer, facts, suggestions, links = _thanks()
     else:
         intent = "fallback"
         answer, facts, suggestions, links = _fallback(text)
 
+    suggestions = _with_role_suggestions(role, suggestions)
+    steps.append(
+        AssistantStep(
+            name="Compose",
+            detail=(
+                f"Composed the {role.label.lower()} answer from those rows only; "
+                "simulated results stay labelled."
+            ),
+        )
+    )
+
+    labels = {area.label for area in snapshot.areas}
+    labels.update(area.label for area in researched)
+    labels.update(alert.title for alert in snapshot.recent_alerts)
+    labels.update(description for _, description in snapshot.named_areas)
+    failure = _verify(intent, answer, facts, links, labels)
+    if failure:
+        intent = "fallback"
+        answer = (
+            "I stopped myself before answering: the draft broke my grounding rule — "
+            f"{failure} — so I won't show it. Ask again, or start from an overview."
+        )
+        facts = _facts(("Mode", "read-only"), ("Grounding check", "blocked"))
+        suggestions = _with_role_suggestions(role, [])
+        links = _links(("Overview", "/app"))
+        steps.append(
+            AssistantStep(
+                name="Verify", detail=f"Blocked the draft: {failure}.", status="blocked"
+            )
+        )
+    else:
+        steps.append(
+            AssistantStep(
+                name="Verify",
+                detail=(
+                    "Passed: read-only, every link stays in the console, and the answer "
+                    "cites the rows it read."
+                ),
+            )
+        )
+
     return AssistantReply(
         intent=intent,
+        role=AssistantRole(key=role.key, label=role.label, focus=role.focus),
+        steps=steps,
         answer=answer,
         facts=facts,
         suggestions=suggestions,

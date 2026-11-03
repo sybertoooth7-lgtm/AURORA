@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     # Platform version (single source of truth for /, /health and the API
     # metadata -- bump it here, never in three places).
-    APP_VERSION: str = "0.5.0"
+    APP_VERSION: str = "0.6.0"
 
     # Security
     SECRET_KEY: str = DEFAULT_SECRET_KEY

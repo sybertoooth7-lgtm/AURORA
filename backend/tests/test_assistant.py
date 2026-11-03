@@ -75,8 +75,11 @@ def _account(client, password="correcthorsebatterystaple"):
     return {"Authorization": f"Bearer {token}"}, username
 
 
-def _ask(client, auth, message):
-    response = client.post("/assistant/ask", headers=auth, json={"message": message})
+def _ask(client, auth, message, role=None):
+    payload = {"message": message}
+    if role is not None:
+        payload["role"] = role
+    response = client.post("/assistant/ask", headers=auth, json=payload)
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -289,3 +292,173 @@ class TestGroundingBoundaries:
         body = _ask(client, auth, "what is the weather in paris tomorrow?")
         assert body["intent"] == "fallback"
         assert "can't read that" in body["answer"]
+
+
+def _add_alert(username, analysis_id, title="River level rising"):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username).first()
+        result = (
+            db.query(AnalysisResult)
+            .filter(AnalysisResult.analysis_id == analysis_id)
+            .order_by(AnalysisResult.id.desc())
+            .first()
+        )
+        db.add(
+            Alert(
+                user_id=user.id,
+                analysis_result_id=result.id,
+                alert_type="critical",
+                title=title,
+                description="test",
+                is_read=False,
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+class TestRoleLenses:
+    def test_default_role_is_operator(self, client):
+        auth, _ = _account(client)
+        body = _ask(client, auth, "hello")
+        assert body["role"] == {
+            "key": "operator",
+            "label": "Operator",
+            "focus": "fleet, monitoring schedules and day-to-day readiness",
+        }
+
+    def test_role_reframes_without_changing_figures(self, client):
+        auth, _ = _account(client)
+        _create(client, auth, description="north paddock")
+        _create(client, auth, analysis_type="flood_monitoring", description="river bend")
+
+        operator = _ask(client, auth, "give me an overview")
+        agronomist = _ask(client, auth, "give me an overview", role="agronomist")
+
+        assert agronomist["role"]["key"] == "agronomist"
+        assert "Agronomist lens" in agronomist["answer"]
+        assert "Operator lens" in operator["answer"]
+        operator_facts = {fact["label"]: fact["value"] for fact in operator["facts"]}
+        agronomist_facts = {fact["label"]: fact["value"] for fact in agronomist["facts"]}
+        for label in ("Areas", "Real results", "Simulated results", "Unread alerts"):
+            assert operator_facts[label] == agronomist_facts[label]
+
+    def test_inline_assignment_overrides_the_selector(self, client):
+        auth, _ = _account(client)
+        body = _ask(
+            client,
+            auth,
+            "as an analyst, give me an overview",
+            role="operator",
+        )
+        assert body["role"]["key"] == "analyst"
+        assert "Analyst lens" in body["answer"]
+
+    def test_roles_endpoint_lists_every_lens(self, client):
+        auth, _ = _account(client)
+        assert client.get("/assistant/roles").status_code == 401
+
+        response = client.get("/assistant/roles", headers=auth)
+        assert response.status_code == 200
+        assert [role["key"] for role in response.json()["roles"]] == [
+            "operator",
+            "agronomist",
+            "analyst",
+            "responder",
+        ]
+
+    def test_role_question_lists_the_lenses(self, client):
+        auth, _ = _account(client)
+        body = _ask(client, auth, "what roles can you take?")
+        assert body["intent"] == "roles"
+        for label in ("Operator", "Agronomist", "Analyst", "Responder"):
+            assert label in body["answer"]
+
+    def test_unknown_role_is_rejected(self, client):
+        auth, _ = _account(client)
+        response = client.post(
+            "/assistant/ask",
+            headers=auth,
+            json={"message": "hi", "role": "intruder"},
+        )
+        assert response.status_code == 422
+
+    def test_role_changes_the_follow_up_questions(self, client):
+        auth, _ = _account(client)
+        responder = _ask(client, auth, "give me an overview", role="responder")
+        analyst = _ask(client, auth, "give me an overview", role="analyst")
+        assert responder["suggestions"][0] == "Show my unread alerts"
+        assert "Is my data real or simulated?" in analyst["suggestions"]
+
+
+class TestReasoningPipeline:
+    def test_every_answer_reports_all_four_stages(self, client):
+        auth, _ = _account(client)
+        body = _ask(client, auth, "give me an overview")
+        assert [step["name"] for step in body["steps"]] == [
+            "Understand",
+            "Research",
+            "Compose",
+            "Verify",
+        ]
+        assert all(step["status"] == "ok" for step in body["steps"])
+        assert "Operator" in body["steps"][0]["detail"]
+
+    def test_briefing_researches_deeper_than_the_overview(self, client):
+        auth, _ = _account(client)
+        for index in range(6):
+            _create(client, auth, description=f"plot {index}")
+
+        overview = _ask(client, auth, "give me an overview")
+        briefing = _ask(client, auth, "give me a briefing")
+
+        assert briefing["intent"] == "briefing"
+        # The overview reads the five most recent areas; the briefing reads all six.
+        assert "plot 0" not in overview["answer"]
+        assert "plot 0" in briefing["answer"]
+        facts = {fact["label"]: fact["value"] for fact in briefing["facts"]}
+        assert facts["Areas reviewed"] == "6 of 6"
+        assert "Areas reviewed" not in {fact["label"] for fact in overview["facts"]}
+        assert "deeper pass" in briefing["steps"][1]["detail"]
+
+    def test_briefing_puts_unread_alert_areas_first(self, client):
+        auth, username = _account(client)
+        _create(client, auth, description="quiet plot")
+        _create(client, auth, description="middle plot")
+        alert_area = _create(client, auth, description="alert plot")
+        _add_alert(username, alert_area["id"], title="Fence breach")
+
+        body = _ask(client, auth, "deep dive")
+        assert body["intent"] == "briefing"
+        assert "Attention first:" in body["answer"]
+        assert body["answer"].index("alert plot") < body["answer"].index("quiet plot")
+        assert "1 unread alert" in body["answer"]
+        assert any(
+            link["href"] == f"/app/areas/{alert_area['id']}" for link in body["links"]
+        )
+
+    def test_verification_blocks_a_draft_that_claims_a_write(self, client, monkeypatch):
+        auth, _ = _account(client)
+
+        def bad_overview(snapshot, role):
+            return ("I deleted your areas.", [], ["Show my areas"], [])
+
+        monkeypatch.setattr("app.assistant._overview", bad_overview)
+        body = _ask(client, auth, "give me an overview")
+
+        assert body["intent"] == "fallback"
+        assert "grounding rule" in body["answer"]
+        assert "I deleted your areas" not in body["answer"]
+        assert body["steps"][-1]["status"] == "blocked"
+        assert body["steps"][-1]["name"] == "Verify"
+
+    def test_area_named_like_a_write_claim_does_not_trip_the_guard(self, client):
+        auth, _ = _account(client)
+        _create(client, auth, description="i deleted the fence")
+
+        body = _ask(client, auth, "give me a briefing")
+        assert body["intent"] == "briefing"
+        assert "i deleted the fence" in body["answer"]
+        assert all(step["status"] == "ok" for step in body["steps"])
